@@ -15,6 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import GradientButton from '../components/GradientButton';
 import GlassInput from '../components/GlassInput';
+import { signUpWithEmail } from '../services/authService';
+import { useToast } from '../context/ToastContext';
 
 const SignupScreen = ({ navigation }) => {
   const [fullName, setFullName] = useState('');
@@ -22,6 +24,7 @@ const SignupScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { showError, showSuccess } = useToast();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -42,30 +45,40 @@ const SignupScreen = ({ navigation }) => {
     ]).start();
   }, []);
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!fullName || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showError('Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showError('Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      showError('Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert('Success', 'Account created successfully!', [
-        { text: 'OK', onPress: () => navigation.navigate('Login') },
-      ]);
-    }, 1500);
+    
+    const result = await signUpWithEmail(email, password, fullName);
+    
+    if (result.success) {
+      showSuccess('Account created successfully! You can now login.');
+      // Navigate after a short delay to show the toast
+      setTimeout(() => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        });
+      }, 2000);
+    } else {
+      showError(result.error || 'Could not create account');
+    }
+    
+    setLoading(false);
   };
 
   return (

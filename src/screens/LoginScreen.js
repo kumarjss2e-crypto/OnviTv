@@ -15,11 +15,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import GradientButton from '../components/GradientButton';
 import GlassInput from '../components/GlassInput';
+import { signInWithEmail } from '../services/authService';
+import { useToast } from '../context/ToastContext';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { showError } = useToast();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -40,18 +43,27 @@ const LoginScreen = ({ navigation }) => {
     ]).start();
   }, []);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showError('Please fill in all fields');
       return;
     }
 
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert('Success', 'Login functionality will be implemented here!');
-    }, 1500);
+    
+    const result = await signInWithEmail(email, password);
+    
+    if (result.success) {
+      // Navigate to main app
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
+    } else {
+      showError(result.error || 'Invalid email or password');
+    }
+    
+    setLoading(false);
   };
 
   return (
