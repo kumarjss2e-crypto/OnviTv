@@ -113,28 +113,29 @@
   - [x] Fetch featured content
   - [x] Pull to refresh
 
-### **1.6 Live TV Screen** ⏳
-- [ ] Create LiveTVScreen.js
-  - [ ] Category tabs (dynamic from playlists)
-  - [ ] Channel grid/list view
-  - [ ] Channel card design
-  - [ ] Current program display (EPG)
-  - [ ] Next program display
-  - [ ] Favorite icon
-  - [ ] Search functionality
-  - [ ] Filter options
-  - [ ] Grid/List toggle
-- [ ] Implement channel loading
-  - [ ] Fetch from Firestore
-  - [ ] Filter by category
-  - [ ] Sort options
-  - [ ] Pagination/infinite scroll
-- [ ] Create ChannelCard.js component
-  - [ ] Channel logo
-  - [ ] Channel name
-  - [ ] Current program
-  - [ ] Progress bar
-  - [ ] Favorite button
+### **1.6 Live TV Screen** ✅
+- [x] Create LiveTVScreen.js
+  - [x] Category tabs (dynamic from playlists)
+  - [x] Channel grid/list view
+  - [x] Channel card design
+  - [x] Current program display (EPG)
+  - [x] Next program display
+  - [x] Favorite icon
+  - [x] Search functionality
+  - [x] Filter options
+  - [x] Grid/List toggle
+  - [x] Fixed category tabs scrolling and height
+- [x] Implement channel loading
+  - [x] Fetch from Firestore
+  - [x] Filter by category
+  - [x] Sort options
+  - [x] Pagination/infinite scroll
+- [x] Create ChannelCard.js component
+  - [x] Channel logo
+  - [x] Channel name
+  - [x] Current program
+  - [x] Progress bar
+  - [x] Favorite button
 
 ### **1.7 Video Player** ⏳
 - [ ] Install video player package
@@ -867,9 +868,9 @@
 
 ### **Next Week:**
 1. ✅ Create Live TV screen
-2. ✅ Integrate video player
-3. ✅ Implement EPG display
-4. ✅ Add favorites functionality
+2. ⏳ Integrate video player
+3. ⏳ Implement EPG display
+4. ⏳ Add favorites functionality
 
 ---
 

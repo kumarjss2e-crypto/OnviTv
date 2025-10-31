@@ -49,17 +49,16 @@ export const parseM3UPlaylist = async (playlistId, userId, m3uUrl) => {
       series: parsedData.series.length,
     });
 
-    await setPlaylistParsingStatus(playlistId, true, { step: 'Saving content', progress: 40 });
+    await setPlaylistParsingStatus(playlistId, true, { step: 'Cleaning up old content', progress: 40 });
 
-    // Step 3: Save new content to Firestore FIRST
-    const stats = await saveToFirestore(playlistId, userId, parsedData);
-
-    await setPlaylistParsingStatus(playlistId, true, { step: 'Cleaning up', progress: 80 });
-
-    // Step 4: Clear old content ONLY after new content is saved successfully
-    // This prevents data loss if parsing is cancelled
-    // Note: For first-time parsing, this will be very fast (nothing to delete)
+    // Step 3: Clear old content FIRST before saving new content
+    // This prevents us from deleting the content we just saved
     await clearPlaylistContent(playlistId);
+
+    await setPlaylistParsingStatus(playlistId, true, { step: 'Saving content', progress: 50 });
+
+    // Step 4: Save new content to Firestore
+    const stats = await saveToFirestore(playlistId, userId, parsedData);
 
     await setPlaylistParsingStatus(playlistId, true, { step: 'Updating stats', progress: 90 });
 

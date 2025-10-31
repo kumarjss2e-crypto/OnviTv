@@ -11,6 +11,7 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,6 +54,7 @@ const HomeScreen = ({ navigation }) => {
 
     try {
       setLoading(true);
+      console.log('Loading data for userId:', user.uid);
 
       // Load all data in parallel
       const [continueResult, favoritesResult, moviesResult, seriesResult, channelsResult, playlistsResult] = await Promise.all([
@@ -80,6 +82,11 @@ const HomeScreen = ({ navigation }) => {
         channels: channelsResult.data?.length || 0,
         playlists: playlistsResult.data?.length || 0,
       });
+
+      // Log errors if any
+      if (!moviesResult.success) console.error('Movies error:', moviesResult.error);
+      if (!seriesResult.success) console.error('Series error:', seriesResult.error);
+      if (!channelsResult.success) console.error('Channels error:', channelsResult.error);
 
       // Check if user has any content
       const hasAnyContent = 
@@ -209,6 +216,18 @@ const HomeScreen = ({ navigation }) => {
           resizeMode="contain"
         />
         <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.iconButton} 
+            onPress={onRefresh}
+            disabled={refreshing}
+          >
+            <Ionicons 
+              name="refresh-outline" 
+              size={22} 
+              color={refreshing ? colors.text.muted : colors.text.primary} 
+              style={refreshing ? styles.spinning : null}
+            />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton}>
             <Ionicons name="search-outline" size={22} color={colors.text.primary} />
           </TouchableOpacity>
@@ -228,6 +247,7 @@ const HomeScreen = ({ navigation }) => {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={colors.primary.purple}
+            colors={[colors.primary.purple]}
           />
         }
       >

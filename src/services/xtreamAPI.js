@@ -59,19 +59,19 @@ export const fetchXtreamPlaylist = async (playlistId, userId, xtreamConfig) => {
       series: seriesStreams.length,
     });
 
-    await setPlaylistParsingStatus(playlistId, true, { step: 'Saving content', progress: 70 });
+    await setPlaylistParsingStatus(playlistId, true, { step: 'Cleaning up old content', progress: 70 });
 
-    // Step 5: Save to Firestore
+    // Step 5: Clear old content FIRST before saving new content
+    await clearXtreamContent(playlistId);
+
+    await setPlaylistParsingStatus(playlistId, true, { step: 'Saving content', progress: 75 });
+
+    // Step 6: Save to Firestore
     const stats = await saveXtreamToFirestore(playlistId, userId, {
       channels: liveStreams,
       movies: vodStreams,
       series: seriesStreams,
     });
-
-    await setPlaylistParsingStatus(playlistId, true, { step: 'Cleaning up', progress: 85 });
-
-    // Step 6: Clear old content
-    await clearXtreamContent(playlistId);
 
     await setPlaylistParsingStatus(playlistId, true, { step: 'Updating stats', progress: 95 });
 
@@ -113,7 +113,13 @@ export const fetchXtreamPlaylist = async (playlistId, userId, xtreamConfig) => {
 const authenticate = async (serverUrl, username, password) => {
   try {
     const url = `${serverUrl}/player_api.php?username=${username}&password=${password}`;
-    const response = await fetch(url);
+    
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -135,9 +141,17 @@ const authenticate = async (serverUrl, username, password) => {
     }
   } catch (error) {
     console.error('Authentication error:', error);
+    
+    let errorMessage = 'Authentication failed';
+    if (error.name === 'AbortError') {
+      errorMessage = 'Connection timeout - Server took too long to respond';
+    } else if (error.message.includes('Failed to fetch')) {
+      errorMessage = 'Cannot connect to server - Check URL or try a different server';
+    }
+    
     return {
       success: false,
-      error: error.message,
+      error: errorMessage,
     };
   }
 };
@@ -152,7 +166,11 @@ const authenticate = async (serverUrl, username, password) => {
 const getLiveStreams = async (serverUrl, username, password) => {
   try {
     const url = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=get_live_streams`;
-    const response = await fetch(url);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -188,7 +206,11 @@ const getLiveStreams = async (serverUrl, username, password) => {
 const getVODStreams = async (serverUrl, username, password) => {
   try {
     const url = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=get_vod_streams`;
-    const response = await fetch(url);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -226,7 +248,11 @@ const getVODStreams = async (serverUrl, username, password) => {
 const getSeriesStreams = async (serverUrl, username, password) => {
   try {
     const url = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=get_series`;
-    const response = await fetch(url);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
