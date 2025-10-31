@@ -1,4 +1,17 @@
 import { firestore } from '../config/firebase';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  orderBy,
+  serverTimestamp 
+} from 'firebase/firestore';
 
 /**
  * Playlist Service - Handles IPTV playlist operations (M3U/Xtream Codes)
@@ -7,14 +20,14 @@ import { firestore } from '../config/firebase';
 // Add new playlist
 export const addPlaylist = async (userId, playlistData) => {
   try {
-    const playlistRef = firestore().collection('playlists').doc();
+    const playlistsRef = collection(firestore, 'playlists');
     
     const playlist = {
       userId: userId,
       name: playlistData.name,
       type: playlistData.type, // 'm3u' or 'xtream'
-      createdAt: firestore.FieldValue.serverTimestamp(),
-      updatedAt: firestore.FieldValue.serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
       isActive: true,
       order: playlistData.order || 0,
       stats: {
@@ -41,9 +54,9 @@ export const addPlaylist = async (userId, playlistData) => {
       };
     }
 
-    await playlistRef.set(playlist);
+    const docRef = await addDoc(playlistsRef, playlist);
 
-    return { success: true, playlistId: playlistRef.id };
+    return { success: true, playlistId: docRef.id };
   } catch (error) {
     console.error('Error adding playlist:', error);
     return { success: false, error: error.message };
@@ -53,15 +66,17 @@ export const addPlaylist = async (userId, playlistData) => {
 // Get user's playlists
 export const getUserPlaylists = async (userId) => {
   try {
-    const snapshot = await firestore()
-      .collection('playlists')
-      .where('userId', '==', userId)
-      .orderBy('order', 'asc')
-      .get();
+    const playlistsRef = collection(firestore, 'playlists');
+    const q = query(
+      playlistsRef,
+      where('userId', '==', userId),
+      orderBy('order', 'asc')
+    );
+    const snapshot = await getDocs(q);
 
     const playlists = [];
-    snapshot.forEach(doc => {
-      playlists.push({ id: doc.id, ...doc.data() });
+    snapshot.forEach(docSnap => {
+      playlists.push({ id: docSnap.id, ...docSnap.data() });
     });
 
     return { success: true, data: playlists };
@@ -74,10 +89,11 @@ export const getUserPlaylists = async (userId) => {
 // Get single playlist
 export const getPlaylist = async (playlistId) => {
   try {
-    const doc = await firestore().collection('playlists').doc(playlistId).get();
+    const docRef = doc(firestore, 'playlists', playlistId);
+    const docSnap = await getDoc(docRef);
     
-    if (doc.exists) {
-      return { success: true, data: { id: doc.id, ...doc.data() } };
+    if (docSnap.exists()) {
+      return { success: true, data: { id: docSnap.id, ...docSnap.data() } };
     } else {
       return { success: false, error: 'Playlist not found' };
     }
@@ -90,9 +106,10 @@ export const getPlaylist = async (playlistId) => {
 // Update playlist
 export const updatePlaylist = async (playlistId, updates) => {
   try {
-    await firestore().collection('playlists').doc(playlistId).update({
+    const docRef = doc(firestore, 'playlists', playlistId);
+    await updateDoc(docRef, {
       ...updates,
-      updatedAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
 
     return { success: true };
@@ -106,7 +123,8 @@ export const updatePlaylist = async (playlistId, updates) => {
 export const deletePlaylist = async (playlistId) => {
   try {
     // Delete playlist document
-    await firestore().collection('playlists').doc(playlistId).delete();
+    const docRef = doc(firestore, 'playlists', playlistId);
+    await deleteDoc(docRef);
 
     // TODO: Delete associated channels, movies, series, etc.
     // This should be done in a Cloud Function for better performance
@@ -121,11 +139,18 @@ export const deletePlaylist = async (playlistId) => {
 // Update playlist stats
 export const updatePlaylistStats = async (playlistId, stats) => {
   try {
-    await firestore().collection('playlists').doc(playlistId).update({
+    console.log('updatePlaylistStats called with:', { playlistId, stats });
+    const docRef = doc(firestore, 'playlists', playlistId);
+    
+    const updateData = {
       stats: stats,
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    });
-
+      updatedAt: serverTimestamp(),
+    };
+    
+    console.log('Updating Firestore document with:', updateData);
+    await updateDoc(docRef, updateData);
+    
+    console.log('Stats updated successfully in Firestore');
     return { success: true };
   } catch (error) {
     console.error('Error updating playlist stats:', error);
@@ -136,14 +161,67 @@ export const updatePlaylistStats = async (playlistId, stats) => {
 // Toggle playlist active status
 export const togglePlaylistStatus = async (playlistId, isActive) => {
   try {
-    await firestore().collection('playlists').doc(playlistId).update({
+    const docRef = doc(firestore, 'playlists', playlistId);
+    await updateDoc(docRef, {
       isActive: isActive,
-      updatedAt: firestore.FieldValue.serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
 
     return { success: true };
   } catch (error) {
     console.error('Error toggling playlist status:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Alias for togglePlaylistStatus
+export const togglePlaylistActive = togglePlaylistStatus;
+
+// Set playlist parsing status
+export const setPlaylistParsingStatus = async (playlistId, isParsing, progress = null) => {
+  try {
+    const docRef = doc(firestore, 'playlists', playlistId);
+    const updateData = {
+      isParsing: isParsing,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (progress) {
+      updateData.parseProgress = progress;
+    }
+
+    if (!isParsing) {
+      updateData.lastParsed = serverTimestamp();
+    }
+
+    await updateDoc(docRef, updateData);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error setting parsing status:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Update last fetched timestamp
+export const updateLastFetched = async (playlistId, type) => {
+  try {
+    const docRef = doc(firestore, 'playlists', playlistId);
+    const updateData = {
+      updatedAt: serverTimestamp(),
+    };
+
+    if (type === 'm3u') {
+      updateData['m3uConfig.lastFetched'] = serverTimestamp();
+    } else if (type === 'xtream') {
+      updateData['xtreamConfig.lastFetched'] = serverTimestamp();
+    }
+
+    await updateDoc(docRef, updateData);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating last fetched:', error);
     return { success: false, error: error.message };
   }
 };

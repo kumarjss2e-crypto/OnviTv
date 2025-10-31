@@ -1,6 +1,6 @@
 import React from 'react';
-import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 // Screens
@@ -37,7 +37,7 @@ const MainTabs = () => {
         component={HomeScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="🏠" focused={focused} />
+            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -46,7 +46,7 @@ const MainTabs = () => {
         component={LiveTVScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="📺" focused={focused} />
+            <Ionicons name={focused ? "tv" : "tv-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -55,7 +55,7 @@ const MainTabs = () => {
         component={MoviesScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="🎬" focused={focused} />
+            <Ionicons name={focused ? "film" : "film-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -64,7 +64,7 @@ const MainTabs = () => {
         component={MoreScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="📱" focused={focused} />
+            <Ionicons name={focused ? "menu" : "menu-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -72,17 +72,5 @@ const MainTabs = () => {
   );
 };
 
-const TabIcon = ({ icon, focused }) => {
-  return (
-    <Text
-      style={{
-        fontSize: 24,
-        opacity: focused ? 1 : 0.6,
-      }}
-    >
-      {icon}
-    </Text>
-  );
-};
 
 export default MainTabs;

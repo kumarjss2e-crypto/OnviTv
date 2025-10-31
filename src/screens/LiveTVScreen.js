@@ -1,11 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 const LiveTVScreen = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>📺 Live TV</Text>
+      <View style={styles.titleContainer}>
+        <Ionicons name="tv" size={32} color={colors.primary.purple} />
+        <Text style={styles.title}>Live TV</Text>
+      </View>
       <Text style={styles.subtitle}>Coming Soon</Text>
       <Text style={styles.description}>
         Watch live TV channels from your playlists
@@ -22,11 +26,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     color: colors.text.primary,
-    marginBottom: 12,
   },
   subtitle: {
     fontSize: 20,

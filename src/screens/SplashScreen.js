@@ -1,17 +1,57 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, Image } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, Dimensions, Image, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
+import { useAuth } from '../context/AuthContext';
 import GradientButton from '../components/GradientButton';
 
 const { width, height } = Dimensions.get('window');
 
 const SplashScreen = ({ navigation }) => {
+  const { user, loading: authLoading } = useAuth();
+  const [isChecking, setIsChecking] = useState(true);
   const logoScale = useRef(new Animated.Value(0.5)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
   const buttonOpacity = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    checkAuthAndOnboarding();
+  }, [user, authLoading]);
+
+  const checkAuthAndOnboarding = async () => {
+    // Wait for auth to load
+    if (authLoading) return;
+
+    try {
+      // Check if user has seen onboarding
+      const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
+
+      // Small delay for smooth transition
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      if (user) {
+        // User is logged in, go to main app
+        navigation.replace('Main');
+      } else if (hasSeenOnboarding === 'true') {
+        // User has seen onboarding, go to login
+        navigation.replace('Login');
+      } else {
+        // First time user, show button to continue to onboarding
+        setIsChecking(false);
+      }
+    } catch (error) {
+      console.error('Error checking auth state:', error);
+      setIsChecking(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    await AsyncStorage.setItem('hasSeenOnboarding', 'true');
+    navigation.navigate('Onboarding');
+  };
 
   useEffect(() => {
     // Logo entrance animation
@@ -113,13 +153,21 @@ const SplashScreen = ({ navigation }) => {
       </View>
 
       {/* Continue Button */}
-      <Animated.View style={[styles.buttonContainer, { opacity: buttonOpacity }]}>
-        <GradientButton
-          title="Continue"
-          onPress={() => navigation.navigate('Onboarding')}
-          style={styles.button}
-        />
-      </Animated.View>
+      {!isChecking && (
+        <Animated.View style={[styles.buttonContainer, { opacity: buttonOpacity }]}>
+          <GradientButton
+            title="Continue"
+            onPress={handleContinue}
+            style={styles.button}
+          />
+        </Animated.View>
+      )}
+      
+      {isChecking && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={colors.primary.purple} />
+        </View>
+      )}
     </LinearGradient>
   );
 };
@@ -215,6 +263,10 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
+  },
+  loadingContainer: {
+    paddingBottom: 50,
+    alignItems: 'center',
   },
 });
 

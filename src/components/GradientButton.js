@@ -36,25 +36,20 @@ const GradientButton = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: colors.primary.purple,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
   },
   gradient: {
-    paddingVertical: 18,
-    paddingHorizontal: 32,
+    height: 48,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
     color: colors.text.primary,
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });
 

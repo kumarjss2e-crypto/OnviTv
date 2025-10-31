@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,77 +9,100 @@ import {
   Dimensions,
   FlatList,
   StatusBar,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { useAuth } from '../context/AuthContext';
+import { getUserChannels } from '../services/channelService';
+import { getUserMovies, getRecentMovies } from '../services/movieService';
+import { getUserSeries, getRecentSeries } from '../services/seriesService';
+import { getContinueWatching } from '../services/watchHistoryService';
+import { getUserFavorites } from '../services/favoritesService';
+import { getUserPlaylists } from '../services/playlistService';
 
 const { width, height } = Dimensions.get('window');
 
-// Sample movie data - replace with API data later
-const featuredMovie = {
-  id: 1,
-  title: 'The Last Kingdom',
-  backdrop: 'https://image.tmdb.org/t/p/original/wiE9doxiLwq3WCGamDIOb2PqBqc.jpg',
-  logo: null,
-  description: 'A warrior destined to unite the kingdoms of England must navigate deadly political intrigue and fierce battles.',
-  rating: '8.5',
-  year: '2024',
-  genres: ['Action', 'Drama', 'History'],
-};
-
-const movieCategories = [
-  {
-    id: '1',
-    title: 'Trending Now',
-    movies: [
-      { id: 1, poster: 'https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg', title: 'Avengers: Endgame' },
-      { id: 2, poster: 'https://image.tmdb.org/t/p/w500/pIkRyD18kl4FhoCNQuWxWu5cBLM.jpg', title: 'The Dark Knight' },
-      { id: 3, poster: 'https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg', title: 'Shawshank Redemption' },
-      { id: 4, poster: 'https://image.tmdb.org/t/p/w500/rCzpDGLbOoPwLjy3OAm5NUPOTrC.jpg', title: 'Lord of the Rings' },
-      { id: 5, poster: 'https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg', title: 'Joker' },
-      { id: 6, poster: 'https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg', title: 'Spider-Man' },
-    ],
-  },
-  {
-    id: '2',
-    title: 'Popular on OnviTV',
-    movies: [
-      { id: 7, poster: 'https://image.tmdb.org/t/p/w500/xBHYBT1RPkZjzxhNvXqvWnhZDRj.jpg', title: 'Inception' },
-      { id: 8, poster: 'https://image.tmdb.org/t/p/w500/5hNcsnMkwU2LknLoru73c76el3z.jpg', title: 'Interstellar' },
-      { id: 9, poster: 'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg', title: 'The Matrix' },
-      { id: 10, poster: 'https://image.tmdb.org/t/p/w500/8UlWHLMpgZm9bx6QYh0NFoq67TZ.jpg', title: 'Pulp Fiction' },
-      { id: 11, poster: 'https://image.tmdb.org/t/p/w500/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg', title: 'Fight Club' },
-      { id: 12, poster: 'https://image.tmdb.org/t/p/w500/rSPw7tgCH9c6NqICZef4kZjFOQ5.jpg', title: 'Harry Potter' },
-    ],
-  },
-  {
-    id: '3',
-    title: 'New Releases',
-    movies: [
-      { id: 13, poster: 'https://image.tmdb.org/t/p/w500/c6H7Z4u73ir3cIoCteuhJh7UCAR.jpg', title: 'Dune' },
-      { id: 14, poster: 'https://image.tmdb.org/t/p/w500/bXMVveUfRIT0jwTjy0MBnImTjiX.jpg', title: 'Oppenheimer' },
-      { id: 15, poster: 'https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg', title: 'Black Panther' },
-      { id: 16, poster: 'https://image.tmdb.org/t/p/w500/aWeKITRFbbwY8txG5uCj4rMCfSP.jpg', title: 'Avatar' },
-      { id: 17, poster: 'https://image.tmdb.org/t/p/w500/tVxDe01Zy3kZqaZRNiXFGDICdZk.jpg', title: 'Gladiator' },
-      { id: 18, poster: 'https://image.tmdb.org/t/p/w500/wuMc08IPKEatf9rnMNXvIDxqP4W.jpg', title: 'Parasite' },
-    ],
-  },
-  {
-    id: '4',
-    title: 'Action & Adventure',
-    movies: [
-      { id: 19, poster: 'https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg', title: 'Star Wars' },
-      { id: 20, poster: 'https://image.tmdb.org/t/p/w500/d5NXSklXo0qyIYkgV94XAgMIckC.jpg', title: 'Forrest Gump' },
-      { id: 21, poster: 'https://image.tmdb.org/t/p/w500/qNBAXBIQlnOThrVvA6mA2B5ggV6.jpg', title: 'The Lion King' },
-      { id: 22, poster: 'https://image.tmdb.org/t/p/w500/ym1dxyOk4jFcSl4Q2zmRrA5BEEN.jpg', title: 'The Prestige' },
-      { id: 23, poster: 'https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg', title: 'The Godfather' },
-      { id: 24, poster: 'https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg', title: 'Parasite' },
-    ],
-  },
-];
+// No sample data - using real Firebase data
 
 const HomeScreen = ({ navigation }) => {
+  const { user } = useAuth();
   const [scrollY, setScrollY] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Data states
+  const [continueWatching, setContinueWatching] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+  const [recentMovies, setRecentMovies] = useState([]);
+  const [recentSeries, setRecentSeries] = useState([]);
+  const [liveChannels, setLiveChannels] = useState([]);
+  const [playlists, setPlaylists] = useState([]);
+  const [hasContent, setHasContent] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  const loadData = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+
+      // Load all data in parallel
+      const [continueResult, favoritesResult, moviesResult, seriesResult, channelsResult, playlistsResult] = await Promise.all([
+        getContinueWatching(user.uid),
+        getUserFavorites(user.uid),
+        getRecentMovies(user.uid, 10),
+        getRecentSeries(user.uid, 10),
+        getUserChannels(user.uid),
+        getUserPlaylists(user.uid),
+      ]);
+
+      if (continueResult.success) setContinueWatching(continueResult.data);
+      if (favoritesResult.success) setFavorites(favoritesResult.data);
+      if (moviesResult.success) setRecentMovies(moviesResult.data);
+      if (seriesResult.success) setRecentSeries(seriesResult.data);
+      if (channelsResult.success) setLiveChannels(channelsResult.data.slice(0, 10));
+      if (playlistsResult.success) setPlaylists(playlistsResult.data);
+
+      // Debug logging
+      console.log('Home data loaded:', {
+        continueWatching: continueResult.data?.length || 0,
+        favorites: favoritesResult.data?.length || 0,
+        movies: moviesResult.data?.length || 0,
+        series: seriesResult.data?.length || 0,
+        channels: channelsResult.data?.length || 0,
+        playlists: playlistsResult.data?.length || 0,
+      });
+
+      // Check if user has any content
+      const hasAnyContent = 
+        (continueResult.data && continueResult.data.length > 0) ||
+        (favoritesResult.data && favoritesResult.data.length > 0) ||
+        (moviesResult.data && moviesResult.data.length > 0) ||
+        (seriesResult.data && seriesResult.data.length > 0) ||
+        (channelsResult.data && channelsResult.data.length > 0) ||
+        (playlistsResult.data && playlistsResult.data.length > 0);
+      
+      setHasContent(hasAnyContent);
+    } catch (error) {
+      console.error('Error loading home data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   const handleScroll = (event) => {
     setScrollY(event.nativeEvent.contentOffset.y);
@@ -87,25 +110,92 @@ const HomeScreen = ({ navigation }) => {
 
   const headerOpacity = Math.min(scrollY / 300, 1);
 
-  const renderMovieItem = ({ item }) => (
-    <TouchableOpacity style={styles.movieCard} activeOpacity={0.8}>
-      <Image source={{ uri: item.poster }} style={styles.moviePoster} />
-    </TouchableOpacity>
-  );
+  const renderContentItem = ({ item }) => {
+    const imageUri = item.metadata?.poster || item.poster || item.logo || null;
+    const title = item.metadata?.name || item.name || 'Untitled';
+    
+    const handlePress = () => {
+      // Navigate to player or details based on content type
+      console.log('Content item clicked:', title);
+      // TODO: Navigate to player when implemented
+      // navigation.navigate('Player', { item });
+    };
+    
+    return (
+      <TouchableOpacity style={styles.contentCard} activeOpacity={0.8} onPress={handlePress}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.contentPoster} />
+        ) : (
+          <View style={[styles.contentPoster, styles.placeholderPoster]}>
+            <Ionicons name="tv-outline" size={32} color={colors.text.muted} />
+          </View>
+        )}
+        <Text style={styles.contentTitle} numberOfLines={2}>{title}</Text>
+      </TouchableOpacity>
+    );
+  };
 
-  const renderCategory = ({ item }) => (
-    <View style={styles.categoryContainer}>
-      <Text style={styles.categoryTitle}>{item.title}</Text>
-      <FlatList
-        data={item.movies}
-        renderItem={renderMovieItem}
-        keyExtractor={(movie) => movie.id.toString()}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.movieList}
-      />
+  const renderChannelItem = ({ item }) => {
+    const imageUri = item.logo || null;
+    const title = item.name || 'Untitled';
+    
+    const handlePress = () => {
+      console.log('Channel clicked:', title);
+      // TODO: Navigate to player when implemented
+      // navigation.navigate('Player', { item, type: 'channel' });
+    };
+    
+    return (
+      <TouchableOpacity style={styles.channelCard} activeOpacity={0.8} onPress={handlePress}>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.channelLogo} />
+        ) : (
+          <View style={[styles.channelLogo, styles.placeholderLogo]}>
+            <Ionicons name="radio-outline" size={28} color={colors.text.muted} />
+          </View>
+        )}
+        <Text style={styles.channelName} numberOfLines={1}>{title}</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <View style={styles.emptyIconContainer}>
+        <Ionicons name="tv-outline" size={64} color={colors.text.muted} />
+      </View>
+      <Text style={styles.emptyTitle}>No Playlists Yet</Text>
+      <Text style={styles.emptyDescription}>
+        {playlists.length === 0 
+          ? 'Add your first M3U or Xtream playlist to start watching thousands of channels, movies, and series'
+          : 'Your playlists are loading content. This may take a few moments.'}
+      </Text>
+      <TouchableOpacity 
+        style={styles.addPlaylistButton}
+        onPress={() => navigation.navigate('AddPlaylist')}
+      >
+        <Ionicons name="add-circle-outline" size={20} color={colors.text.primary} style={styles.addIcon} />
+        <Text style={styles.addPlaylistText}>Add Playlist</Text>
+      </TouchableOpacity>
+      {playlists.length > 0 && (
+        <TouchableOpacity 
+          style={styles.managePlaylistsButton}
+          onPress={() => navigation.navigate('PlaylistManagement')}
+        >
+          <Text style={styles.managePlaylistsText}>Manage Playlists</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary.purple} />
+        <Text style={styles.loadingText}>Loading your content...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -120,10 +210,10 @@ const HomeScreen = ({ navigation }) => {
         />
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.iconButton}>
-            <Text style={styles.iconText}>🔍</Text>
+            <Ionicons name="search-outline" size={22} color={colors.text.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton}>
-            <Text style={styles.iconText}>👤</Text>
+            <Ionicons name="person-circle-outline" size={24} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -133,60 +223,140 @@ const HomeScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary.purple}
+          />
+        }
       >
-        {/* Featured Content */}
-        <View style={styles.featuredContainer}>
-          <Image
-            source={{ uri: featuredMovie.backdrop }}
-            style={styles.featuredImage}
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(15, 23, 42, 0.7)', colors.neutral.slate900]}
-            style={styles.featuredGradient}
-          />
-          
-          <View style={styles.featuredContent}>
-            <Text style={styles.featuredTitle}>{featuredMovie.title}</Text>
-            <View style={styles.featuredMeta}>
-              <Text style={styles.metaText}>{featuredMovie.rating} ★</Text>
-              <Text style={styles.metaDot}>•</Text>
-              <Text style={styles.metaText}>{featuredMovie.year}</Text>
-              <Text style={styles.metaDot}>•</Text>
-              <Text style={styles.metaText}>{featuredMovie.genres.join(', ')}</Text>
-            </View>
-            <Text style={styles.featuredDescription} numberOfLines={3}>
-              {featuredMovie.description}
-            </Text>
-            
-            <View style={styles.featuredButtons}>
-              <TouchableOpacity style={styles.playButton}>
-                <Text style={styles.playIcon}>▶</Text>
-                <Text style={styles.playText}>Play</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.infoButton}>
-                <Text style={styles.infoIcon}>ⓘ</Text>
-                <Text style={styles.infoText}>More Info</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        {!hasContent ? (
+          renderEmptyState()
+        ) : (
+          <View style={styles.contentContainer}>
+            {/* Continue Watching */}
+            {continueWatching.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Continue Watching</Text>
+                <FlatList
+                  data={continueWatching}
+                  renderItem={renderContentItem}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.contentList}
+                />
+              </View>
+            )}
 
-        {/* Movie Categories */}
-        <View style={styles.categoriesContainer}>
-          {movieCategories.map((category) => (
-            <View key={category.id} style={styles.categoryContainer}>
-              <Text style={styles.categoryTitle}>{category.title}</Text>
-              <FlatList
-                data={category.movies}
-                renderItem={renderMovieItem}
-                keyExtractor={(movie) => movie.id.toString()}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.movieList}
-              />
-            </View>
-          ))}
-        </View>
+            {/* My Favorites */}
+            {favorites.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>My Favorites</Text>
+                <FlatList
+                  data={favorites}
+                  renderItem={renderContentItem}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.contentList}
+                />
+              </View>
+            )}
+
+            {/* Live TV Channels */}
+            {liveChannels.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Live TV</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('LiveTV')}>
+                    <Text style={styles.seeAllText}>See All</Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  data={liveChannels}
+                  renderItem={renderChannelItem}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.contentList}
+                />
+              </View>
+            )}
+
+            {/* Recent Movies */}
+            {recentMovies.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Movies</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('Movies')}>
+                    <Text style={styles.seeAllText}>See All</Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  data={recentMovies}
+                  renderItem={renderContentItem}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.contentList}
+                />
+              </View>
+            )}
+
+            {/* Recent Series */}
+            {recentSeries.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>TV Series</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('Movies')}>
+                    <Text style={styles.seeAllText}>See All</Text>
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  data={recentSeries}
+                  renderItem={renderContentItem}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.contentList}
+                />
+              </View>
+            )}
+
+            {/* Playlists Summary */}
+            {playlists.length > 0 && (
+              <View style={styles.playlistsSection}>
+                <Text style={styles.sectionTitle}>My Playlists</Text>
+                <View style={styles.playlistsGrid}>
+                  {playlists.map((playlist) => (
+                    <TouchableOpacity
+                      key={playlist.id}
+                      style={styles.playlistCard}
+                      activeOpacity={0.8}
+                      onPress={() => navigation.navigate('EditPlaylist', { playlist })}
+                    >
+                      <View style={styles.playlistIconContainer}>
+                        <Ionicons 
+                          name={playlist.type === 'm3u' ? 'document-text-outline' : 'globe-outline'} 
+                          size={28} 
+                          color={colors.primary.purple} 
+                        />
+                      </View>
+                      <Text style={styles.playlistName} numberOfLines={1}>
+                        {playlist.name}
+                      </Text>
+                      <Text style={styles.playlistStats}>
+                        {(playlist.stats?.totalChannels || 0) + (playlist.stats?.totalMovies || 0) + (playlist.stats?.totalSeries || 0)} items
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -219,139 +389,176 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   iconButton: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  iconText: {
-    fontSize: 20,
   },
   scrollView: {
     flex: 1,
   },
-  featuredContainer: {
-    height: height * 0.75,
-    position: 'relative',
-  },
-  featuredImage: {
-    width: width,
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  featuredGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '70%',
-  },
-  featuredContent: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-  },
-  featuredTitle: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: colors.text.primary,
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  featuredMeta: {
-    flexDirection: 'row',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.neutral.slate900,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: colors.text.secondary,
+  },
+  contentContainer: {
+    paddingTop: 70,
+    paddingBottom: 32,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
     marginBottom: 12,
   },
-  metaText: {
-    fontSize: 14,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  seeAllText: {
+    fontSize: 13,
+    color: colors.primary.purple,
+    fontWeight: '500',
+  },
+  contentList: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  contentCard: {
+    width: 120,
+    marginRight: 0,
+  },
+  contentPoster: {
+    width: 120,
+    height: 170,
+    borderRadius: 8,
+    backgroundColor: colors.neutral.slate800,
+  },
+  contentTitle: {
+    marginTop: 6,
+    fontSize: 12,
     color: colors.text.secondary,
     fontWeight: '500',
   },
-  metaDot: {
-    fontSize: 14,
-    color: colors.text.secondary,
-    marginHorizontal: 6,
+  placeholderPoster: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  featuredDescription: {
-    fontSize: 15,
+  channelCard: {
+    width: 100,
+    alignItems: 'center',
+    marginRight: 0,
+  },
+  channelLogo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.neutral.slate800,
+  },
+  placeholderLogo: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  channelName: {
+    marginTop: 8,
+    fontSize: 11,
     color: colors.text.secondary,
-    lineHeight: 22,
+    textAlign: 'center',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 100,
+  },
+  emptyIconContainer: {
     marginBottom: 20,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
-  featuredButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  playButton: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: colors.text.primary,
-    paddingVertical: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  playIcon: {
-    fontSize: 16,
-    color: colors.neutral.slate900,
-  },
-  playText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.neutral.slate900,
-  },
-  infoButton: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: 'rgba(109, 109, 110, 0.7)',
-    paddingVertical: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  infoIcon: {
-    fontSize: 18,
-    color: colors.text.primary,
-  },
-  infoText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  categoriesContainer: {
-    paddingBottom: 40,
-  },
-  categoryContainer: {
-    marginTop: 24,
-  },
-  categoryTitle: {
+  emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.text.primary,
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  emptyDescription: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 21,
+  },
+  addPlaylistButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary.purple,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  addIcon: {
+    marginRight: 4,
+  },
+  addPlaylistText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  managePlaylistsButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  managePlaylistsText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary.purple,
+  },
+  playlistsSection: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  playlistsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 16,
+    gap: 12,
   },
-  movieList: {
-    paddingHorizontal: 12,
+  playlistCard: {
+    width: (width - 44) / 2,
+    backgroundColor: 'rgba(30, 41, 59, 0.4)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.1)',
   },
-  movieCard: {
-    marginHorizontal: 4,
+  playlistIconContainer: {
+    marginBottom: 12,
   },
-  moviePoster: {
-    width: 120,
-    height: 180,
-    borderRadius: 4,
-    backgroundColor: colors.neutral.slate800,
+  playlistName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 4,
+  },
+  playlistStats: {
+    fontSize: 12,
+    color: colors.text.muted,
   },
 });
 

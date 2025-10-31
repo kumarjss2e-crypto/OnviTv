@@ -1,4 +1,18 @@
 import { firestore } from '../config/firebase';
+import { 
+  collection, 
+  doc, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy,
+  limit,
+  writeBatch,
+  serverTimestamp 
+} from 'firebase/firestore';
 
 /**
  * Watch History Service - Tracks viewing history and progress
@@ -8,18 +22,20 @@ import { firestore } from '../config/firebase';
 export const updateWatchHistory = async (userId, watchData) => {
   try {
     // Check if history entry already exists
-    const snapshot = await firestore()
-      .collection('watchHistory')
-      .where('userId', '==', userId)
-      .where('contentId', '==', watchData.contentId)
-      .limit(1)
-      .get();
+    const historyRef = collection(firestore, 'watchHistory');
+    const q = query(
+      historyRef,
+      where('userId', '==', userId),
+      where('contentId', '==', watchData.contentId),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
 
     if (!snapshot.empty) {
       // Update existing entry
       const docRef = snapshot.docs[0].ref;
-      await docRef.update({
-        watchedAt: firestore.FieldValue.serverTimestamp(),
+      await updateDoc(docRef, {
+        watchedAt: serverTimestamp(),
         progress: watchData.progress,
         completed: watchData.progress >= watchData.duration * 0.9, // 90% watched = completed
       });
@@ -27,14 +43,12 @@ export const updateWatchHistory = async (userId, watchData) => {
       return { success: true, historyId: docRef.id };
     } else {
       // Create new entry
-      const historyRef = firestore().collection('watchHistory').doc();
-      
-      await historyRef.set({
+      const docRef = await addDoc(historyRef, {
         userId: userId,
         contentType: watchData.contentType, // 'channel', 'movie', 'episode'
         contentId: watchData.contentId,
         playlistId: watchData.playlistId,
-        watchedAt: firestore.FieldValue.serverTimestamp(),
+        watchedAt: serverTimestamp(),
         duration: watchData.duration,
         progress: watchData.progress,
         completed: false,
@@ -45,7 +59,7 @@ export const updateWatchHistory = async (userId, watchData) => {
         },
       });
 
-      return { success: true, historyId: historyRef.id };
+      return { success: true, historyId: docRef.id };
     }
   } catch (error) {
     console.error('Error updating watch history:', error);
@@ -54,18 +68,20 @@ export const updateWatchHistory = async (userId, watchData) => {
 };
 
 // Get user watch history
-export const getUserWatchHistory = async (userId, limit = 50) => {
+export const getUserWatchHistory = async (userId, limitCount = 50) => {
   try {
-    const snapshot = await firestore()
-      .collection('watchHistory')
-      .where('userId', '==', userId)
-      .orderBy('watchedAt', 'desc')
-      .limit(limit)
-      .get();
+    const historyRef = collection(firestore, 'watchHistory');
+    const q = query(
+      historyRef,
+      where('userId', '==', userId),
+      orderBy('watchedAt', 'desc'),
+      limit(limitCount)
+    );
+    const snapshot = await getDocs(q);
 
     const history = [];
-    snapshot.forEach(doc => {
-      history.push({ id: doc.id, ...doc.data() });
+    snapshot.forEach(docSnap => {
+      history.push({ id: docSnap.id, ...docSnap.data() });
     });
 
     return { success: true, data: history };
@@ -78,20 +94,22 @@ export const getUserWatchHistory = async (userId, limit = 50) => {
 // Get continue watching (incomplete content)
 export const getContinueWatching = async (userId) => {
   try {
-    const snapshot = await firestore()
-      .collection('watchHistory')
-      .where('userId', '==', userId)
-      .where('completed', '==', false)
-      .orderBy('watchedAt', 'desc')
-      .limit(20)
-      .get();
+    const historyRef = collection(firestore, 'watchHistory');
+    const q = query(
+      historyRef,
+      where('userId', '==', userId),
+      where('completed', '==', false),
+      orderBy('watchedAt', 'desc'),
+      limit(20)
+    );
+    const snapshot = await getDocs(q);
 
     const continueWatching = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
       // Only include if progress is more than 5% and less than 90%
       if (data.progress > data.duration * 0.05 && data.progress < data.duration * 0.9) {
-        continueWatching.push({ id: doc.id, ...data });
+        continueWatching.push({ id: docSnap.id, ...data });
       }
     });
 
@@ -105,12 +123,14 @@ export const getContinueWatching = async (userId) => {
 // Get watch progress for specific content
 export const getWatchProgress = async (userId, contentId) => {
   try {
-    const snapshot = await firestore()
-      .collection('watchHistory')
-      .where('userId', '==', userId)
-      .where('contentId', '==', contentId)
-      .limit(1)
-      .get();
+    const historyRef = collection(firestore, 'watchHistory');
+    const q = query(
+      historyRef,
+      where('userId', '==', userId),
+      where('contentId', '==', contentId),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
 
     if (!snapshot.empty) {
       const data = snapshot.docs[0].data();
@@ -131,14 +151,13 @@ export const getWatchProgress = async (userId, contentId) => {
 // Clear watch history
 export const clearWatchHistory = async (userId) => {
   try {
-    const snapshot = await firestore()
-      .collection('watchHistory')
-      .where('userId', '==', userId)
-      .get();
+    const historyRef = collection(firestore, 'watchHistory');
+    const q = query(historyRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
 
-    const batch = firestore().batch();
-    snapshot.forEach(doc => {
-      batch.delete(doc.ref);
+    const batch = writeBatch(firestore);
+    snapshot.forEach(docSnap => {
+      batch.delete(docSnap.ref);
     });
 
     await batch.commit();
@@ -152,7 +171,8 @@ export const clearWatchHistory = async (userId) => {
 // Delete specific history entry
 export const deleteHistoryEntry = async (historyId) => {
   try {
-    await firestore().collection('watchHistory').doc(historyId).delete();
+    const docRef = doc(firestore, 'watchHistory', historyId);
+    await deleteDoc(docRef);
     return { success: true };
   } catch (error) {
     console.error('Error deleting history entry:', error);

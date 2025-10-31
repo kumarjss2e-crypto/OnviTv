@@ -1,22 +1,39 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, getReactNativePersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase configuration from google-services.json
 const firebaseConfig = {
-  projectId: 'logistic-m6ffjt',
-  storageBucket: 'logistic-m6ffjt.firebasestorage.app',
-  apiKey: 'AIzaSyB2iQtmSZnvYX79Ce8YJWhqYFaXfvWfVt8',
-  appId: '1:142680197853:android:a74c4e1473501c7e03a934',
-  authDomain: 'logistic-m6ffjt.firebaseapp.com',
+  projectId: 'onvi-iptv-player',
+  storageBucket: 'onvi-iptv-player.firebasestorage.app',
+  apiKey: 'AIzaSyB7C2uB1OuaEnJj3yskaFRqaWsCw1ahMro',
+  appId: '1:1035586796015:android:817820a6bafa8090b71e1a',
+  authDomain: 'onvi-iptv-player.firebaseapp.com',
 };
 
 // Initialize Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// Initialize Firebase services
-const auth = getAuth(app);
+// Initialize Firebase Auth with platform-specific persistence
+let auth;
+if (Platform.OS === 'web') {
+  // For web, use simple getAuth (it uses browserLocalPersistence by default)
+  auth = getAuth(app);
+} else {
+  // For native, use AsyncStorage persistence
+  try {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+  } catch (error) {
+    // Auth already initialized
+    auth = getAuth(app);
+  }
+}
+
 const firestore = getFirestore(app);
 const storage = getStorage(app);
 

@@ -15,13 +15,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import GradientButton from '../components/GradientButton';
 import GlassInput from '../components/GlassInput';
-import { signInWithEmail } from '../services/authService';
+import { signInWithEmail, signInWithGoogle } from '../services/authService';
 import { useToast } from '../context/ToastContext';
+import SocialButton from '../components/SocialButton';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { showError } = useToast();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -64,6 +66,26 @@ const LoginScreen = ({ navigation }) => {
     }
     
     setLoading(false);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    
+    const result = await signInWithGoogle();
+    
+    if (result.success) {
+      // Navigate to main app
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
+    } else {
+      if (result.error !== 'Sign in cancelled') {
+        showError(result.error || 'Could not sign in with Google');
+      }
+    }
+    
+    setGoogleLoading(false);
   };
 
   return (
@@ -128,6 +150,21 @@ const LoginScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Social Login */}
+            <SocialButton
+              title="Continue with Google"
+              iconName="logo-google"
+              onPress={handleGoogleSignIn}
+              loading={googleLoading}
+              style={styles.socialButton}
+            />
 
             {/* Sign Up Link */}
             <View style={styles.signupContainer}>
@@ -155,58 +192,80 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 60,
+    paddingVertical: 32,
   },
   content: {
     width: '100%',
   },
   logoContainer: {
     alignItems: 'flex-start',
-    marginBottom: 40,
-  },
-  logoImage: {
-    width: 120,
-    height: 50,
     marginBottom: 32,
   },
+  logoImage: {
+    width: 90,
+    height: 36,
+    marginBottom: 24,
+  },
   logoText: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.text.primary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
   formContainer: {
     marginBottom: 24,
   },
   input: {
-    marginBottom: 20,
+    marginBottom: 12,
   },
   loginButton: {
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   forgotPassword: {
     alignSelf: 'center',
     paddingVertical: 8,
   },
   forgotPasswordText: {
-    color: colors.text.secondary,
-    fontSize: 14,
-    fontWeight: '500',
+    color: 'rgba(148, 163, 184, 0.8)',
+    fontSize: 13,
+    fontWeight: '400',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(148, 163, 184, 0.15)',
+  },
+  dividerText: {
+    color: 'rgba(148, 163, 184, 0.6)',
+    fontSize: 11,
+    fontWeight: '400',
+    marginHorizontal: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  socialButton: {
+    marginBottom: 24,
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 8,
   },
   signupText: {
-    color: colors.text.secondary,
-    fontSize: 15,
+    color: 'rgba(148, 163, 184, 0.8)',
+    fontSize: 14,
+    fontWeight: '400',
   },
   signupLink: {
     color: colors.text.primary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
 });

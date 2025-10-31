@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 const ProfileScreen = ({ navigation }) => {
@@ -23,27 +24,27 @@ const ProfileScreen = ({ navigation }) => {
 
         <View style={styles.menuContainer}>
           <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>⚙️</Text>
+            <Ionicons name="settings-outline" size={22} color={colors.text.primary} style={styles.menuIcon} />
             <Text style={styles.menuText}>Settings</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>🔔</Text>
+            <Ionicons name="notifications-outline" size={22} color={colors.text.primary} style={styles.menuIcon} />
             <Text style={styles.menuText}>Notifications</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>❓</Text>
+            <Ionicons name="help-circle-outline" size={22} color={colors.text.primary} style={styles.menuIcon} />
             <Text style={styles.menuText}>Help & Support</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>ℹ️</Text>
+            <Ionicons name="information-circle-outline" size={22} color={colors.text.primary} style={styles.menuIcon} />
             <Text style={styles.menuText}>About</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogout}>
-            <Text style={styles.menuIcon}>🚪</Text>
+            <Ionicons name="log-out-outline" size={22} color="#ef4444" style={styles.menuIcon} />
             <Text style={[styles.menuText, styles.logoutText]}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -102,7 +103,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   menuIcon: {
-    fontSize: 20,
     marginRight: 16,
   },
   menuText: {

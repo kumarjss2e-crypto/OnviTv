@@ -1,4 +1,14 @@
 import { firestore } from '../config/firebase';
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  writeBatch,
+  serverTimestamp 
+} from 'firebase/firestore';
 
 /**
  * Channel Service - Handles live TV channel operations
@@ -7,13 +17,14 @@ import { firestore } from '../config/firebase';
 // Add channels in batch (from playlist parsing)
 export const addChannelsBatch = async (channels) => {
   try {
-    const batch = firestore().batch();
+    const batch = writeBatch(firestore);
+    const channelsRef = collection(firestore, 'channels');
     
     channels.forEach(channel => {
-      const channelRef = firestore().collection('channels').doc();
+      const channelRef = doc(channelsRef);
       batch.set(channelRef, {
         ...channel,
-        addedAt: firestore.FieldValue.serverTimestamp(),
+        addedAt: serverTimestamp(),
       });
     });
 
@@ -28,19 +39,24 @@ export const addChannelsBatch = async (channels) => {
 // Get channels by playlist
 export const getChannelsByPlaylist = async (playlistId, categoryName = null) => {
   try {
-    let query = firestore()
-      .collection('channels')
-      .where('playlistId', '==', playlistId);
-
+    const channelsRef = collection(firestore, 'channels');
+    let q;
+    
     if (categoryName) {
-      query = query.where('categoryName', '==', categoryName);
+      q = query(
+        channelsRef,
+        where('playlistId', '==', playlistId),
+        where('categoryName', '==', categoryName)
+      );
+    } else {
+      q = query(channelsRef, where('playlistId', '==', playlistId));
     }
 
-    const snapshot = await query.get();
+    const snapshot = await getDocs(q);
     const channels = [];
     
-    snapshot.forEach(doc => {
-      channels.push({ id: doc.id, ...doc.data() });
+    snapshot.forEach(docSnap => {
+      channels.push({ id: docSnap.id, ...docSnap.data() });
     });
 
     return { success: true, data: channels };
@@ -53,14 +69,13 @@ export const getChannelsByPlaylist = async (playlistId, categoryName = null) => 
 // Get all user channels
 export const getUserChannels = async (userId) => {
   try {
-    const snapshot = await firestore()
-      .collection('channels')
-      .where('userId', '==', userId)
-      .get();
+    const channelsRef = collection(firestore, 'channels');
+    const q = query(channelsRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
 
     const channels = [];
-    snapshot.forEach(doc => {
-      channels.push({ id: doc.id, ...doc.data() });
+    snapshot.forEach(docSnap => {
+      channels.push({ id: docSnap.id, ...docSnap.data() });
     });
 
     return { success: true, data: channels };
@@ -73,16 +88,15 @@ export const getUserChannels = async (userId) => {
 // Search channels
 export const searchChannels = async (userId, searchTerm) => {
   try {
-    const snapshot = await firestore()
-      .collection('channels')
-      .where('userId', '==', userId)
-      .get();
+    const channelsRef = collection(firestore, 'channels');
+    const q = query(channelsRef, where('userId', '==', userId));
+    const snapshot = await getDocs(q);
 
     const channels = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
       if (data.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-        channels.push({ id: doc.id, ...data });
+        channels.push({ id: docSnap.id, ...data });
       }
     });
 
@@ -96,10 +110,11 @@ export const searchChannels = async (userId, searchTerm) => {
 // Get channel by ID
 export const getChannel = async (channelId) => {
   try {
-    const doc = await firestore().collection('channels').doc(channelId).get();
+    const docRef = doc(firestore, 'channels', channelId);
+    const docSnap = await getDoc(docRef);
     
-    if (doc.exists) {
-      return { success: true, data: { id: doc.id, ...doc.data() } };
+    if (docSnap.exists()) {
+      return { success: true, data: { id: docSnap.id, ...docSnap.data() } };
     } else {
       return { success: false, error: 'Channel not found' };
     }
@@ -112,14 +127,13 @@ export const getChannel = async (channelId) => {
 // Delete channels by playlist
 export const deleteChannelsByPlaylist = async (playlistId) => {
   try {
-    const snapshot = await firestore()
-      .collection('channels')
-      .where('playlistId', '==', playlistId)
-      .get();
+    const channelsRef = collection(firestore, 'channels');
+    const q = query(channelsRef, where('playlistId', '==', playlistId));
+    const snapshot = await getDocs(q);
 
-    const batch = firestore().batch();
-    snapshot.forEach(doc => {
-      batch.delete(doc.ref);
+    const batch = writeBatch(firestore);
+    snapshot.forEach(docSnap => {
+      batch.delete(docSnap.ref);
     });
 
     await batch.commit();

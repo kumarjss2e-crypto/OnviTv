@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 const GlassInput = ({ 
@@ -35,7 +36,11 @@ const GlassInput = ({
           onPress={() => setIsPasswordVisible(!isPasswordVisible)}
           style={styles.eyeButton}
         >
-          <Text style={styles.eyeText}>{isPasswordVisible ? '👁️' : '👁️‍🗨️'}</Text>
+          <Ionicons 
+            name={isPasswordVisible ? "eye-outline" : "eye-off-outline"} 
+            size={20} 
+            color={colors.text.muted} 
+          />
         </TouchableOpacity>
       )}
     </View>
@@ -46,35 +51,29 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background.glass,
-    borderRadius: 16,
+    backgroundColor: 'rgba(30, 41, 59, 0.4)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.neutral.slate700,
-    paddingHorizontal: 20,
-    paddingVertical: 4,
+    borderColor: 'rgba(148, 163, 184, 0.1)',
+    paddingHorizontal: 16,
+    height: 48,
   },
   containerFocused: {
-    borderColor: colors.primary.purple,
-    shadowColor: colors.primary.purple,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    borderColor: 'rgba(139, 92, 246, 0.5)',
+    backgroundColor: 'rgba(30, 41, 59, 0.6)',
   },
   iconContainer: {
-    marginRight: 12,
+    marginRight: 10,
   },
   input: {
     flex: 1,
     color: colors.text.primary,
-    fontSize: 16,
-    paddingVertical: 16,
+    fontSize: 15,
+    paddingVertical: 0,
   },
   eyeButton: {
-    padding: 8,
-  },
-  eyeText: {
-    fontSize: 20,
+    padding: 4,
+    marginLeft: 4,
   },
 });
 

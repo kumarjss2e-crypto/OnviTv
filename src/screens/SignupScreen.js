@@ -15,8 +15,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import GradientButton from '../components/GradientButton';
 import GlassInput from '../components/GlassInput';
-import { signUpWithEmail } from '../services/authService';
+import { signUpWithEmail, signInWithGoogle } from '../services/authService';
 import { useToast } from '../context/ToastContext';
+import SocialButton from '../components/SocialButton';
 
 const SignupScreen = ({ navigation }) => {
   const [fullName, setFullName] = useState('');
@@ -24,6 +25,7 @@ const SignupScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { showError, showSuccess } = useToast();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -79,6 +81,26 @@ const SignupScreen = ({ navigation }) => {
     }
     
     setLoading(false);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    
+    const result = await signInWithGoogle();
+    
+    if (result.success) {
+      // Navigate to main app
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
+    } else {
+      if (result.error !== 'Sign in cancelled') {
+        showError(result.error || 'Could not sign in with Google');
+      }
+    }
+    
+    setGoogleLoading(false);
   };
 
   return (
@@ -171,6 +193,21 @@ const SignupScreen = ({ navigation }) => {
               </View>
             </View>
 
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Social Login */}
+            <SocialButton
+              title="Continue with Google"
+              iconName="logo-google"
+              onPress={handleGoogleSignIn}
+              loading={googleLoading}
+              style={styles.socialButton}
+            />
 
             {/* Login Link */}
             <View style={styles.loginContainer}>
@@ -193,17 +230,17 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 50,
-    left: 20,
+    top: 48,
+    left: 24,
     zIndex: 10,
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
   },
   backButtonText: {
     color: colors.text.primary,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '300',
   },
   keyboardView: {
@@ -214,63 +251,85 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingTop: 80,
-    paddingBottom: 40,
+    paddingBottom: 32,
   },
   content: {
     width: '100%',
   },
   logoContainer: {
     alignItems: 'flex-start',
-    marginBottom: 40,
+    marginBottom: 28,
   },
   logoImage: {
-    width: 120,
-    height: 50,
-    marginBottom: 32,
+    width: 90,
+    height: 36,
+    marginBottom: 20,
   },
   logoText: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.text.primary,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
   formContainer: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   input: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   signupButton: {
     marginTop: 8,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   termsContainer: {
     paddingHorizontal: 4,
-    marginTop: 4,
+    marginTop: 8,
   },
   termsText: {
-    color: colors.text.muted,
-    fontSize: 12,
-    lineHeight: 18,
+    color: 'rgba(148, 163, 184, 0.6)',
+    fontSize: 11,
+    lineHeight: 16,
     textAlign: 'center',
   },
   termsLink: {
-    color: colors.text.secondary,
+    color: 'rgba(148, 163, 184, 0.9)',
     fontWeight: '500',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(148, 163, 184, 0.15)',
+  },
+  dividerText: {
+    color: 'rgba(148, 163, 184, 0.6)',
+    fontSize: 11,
+    fontWeight: '400',
+    marginHorizontal: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  socialButton: {
+    marginBottom: 20,
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 8,
   },
   loginText: {
-    color: colors.text.secondary,
-    fontSize: 15,
+    color: 'rgba(148, 163, 184, 0.8)',
+    fontSize: 14,
+    fontWeight: '400',
   },
   loginLink: {
     color: colors.text.primary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
 });

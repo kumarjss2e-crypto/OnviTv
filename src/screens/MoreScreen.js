@@ -1,9 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
+import { useAuth } from '../context/AuthContext';
 import { signOut } from '../services/authService';
 
 const MoreScreen = ({ navigation }) => {
+  const { user, userProfile } = useAuth();
+
   const handleLogout = async () => {
     const result = await signOut();
     if (result.success) {
@@ -14,15 +18,21 @@ const MoreScreen = ({ navigation }) => {
     }
   };
 
+  // Get user display info
+  const displayName = userProfile?.displayName || user?.displayName || 'User';
+  const email = user?.email || 'user@example.com';
+  const photoURL = userProfile?.photoURL || user?.photoURL;
+  const subscriptionPlan = userProfile?.subscription?.plan || 'Free Plan';
+
   const menuItems = [
-    { icon: '📋', title: 'My Playlists', subtitle: 'Manage your IPTV sources', screen: 'Playlists' },
-    { icon: '⭐', title: 'Favorites', subtitle: 'Your favorite content', screen: 'Favorites' },
-    { icon: '⬇️', title: 'Downloads', subtitle: 'Offline content', screen: 'Downloads' },
-    { icon: '🕐', title: 'Watch History', subtitle: 'Recently watched', screen: 'History' },
-    { icon: '💳', title: 'Subscription', subtitle: 'Manage your plan', screen: 'Subscription' },
-    { icon: '⚙️', title: 'Settings', subtitle: 'App preferences', screen: 'Settings' },
-    { icon: '❓', title: 'Help & Support', subtitle: 'Get help', screen: 'Support' },
-    { icon: 'ℹ️', title: 'About', subtitle: 'App information', screen: 'About' },
+    { icon: 'list-outline', title: 'My Playlists', subtitle: 'Manage your IPTV sources', screen: 'Playlists' },
+    { icon: 'star-outline', title: 'Favorites', subtitle: 'Your favorite content', screen: 'Favorites' },
+    { icon: 'download-outline', title: 'Downloads', subtitle: 'Offline content', screen: 'Downloads' },
+    { icon: 'time-outline', title: 'Watch History', subtitle: 'Recently watched', screen: 'History' },
+    { icon: 'card-outline', title: 'Subscription', subtitle: 'Manage your plan', screen: 'Subscription' },
+    { icon: 'settings-outline', title: 'Settings', subtitle: 'App preferences', screen: 'Settings' },
+    { icon: 'help-circle-outline', title: 'Help & Support', subtitle: 'Get help', screen: 'Support' },
+    { icon: 'information-circle-outline', title: 'About', subtitle: 'App information', screen: 'About' },
   ];
 
   return (
@@ -31,12 +41,16 @@ const MoreScreen = ({ navigation }) => {
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>👤</Text>
+            {photoURL ? (
+              <Image source={{ uri: photoURL }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name="person" size={40} color={colors.text.primary} />
+            )}
           </View>
-          <Text style={styles.name}>User Name</Text>
-          <Text style={styles.email}>user@example.com</Text>
+          <Text style={styles.name}>{displayName}</Text>
+          <Text style={styles.email}>{email}</Text>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>Free Plan</Text>
+            <Text style={styles.badgeText}>{subscriptionPlan}</Text>
           </View>
         </View>
 
@@ -47,25 +61,28 @@ const MoreScreen = ({ navigation }) => {
               key={index}
               style={styles.menuItem}
               onPress={() => {
-                // Navigation will be implemented later
-                console.log(`Navigate to ${item.screen}`);
+                if (item.screen === 'Playlists') {
+                  navigation.navigate('PlaylistManagement');
+                } else {
+                  console.log(`Navigate to ${item.screen}`);
+                }
               }}
             >
               <View style={styles.menuIcon}>
-                <Text style={styles.menuIconText}>{item.icon}</Text>
+                <Ionicons name={item.icon} size={22} color={colors.primary.purple} />
               </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuTitle}>{item.title}</Text>
                 <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
               </View>
-              <Text style={styles.menuArrow}>›</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutIcon}>🚪</Text>
+          <Ionicons name="log-out-outline" size={20} color="#ef4444" style={styles.logoutIcon} />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
@@ -99,9 +116,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+    overflow: 'hidden',
   },
-  avatarText: {
-    fontSize: 40,
+  avatarImage: {
+    width: 80,
+    height: 80,
   },
   name: {
     fontSize: 20,
@@ -140,13 +159,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.neutral.slate800,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
-  },
-  menuIconText: {
-    fontSize: 20,
   },
   menuContent: {
     flex: 1,
@@ -161,10 +177,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text.muted,
   },
-  menuArrow: {
-    fontSize: 24,
-    color: colors.text.muted,
-  },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -173,10 +185,11 @@ const styles = StyleSheet.create({
     marginVertical: 24,
     paddingVertical: 16,
     borderRadius: 12,
-    backgroundColor: colors.neutral.slate800,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
   },
   logoutIcon: {
-    fontSize: 20,
     marginRight: 8,
   },
   logoutText: {

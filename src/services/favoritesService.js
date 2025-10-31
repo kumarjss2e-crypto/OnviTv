@@ -1,4 +1,17 @@
 import { firestore } from '../config/firebase';
+import { 
+  collection, 
+  doc, 
+  addDoc, 
+  deleteDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy,
+  limit,
+  writeBatch,
+  serverTimestamp 
+} from 'firebase/firestore';
 
 /**
  * Favorites Service - Handles user favorites
@@ -7,14 +20,14 @@ import { firestore } from '../config/firebase';
 // Add to favorites
 export const addToFavorites = async (userId, contentData) => {
   try {
-    const favoriteRef = firestore().collection('favorites').doc();
+    const favoritesRef = collection(firestore, 'favorites');
     
-    await favoriteRef.set({
+    const docRef = await addDoc(favoritesRef, {
       userId: userId,
       contentType: contentData.contentType, // 'channel', 'movie', 'series'
       contentId: contentData.contentId,
       playlistId: contentData.playlistId,
-      addedAt: firestore.FieldValue.serverTimestamp(),
+      addedAt: serverTimestamp(),
       metadata: {
         name: contentData.name,
         poster: contentData.poster || '',
@@ -22,7 +35,7 @@ export const addToFavorites = async (userId, contentData) => {
       },
     });
 
-    return { success: true, favoriteId: favoriteRef.id };
+    return { success: true, favoriteId: docRef.id };
   } catch (error) {
     console.error('Error adding to favorites:', error);
     return { success: false, error: error.message };
@@ -32,7 +45,8 @@ export const addToFavorites = async (userId, contentData) => {
 // Remove from favorites
 export const removeFromFavorites = async (favoriteId) => {
   try {
-    await firestore().collection('favorites').doc(favoriteId).delete();
+    const docRef = doc(firestore, 'favorites', favoriteId);
+    await deleteDoc(docRef);
     return { success: true };
   } catch (error) {
     console.error('Error removing from favorites:', error);
@@ -43,20 +57,29 @@ export const removeFromFavorites = async (favoriteId) => {
 // Get user favorites
 export const getUserFavorites = async (userId, contentType = null) => {
   try {
-    let query = firestore()
-      .collection('favorites')
-      .where('userId', '==', userId)
-      .orderBy('addedAt', 'desc');
-
+    const favoritesRef = collection(firestore, 'favorites');
+    let q;
+    
     if (contentType) {
-      query = query.where('contentType', '==', contentType);
+      q = query(
+        favoritesRef,
+        where('userId', '==', userId),
+        where('contentType', '==', contentType),
+        orderBy('addedAt', 'desc')
+      );
+    } else {
+      q = query(
+        favoritesRef,
+        where('userId', '==', userId),
+        orderBy('addedAt', 'desc')
+      );
     }
 
-    const snapshot = await query.get();
+    const snapshot = await getDocs(q);
     const favorites = [];
     
-    snapshot.forEach(doc => {
-      favorites.push({ id: doc.id, ...doc.data() });
+    snapshot.forEach(docSnap => {
+      favorites.push({ id: docSnap.id, ...docSnap.data() });
     });
 
     return { success: true, data: favorites };
@@ -69,12 +92,14 @@ export const getUserFavorites = async (userId, contentType = null) => {
 // Check if content is favorited
 export const isFavorited = async (userId, contentId) => {
   try {
-    const snapshot = await firestore()
-      .collection('favorites')
-      .where('userId', '==', userId)
-      .where('contentId', '==', contentId)
-      .limit(1)
-      .get();
+    const favoritesRef = collection(firestore, 'favorites');
+    const q = query(
+      favoritesRef,
+      where('userId', '==', userId),
+      where('contentId', '==', contentId),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
 
     return { success: true, isFavorited: !snapshot.empty };
   } catch (error) {
@@ -86,15 +111,17 @@ export const isFavorited = async (userId, contentId) => {
 // Remove favorite by content ID
 export const removeFavoriteByContentId = async (userId, contentId) => {
   try {
-    const snapshot = await firestore()
-      .collection('favorites')
-      .where('userId', '==', userId)
-      .where('contentId', '==', contentId)
-      .get();
+    const favoritesRef = collection(firestore, 'favorites');
+    const q = query(
+      favoritesRef,
+      where('userId', '==', userId),
+      where('contentId', '==', contentId)
+    );
+    const snapshot = await getDocs(q);
 
-    const batch = firestore().batch();
-    snapshot.forEach(doc => {
-      batch.delete(doc.ref);
+    const batch = writeBatch(firestore);
+    snapshot.forEach(docSnap => {
+      batch.delete(docSnap.ref);
     });
 
     await batch.commit();

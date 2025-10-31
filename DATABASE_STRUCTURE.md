@@ -1,9 +1,10 @@
 # Onvi Player - Firebase Database Structure
 
 ## Project Information
-- **Project ID**: logistic-m6ffjt
-- **Storage Bucket**: logistic-m6ffjt.firebasestorage.app
+- **Project ID**: onvi-iptv-player
+- **Storage Bucket**: onvi-iptv-player.firebasestorage.app
 - **Database Type**: Firestore (NoSQL)
+- **Package Name**: com.onvitv.com
 
 ---
 

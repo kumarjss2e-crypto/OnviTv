@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.onvitv.app"
     },
     "android": {
-      "package": "com.onvitv.app"
+      "package": "com.onvitv.com",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro"

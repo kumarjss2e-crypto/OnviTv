@@ -17,16 +17,28 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshUserProfile = async () => {
+    if (user) {
+      const result = await getUserProfile(user.uid);
+      if (result.success) {
+        setUserProfile(result.data);
+      }
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         
-        // Fetch user profile from Firestore
-        const result = await getUserProfile(firebaseUser.uid);
-        if (result.success) {
-          setUserProfile(result.data);
-        }
+        // Fetch user profile from Firestore with a small delay
+        // to ensure the profile has been created
+        setTimeout(async () => {
+          const result = await getUserProfile(firebaseUser.uid);
+          if (result.success) {
+            setUserProfile(result.data);
+          }
+        }, 500);
       } else {
         setUser(null);
         setUserProfile(null);
@@ -41,6 +53,7 @@ export const AuthProvider = ({ children }) => {
     user,
     userProfile,
     loading,
+    refreshUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
