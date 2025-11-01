@@ -16,6 +16,7 @@ import MainTabs from './src/navigation/MainTabs';
 import PlaylistManagementScreen from './src/screens/PlaylistManagementScreen';
 import AddPlaylistScreen from './src/screens/AddPlaylistScreen';
 import EditPlaylistScreen from './src/screens/EditPlaylistScreen';
+import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +41,14 @@ export default function App() {
               <Stack.Screen name="PlaylistManagement" component={PlaylistManagementScreen} />
               <Stack.Screen name="AddPlaylist" component={AddPlaylistScreen} />
               <Stack.Screen name="EditPlaylist" component={EditPlaylistScreen} />
+              <Stack.Screen 
+                name="VideoPlayer" 
+                component={VideoPlayerScreen}
+                options={{ 
+                  orientation: 'landscape',
+                  gestureEnabled: false 
+                }}
+              />
             </Stack.Navigator>
           </NavigationContainer>
           <AlertProvider />

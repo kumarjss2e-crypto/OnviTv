@@ -8,6 +8,34 @@
 
 ---
 
+## 📱 Platform Content Structure
+
+### **Two Types of Content:**
+
+#### 1. **General Content (Admin-Curated)**
+- **Location**: Movies & Live TV tabs
+- **Visibility**: All users see the same content
+- **Management**: Only admins can add/edit/remove
+- **Collections**: `generalChannels`, `generalMovies`, `generalSeries`
+- **Purpose**: Curated, high-quality content for all users
+
+#### 2. **Personal Content (User-Imported)**
+- **Location**: My Playlist tab
+- **Visibility**: User-specific, private
+- **Management**: Users import their own M3U/Xtream playlists
+- **Collections**: `channels`, `movies`, `series` (with userId)
+- **Purpose**: User's personal IPTV subscriptions
+
+### **Navigation Flow:**
+```
+Login → Movies Tab (General Content)
+├── Movies Tab → generalMovies, generalSeries
+├── Live TV Tab → generalChannels
+└── My Playlist Tab → User's channels, movies, series (from playlists)
+```
+
+---
+
 ## 🗂️ Collections Structure
 
 ### 1. **users** Collection
@@ -91,7 +119,7 @@ playlists/{playlistId}
 ---
 
 ### 3. **channels** Collection
-Stores parsed live TV channels from playlists.
+Stores parsed live TV channels from USER'S IMPORTED playlists (My Playlist page).
 
 ```
 channels/{channelId}
@@ -119,6 +147,37 @@ channels/{channelId}
 
 ---
 
+### 3b. **generalChannels** Collection
+Stores ADMIN-CURATED live TV channels (Live TV page - visible to all users).
+
+```
+generalChannels/{channelId}
+├── streamId: string
+├── name: string
+├── logo: string (URL)
+├── streamUrl: string
+├── streamType: string ("live" | "hls" | "dash")
+├── categoryId: string
+├── categoryName: string
+├── epgChannelId: string (for EPG matching)
+├── tvgId: string
+├── tvgName: string
+├── groupTitle: string
+├── isAdult: boolean
+├── isFeatured: boolean
+├── order: number (for sorting)
+├── addedAt: timestamp
+├── addedBy: string (admin userId)
+└── metadata: object
+    ├── country: string
+    ├── language: string
+    ├── resolution: string
+    ├── codec: string
+    └── description: string
+```
+
+---
+
 ### 4. **categories** Collection
 Stores channel/VOD categories.
 
@@ -136,7 +195,7 @@ categories/{categoryId}
 ---
 
 ### 5. **movies** Collection
-Stores VOD movies from playlists.
+Stores VOD movies from USER'S IMPORTED playlists (My Playlist page).
 
 ```
 movies/{movieId}
@@ -168,8 +227,43 @@ movies/{movieId}
 
 ---
 
+### 5b. **generalMovies** Collection
+Stores ADMIN-CURATED movies (Movies page - visible to all users).
+
+```
+generalMovies/{movieId}
+├── streamId: string
+├── name: string
+├── title: string
+├── plot: string (description)
+├── poster: string (URL)
+├── backdrop: string (URL)
+├── streamUrl: string
+├── containerExtension: string ("mp4" | "mkv" | "avi")
+├── categoryId: string
+├── categoryName: string
+├── addedAt: timestamp
+├── addedBy: string (admin userId)
+├── releaseDate: string
+├── rating: number (0-10)
+├── duration: number (seconds)
+├── genre: array<string>
+├── director: string
+├── cast: array<string>
+├── tmdbId: string (optional, for metadata)
+├── imdbId: string (optional)
+├── isFeatured: boolean
+├── order: number (for sorting)
+├── viewCount: number
+└── subtitles: array<object>
+    ├── language: string
+    └── url: string
+```
+
+---
+
 ### 6. **series** Collection
-Stores TV series from playlists.
+Stores TV series from USER'S IMPORTED playlists (My Playlist page).
 
 ```
 series/{seriesId}
@@ -191,6 +285,35 @@ series/{seriesId}
 ├── totalSeasons: number
 ├── totalEpisodes: number
 └── tmdbId: string (optional)
+```
+
+---
+
+### 6b. **generalSeries** Collection
+Stores ADMIN-CURATED TV series (Movies page - visible to all users).
+
+```
+generalSeries/{seriesId}
+├── seriesId: string
+├── name: string
+├── title: string
+├── plot: string
+├── poster: string
+├── backdrop: string
+├── categoryId: string
+├── categoryName: string
+├── addedAt: timestamp
+├── addedBy: string (admin userId)
+├── releaseDate: string
+├── rating: number
+├── genre: array<string>
+├── cast: array<string>
+├── totalSeasons: number
+├── totalEpisodes: number
+├── tmdbId: string (optional)
+├── isFeatured: boolean
+├── order: number (for sorting)
+└── viewCount: number
 ```
 
 ---
@@ -375,22 +498,43 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid;
     }
     
-    // Channels - user can only access their own
+    // User Channels - user can only access their own
     match /channels/{channelId} {
       allow read: if request.auth != null && 
         resource.data.userId == request.auth.uid;
     }
     
-    // Movies - user can only access their own
+    // General Channels - read-only for all authenticated users
+    match /generalChannels/{channelId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // User Movies - user can only access their own
     match /movies/{movieId} {
       allow read: if request.auth != null && 
         resource.data.userId == request.auth.uid;
     }
     
-    // Series & Episodes - user can only access their own
+    // General Movies - read-only for all authenticated users
+    match /generalMovies/{movieId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // User Series & Episodes - user can only access their own
     match /series/{seriesId} {
       allow read: if request.auth != null && 
         resource.data.userId == request.auth.uid;
+    }
+    
+    // General Series - read-only for all authenticated users
+    match /generalSeries/{seriesId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     match /episodes/{episodeId} {

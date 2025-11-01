@@ -21,7 +21,8 @@
       "googleServicesFile": "./google-services.json"
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
     }
   }
 }

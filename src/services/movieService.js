@@ -208,3 +208,95 @@ export const getRecentMovies = async (userId, limitCount = 10) => {
     return { success: false, error: error.message };
   }
 };
+
+// Get general (admin) movies - for Movies page
+export const getGeneralMovies = async (categoryName = null, limitCount = null) => {
+  try {
+    const moviesRef = collection(firestore, 'generalMovies');
+    let q;
+    
+    if (categoryName) {
+      q = query(
+        moviesRef,
+        where('categoryName', '==', categoryName),
+        orderBy('addedAt', 'desc')
+      );
+    } else {
+      q = query(moviesRef, orderBy('addedAt', 'desc'));
+    }
+
+    const snapshot = await getDocs(q);
+    let movies = [];
+    
+    snapshot.forEach(docSnap => {
+      movies.push({ id: docSnap.id, ...docSnap.data() });
+    });
+
+    // Apply limit if specified
+    if (limitCount) {
+      movies = movies.slice(0, limitCount);
+    }
+
+    return { success: true, data: movies };
+  } catch (error) {
+    console.error('Error getting general movies:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};
+
+// Get general movie categories
+export const getGeneralMovieCategories = async () => {
+  try {
+    const moviesRef = collection(firestore, 'generalMovies');
+    const snapshot = await getDocs(moviesRef);
+    
+    const categoriesSet = new Set();
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.categoryName) {
+        categoriesSet.add(data.categoryName);
+      }
+    });
+
+    const categories = Array.from(categoriesSet).sort();
+    return { success: true, data: categories };
+  } catch (error) {
+    console.error('Error getting general movie categories:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};
+
+// Get general (admin) series - for Movies page
+export const getGeneralSeries = async (categoryName = null, limitCount = null) => {
+  try {
+    const seriesRef = collection(firestore, 'generalSeries');
+    let q;
+    
+    if (categoryName) {
+      q = query(
+        seriesRef,
+        where('categoryName', '==', categoryName),
+        orderBy('addedAt', 'desc')
+      );
+    } else {
+      q = query(seriesRef, orderBy('addedAt', 'desc'));
+    }
+
+    const snapshot = await getDocs(q);
+    let series = [];
+    
+    snapshot.forEach(docSnap => {
+      series.push({ id: docSnap.id, ...docSnap.data() });
+    });
+
+    // Apply limit if specified
+    if (limitCount) {
+      series = series.slice(0, limitCount);
+    }
+
+    return { success: true, data: series };
+  } catch (error) {
+    console.error('Error getting general series:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};

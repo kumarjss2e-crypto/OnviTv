@@ -143,3 +143,56 @@ export const deleteChannelsByPlaylist = async (playlistId) => {
     return { success: false, error: error.message };
   }
 };
+
+// Get general (admin) channels - for Live TV page
+export const getGeneralChannels = async (categoryName = null, limit = null) => {
+  try {
+    const channelsRef = collection(firestore, 'generalChannels');
+    let q;
+    
+    if (categoryName) {
+      q = query(channelsRef, where('categoryName', '==', categoryName));
+    } else {
+      q = query(channelsRef);
+    }
+
+    const snapshot = await getDocs(q);
+    let channels = [];
+    
+    snapshot.forEach(docSnap => {
+      channels.push({ id: docSnap.id, ...docSnap.data() });
+    });
+
+    // Apply limit if specified
+    if (limit) {
+      channels = channels.slice(0, limit);
+    }
+
+    return { success: true, data: channels };
+  } catch (error) {
+    console.error('Error getting general channels:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};
+
+// Get general channel categories
+export const getGeneralChannelCategories = async () => {
+  try {
+    const channelsRef = collection(firestore, 'generalChannels');
+    const snapshot = await getDocs(channelsRef);
+    
+    const categoriesSet = new Set();
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.categoryName) {
+        categoriesSet.add(data.categoryName);
+      }
+    });
+
+    const categories = Array.from(categoriesSet).sort();
+    return { success: true, data: categories };
+  } catch (error) {
+    console.error('Error getting general channel categories:', error);
+    return { success: false, error: error.message, data: [] };
+  }
+};

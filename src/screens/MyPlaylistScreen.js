@@ -26,9 +26,7 @@ import { getUserPlaylists } from '../services/playlistService';
 
 const { width, height } = Dimensions.get('window');
 
-// No sample data - using real Firebase data
-
-const HomeScreen = ({ navigation }) => {
+const MyPlaylistScreen = ({ navigation }) => {
   const { user } = useAuth();
   const [scrollY, setScrollY] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -73,21 +71,6 @@ const HomeScreen = ({ navigation }) => {
       if (channelsResult.success) setLiveChannels(channelsResult.data.slice(0, 10));
       if (playlistsResult.success) setPlaylists(playlistsResult.data);
 
-      // Debug logging
-      console.log('Home data loaded:', {
-        continueWatching: continueResult.data?.length || 0,
-        favorites: favoritesResult.data?.length || 0,
-        movies: moviesResult.data?.length || 0,
-        series: seriesResult.data?.length || 0,
-        channels: channelsResult.data?.length || 0,
-        playlists: playlistsResult.data?.length || 0,
-      });
-
-      // Log errors if any
-      if (!moviesResult.success) console.error('Movies error:', moviesResult.error);
-      if (!seriesResult.success) console.error('Series error:', seriesResult.error);
-      if (!channelsResult.success) console.error('Channels error:', channelsResult.error);
-
       // Check if user has any content
       const hasAnyContent = 
         (continueResult.data && continueResult.data.length > 0) ||
@@ -99,7 +82,7 @@ const HomeScreen = ({ navigation }) => {
       
       setHasContent(hasAnyContent);
     } catch (error) {
-      console.error('Error loading home data:', error);
+      console.error('Error loading playlist data:', error);
     } finally {
       setLoading(false);
     }
@@ -122,10 +105,13 @@ const HomeScreen = ({ navigation }) => {
     const title = item.metadata?.name || item.name || 'Untitled';
     
     const handlePress = () => {
-      // Navigate to player or details based on content type
-      console.log('Content item clicked:', title);
-      // TODO: Navigate to player when implemented
-      // navigation.navigate('Player', { item });
+      const contentType = item.contentType || (item.streamUrl ? 'channel' : 'movie');
+      navigation.navigate('VideoPlayer', { 
+        channel: contentType === 'channel' ? item : null,
+        movie: contentType === 'movie' ? item : null,
+        episode: contentType === 'episode' ? item : null,
+        contentType: contentType
+      });
     };
     
     return (
@@ -147,9 +133,10 @@ const HomeScreen = ({ navigation }) => {
     const title = item.name || 'Untitled';
     
     const handlePress = () => {
-      console.log('Channel clicked:', title);
-      // TODO: Navigate to player when implemented
-      // navigation.navigate('Player', { item, type: 'channel' });
+      navigation.navigate('VideoPlayer', { 
+        channel: item, 
+        contentType: 'channel' 
+      });
     };
     
     return (
@@ -169,13 +156,11 @@ const HomeScreen = ({ navigation }) => {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="tv-outline" size={64} color={colors.text.muted} />
+        <Ionicons name="list-outline" size={64} color={colors.text.muted} />
       </View>
       <Text style={styles.emptyTitle}>No Playlists Yet</Text>
       <Text style={styles.emptyDescription}>
-        {playlists.length === 0 
-          ? 'Add your first M3U or Xtream playlist to start watching thousands of channels, movies, and series'
-          : 'Your playlists are loading content. This may take a few moments.'}
+        Add your first M3U or Xtream playlist to start watching your personal collection of channels, movies, and series
       </Text>
       <TouchableOpacity 
         style={styles.addPlaylistButton}
@@ -184,14 +169,6 @@ const HomeScreen = ({ navigation }) => {
         <Ionicons name="add-circle-outline" size={20} color={colors.text.primary} style={styles.addIcon} />
         <Text style={styles.addPlaylistText}>Add Playlist</Text>
       </TouchableOpacity>
-      {playlists.length > 0 && (
-        <TouchableOpacity 
-          style={styles.managePlaylistsButton}
-          onPress={() => navigation.navigate('PlaylistManagement')}
-        >
-          <Text style={styles.managePlaylistsText}>Manage Playlists</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 
@@ -199,7 +176,7 @@ const HomeScreen = ({ navigation }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary.purple} />
-        <Text style={styles.loadingText}>Loading your content...</Text>
+        <Text style={styles.loadingText}>Loading your playlists...</Text>
       </View>
     );
   }
@@ -210,29 +187,19 @@ const HomeScreen = ({ navigation }) => {
       
       {/* Header */}
       <View style={[styles.header, { backgroundColor: `rgba(15, 23, 42, ${headerOpacity})` }]}>
-        <Image
-          source={require('../../assets/logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <Text style={styles.headerTitle}>My Playlist</Text>
         <View style={styles.headerRight}>
           <TouchableOpacity 
             style={styles.iconButton} 
-            onPress={onRefresh}
-            disabled={refreshing}
+            onPress={() => navigation.navigate('AddPlaylist')}
           >
-            <Ionicons 
-              name="refresh-outline" 
-              size={22} 
-              color={refreshing ? colors.text.muted : colors.text.primary} 
-              style={refreshing ? styles.spinning : null}
-            />
+            <Ionicons name="add-circle-outline" size={24} color={colors.text.primary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="search-outline" size={22} color={colors.text.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="person-circle-outline" size={24} color={colors.text.primary} />
+          <TouchableOpacity 
+            style={styles.iconButton} 
+            onPress={() => navigation.navigate('PlaylistManagement')}
+          >
+            <Ionicons name="settings-outline" size={22} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -285,12 +252,12 @@ const HomeScreen = ({ navigation }) => {
               </View>
             )}
 
-            {/* Live TV Channels */}
+            {/* My Channels */}
             {liveChannels.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Live TV</Text>
-                  <TouchableOpacity onPress={() => navigation.navigate('LiveTV')}>
+                  <Text style={styles.sectionTitle}>My Channels</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('Live TV')}>
                     <Text style={styles.seeAllText}>See All</Text>
                   </TouchableOpacity>
                 </View>
@@ -305,11 +272,11 @@ const HomeScreen = ({ navigation }) => {
               </View>
             )}
 
-            {/* Recent Movies */}
+            {/* My Movies */}
             {recentMovies.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Movies</Text>
+                  <Text style={styles.sectionTitle}>My Movies</Text>
                   <TouchableOpacity onPress={() => navigation.navigate('Movies')}>
                     <Text style={styles.seeAllText}>See All</Text>
                   </TouchableOpacity>
@@ -325,11 +292,11 @@ const HomeScreen = ({ navigation }) => {
               </View>
             )}
 
-            {/* Recent Series */}
+            {/* My Series */}
             {recentSeries.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>TV Series</Text>
+                  <Text style={styles.sectionTitle}>My TV Series</Text>
                   <TouchableOpacity onPress={() => navigation.navigate('Movies')}>
                     <Text style={styles.seeAllText}>See All</Text>
                   </TouchableOpacity>
@@ -345,7 +312,7 @@ const HomeScreen = ({ navigation }) => {
               </View>
             )}
 
-            {/* Playlists Summary */}
+            {/* Playlists */}
             {playlists.length > 0 && (
               <View style={styles.playlistsSection}>
                 <Text style={styles.sectionTitle}>My Playlists</Text>
@@ -400,9 +367,10 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     zIndex: 100,
   },
-  logo: {
-    width: 100,
-    height: 35,
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text.primary,
   },
   headerRight: {
     flexDirection: 'row',
@@ -539,16 +507,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text.primary,
   },
-  managePlaylistsButton: {
-    marginTop: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  managePlaylistsText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.primary.purple,
-  },
   playlistsSection: {
     marginTop: 8,
     marginBottom: 24,
@@ -582,4 +540,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+export default MyPlaylistScreen;

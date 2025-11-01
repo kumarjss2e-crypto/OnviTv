@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
-import { getUserChannels } from '../services/channelService';
+import { getGeneralChannels, getGeneralChannelCategories } from '../services/channelService';
 import ChannelCard from '../components/ChannelCard';
 
 const LiveTVScreen = ({ navigation }) => {
@@ -28,10 +28,8 @@ const LiveTVScreen = ({ navigation }) => {
   const [favorites, setFavorites] = useState([]);
 
   useEffect(() => {
-    if (user) {
-      loadChannels();
-    }
-  }, [user]);
+    loadChannels();
+  }, []);
 
   useEffect(() => {
     filterChannels();
@@ -40,21 +38,22 @@ const LiveTVScreen = ({ navigation }) => {
   const loadChannels = async () => {
     try {
       setLoading(true);
-      const result = await getUserChannels(user.uid);
       
-      if (result.success && result.data) {
-        setChannels(result.data);
-        
-        // Extract unique categories
-        const uniqueCategories = ['All', ...new Set(
-          result.data
-            .map(ch => ch.category || 'Uncategorized')
-            .filter(Boolean)
-        )];
-        setCategories(uniqueCategories);
+      // Load general (admin) channels
+      const [channelsResult, categoriesResult] = await Promise.all([
+        getGeneralChannels(),
+        getGeneralChannelCategories()
+      ]);
+      
+      if (channelsResult.success && channelsResult.data) {
+        setChannels(channelsResult.data);
+      }
+      
+      if (categoriesResult.success && categoriesResult.data) {
+        setCategories(['All', ...categoriesResult.data]);
       }
     } catch (error) {
-      console.error('Error loading channels:', error);
+      console.error('Error loading general channels:', error);
     } finally {
       setLoading(false);
     }
@@ -84,8 +83,10 @@ const LiveTVScreen = ({ navigation }) => {
 
   const handleChannelPress = (channel) => {
     console.log('Channel pressed:', channel.name);
-    // TODO: Navigate to player when implemented
-    // navigation.navigate('Player', { channel, type: 'channel' });
+    navigation.navigate('VideoPlayer', { 
+      channel: channel, 
+      contentType: 'channel' 
+    });
   };
 
   const handleFavorite = (channel) => {
@@ -131,21 +132,12 @@ const LiveTVScreen = ({ navigation }) => {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Ionicons name="tv-outline" size={64} color={colors.text.muted} />
-      <Text style={styles.emptyTitle}>No Channels Found</Text>
+      <Text style={styles.emptyTitle}>No Channels Available</Text>
       <Text style={styles.emptyDescription}>
         {searchQuery
-          ? 'Try a different search term'
-          : 'Add a playlist to start watching live TV channels'}
+          ? 'Try a different search term or category'
+          : 'No live TV channels are currently available. Check back later!'}
       </Text>
-      {!searchQuery && (
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('AddPlaylist')}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={colors.text.primary} />
-          <Text style={styles.addButtonText}>Add Playlist</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 
@@ -339,21 +331,6 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     textAlign: 'center',
     paddingHorizontal: 40,
-    marginBottom: 24,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.primary.purple,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text.primary,
   },
 });
 

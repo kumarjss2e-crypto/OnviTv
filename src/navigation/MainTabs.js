@@ -4,9 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 // Screens
-import HomeScreen from '../screens/HomeScreen';
-import LiveTVScreen from '../screens/LiveTVScreen';
 import MoviesScreen from '../screens/MoviesScreen';
+import LiveTVScreen from '../screens/LiveTVScreen';
+import MyPlaylistScreen from '../screens/MyPlaylistScreen';
 import MoreScreen from '../screens/MoreScreen';
 
 const Tab = createBottomTabNavigator();
@@ -33,11 +33,11 @@ const MainTabs = () => {
       }}
     >
       <Tab.Screen
-        name="Home"
-        component={HomeScreen}
+        name="Movies"
+        component={MoviesScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
+            <Ionicons name={focused ? "film" : "film-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -51,11 +51,11 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Movies"
-        component={MoviesScreen}
+        name="My Playlist"
+        component={MyPlaylistScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "film" : "film-outline"} size={24} color={color} />
+            <Ionicons name={focused ? "list" : "list-outline"} size={24} color={color} />
           ),
         }}
       />
