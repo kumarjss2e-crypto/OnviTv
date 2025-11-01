@@ -1,0 +1,651 @@
+import React, { useRef, useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  FlatList,
+  Animated,
+  Easing,
+  TouchableOpacity,
+  Image,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors } from '../theme/colors';
+import GradientButton from '../components/GradientButton';
+
+const { width, height } = Dimensions.get('window');
+
+const onboardingData = [
+  {
+    id: '1',
+    type: 'movie',
+    movieImage: 'https://images.unsplash.com/photo-1635805737707-575885ab0820?w=400&h=600&fit=crop',
+    movieTitle: 'Spider-Man',
+    rating: '8.4',
+    year: '2021',
+    genre: 'Action',
+    title: 'Discover Cinematic\nMasterpieces',
+    description: 'Explore thousands of movies from every genre, curated just for you',
+  },
+  {
+    id: '2',
+    type: 'movie',
+    movieImage: 'https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?w=400&h=600&fit=crop',
+    movieTitle: 'The Dark Knight',
+    rating: '9.0',
+    year: '2008',
+    genre: 'Action',
+    title: 'Premium Streaming\nExperience',
+    description: 'Watch in stunning HD quality with seamless playback on any device',
+  },
+  {
+    id: '3',
+    type: 'grid',
+    title: 'Share the Magic\nwith Loved Ones',
+    description: 'Create watchlists, share recommendations, and enjoy movie nights together',
+    subtitle: 'Stream anywhere, anytime on any device',
+  },
+];
+
+const movieGridImages = [
+  // Row 1
+  'https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg', // Avengers: Endgame
+  'https://image.tmdb.org/t/p/w500/pIkRyD18kl4FhoCNQuWxWu5cBLM.jpg', // The Dark Knight
+  'https://image.tmdb.org/t/p/w500/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg', // The Shawshank Redemption
+  // Row 2
+  'https://image.tmdb.org/t/p/w500/rCzpDGLbOoPwLjy3OAm5NUPOTrC.jpg', // The Lord of the Rings
+  'https://image.tmdb.org/t/p/w500/3bhkrj58Vtu7enYsRolD1fZdja1.jpg', // The Godfather
+  'https://image.tmdb.org/t/p/w500/udDclJoHjfjb8Ekgsd4FDteOkCU.jpg', // Joker
+  // Row 3
+  'https://image.tmdb.org/t/p/w500/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg', // Spider-Man: No Way Home
+  'https://image.tmdb.org/t/p/w500/xBHYBT1RPkZjzxhNvXqvWnhZDRj.jpg', // Inception
+  'https://image.tmdb.org/t/p/w500/5hNcsnMkwU2LknLoru73c76el3z.jpg', // Interstellar
+  // Row 4
+  'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg', // The Matrix
+  'https://image.tmdb.org/t/p/w500/8UlWHLMpgZm9bx6QYh0NFoq67TZ.jpg', // Pulp Fiction
+  'https://image.tmdb.org/t/p/w500/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg', // Fight Club
+  // Row 5
+  'https://image.tmdb.org/t/p/w500/rSPw7tgCH9c6NqICZef4kZjFOQ5.jpg', // Harry Potter
+  'https://image.tmdb.org/t/p/w500/c6H7Z4u73ir3cIoCteuhJh7UCAR.jpg', // Dune
+  'https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg', // Star Wars
+  // Row 6
+  'https://image.tmdb.org/t/p/w500/aWeKITRFbbwY8txG5uCj4rMCfSP.jpg', // Avatar
+  'https://image.tmdb.org/t/p/w500/tVxDe01Zy3kZqaZRNiXFGDICdZk.jpg', // Gladiator
+  'https://image.tmdb.org/t/p/w500/wuMc08IPKEatf9rnMNXvIDxqP4W.jpg', // Parasite
+  // Row 7
+  'https://image.tmdb.org/t/p/w500/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg', // Parasite alt
+  'https://image.tmdb.org/t/p/w500/d5NXSklXo0qyIYkgV94XAgMIckC.jpg', // Forrest Gump
+  'https://image.tmdb.org/t/p/w500/qNBAXBIQlnOThrVvA6mA2B5ggV6.jpg', // The Lion King
+  // Row 8
+  'https://image.tmdb.org/t/p/w500/ym1dxyOk4jFcSl4Q2zmRrA5BEEN.jpg', // The Prestige
+  'https://image.tmdb.org/t/p/w500/bXMVveUfRIT0jwTjy0MBnImTjiX.jpg', // Oppenheimer
+  'https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg', // Black Panther
+];
+
+const OnboardingScreen = ({ navigation }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const flatListRef = useRef(null);
+  const gridFloatAnim = useRef(new Animated.Value(0)).current;
+
+  const viewableItemsChanged = useRef(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      setCurrentIndex(viewableItems[0].index);
+    }
+  }).current;
+
+  const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
+
+  // Grid auto-scroll animation - up and down movement
+  useEffect(() => {
+    if (currentIndex === 2) {
+      gridFloatAnim.setValue(0);
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(gridFloatAnim, {
+            toValue: 1,
+            duration: 12000,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          Animated.timing(gridFloatAnim, {
+            toValue: 0,
+            duration: 12000,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ])
+      );
+      animation.start();
+      return () => animation.stop();
+    }
+  }, [currentIndex]);
+
+  const scrollToNext = () => {
+    console.log('Button clicked! Current index:', currentIndex);
+    if (currentIndex < onboardingData.length - 1) {
+      const nextIndex = currentIndex + 1;
+      console.log('Scrolling to index:', nextIndex);
+      
+      // Update state immediately
+      setCurrentIndex(nextIndex);
+      
+      // Then scroll
+      if (flatListRef.current) {
+        flatListRef.current.scrollToOffset({
+          offset: nextIndex * width,
+          animated: true,
+        });
+      }
+    } else {
+      console.log('Navigating to Login');
+      navigation.navigate('Login');
+    }
+  };
+
+  const handleSkip = () => {
+    navigation.navigate('Login');
+  };
+
+  const renderItem = ({ item, index }) => {
+    const inputRange = [
+      (index - 1) * width,
+      index * width,
+      (index + 1) * width,
+    ];
+
+    const scale = scrollX.interpolate({
+      inputRange,
+      outputRange: [0.85, 1, 0.85],
+      extrapolate: 'clamp',
+    });
+
+    const opacity = scrollX.interpolate({
+      inputRange,
+      outputRange: [0.4, 1, 0.4],
+      extrapolate: 'clamp',
+    });
+
+    if (item.type === 'movie') {
+      return (
+        <View style={styles.slide}>
+          <Animated.View
+            style={[
+              styles.moviePosterContainer,
+              {
+                transform: [{ scale }],
+                opacity,
+              },
+            ]}
+          >
+            <View style={styles.moviePoster}>
+              <Image
+                source={{ uri: item.movieImage }}
+                style={styles.posterImage}
+                resizeMode="cover"
+              />
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.8)']}
+                style={styles.posterGradient}
+              />
+              {/* Play Button */}
+              <View style={styles.playButtonContainer}>
+                <View style={styles.playButton}>
+                  <View style={styles.playIcon} />
+                </View>
+              </View>
+              {/* Movie Info */}
+              <View style={styles.movieInfo}>
+                <Text style={styles.movieTitle}>{item.movieTitle}</Text>
+                <View style={styles.movieMeta}>
+                  <Text style={styles.rating}>⭐ {item.rating}</Text>
+                  <Text style={styles.metaText}>{item.year} • {item.genre}</Text>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+
+          <Animated.View style={[styles.textContainer, { opacity }]}>
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.description}>{item.description}</Text>
+          </Animated.View>
+        </View>
+      );
+    }
+
+    // Grid View (Screen 3) - Auto-scrolling grid design (up and down)
+    const scrollTranslate = gridFloatAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, -150],
+    });
+
+    return (
+      <View style={styles.slide}>
+        {/* Text at top for better hierarchy */}
+        <Animated.View style={[styles.gridTextTop, { opacity }]}>
+          <Text style={styles.gridTitle}>Endless Entertainment</Text>
+          <Text style={styles.gridSubtitle}>Thousands of movies at your fingertips</Text>
+        </Animated.View>
+
+        {/* Movie Grid with auto-scroll */}
+        <View style={styles.gridWrapper}>
+          <Animated.View 
+            style={[
+              styles.gridScrollContainer,
+              { 
+                opacity,
+                transform: [{ translateY: scrollTranslate }]
+              }
+            ]}
+          >
+          <View style={styles.movieGrid}>
+            {movieGridImages.map((imageUrl, idx) => {
+              const row = Math.floor(idx / 3);
+              const col = idx % 3;
+              const stagger = (row + col) * 0.05;
+              
+              const itemScale = opacity.interpolate({
+                inputRange: [0.4, Math.min(0.6 + stagger, 0.95), 1],
+                outputRange: [0.7, 0.9, 1],
+                extrapolate: 'clamp',
+              });
+
+              const itemOpacity = opacity.interpolate({
+                inputRange: [0.4, Math.min(0.6 + stagger, 0.95), 1],
+                outputRange: [0, 0.5, 1],
+                extrapolate: 'clamp',
+              });
+              
+              return (
+                <Animated.View
+                  key={idx}
+                  style={[
+                    styles.gridItem,
+                    {
+                      opacity: itemOpacity,
+                      transform: [{ scale: itemScale }]
+                    },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={styles.gridImage}
+                    resizeMode="cover"
+                  />
+                  {/* Subtle overlay gradient */}
+                  <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.4)']}
+                    style={styles.gridItemOverlay}
+                  />
+                </Animated.View>
+              );
+            })}
+          </View>
+          
+          {/* Bottom fade for depth */}
+          <LinearGradient
+            colors={['transparent', 'rgba(15, 23, 42, 0.95)', colors.neutral.slate900]}
+            style={styles.gridFadeOut}
+            pointerEvents="none"
+          />
+        </Animated.View>
+        </View>
+
+        {/* Bottom CTA text */}
+        <Animated.View style={[styles.gridBottomText, { opacity }]}>
+          <Text style={styles.gridCTA}>Stream anywhere, anytime</Text>
+        </Animated.View>
+      </View>
+    );
+  };
+
+  const Paginator = () => {
+    return (
+      <View style={styles.paginatorContainer}>
+        {onboardingData.map((_, index) => {
+          const inputRange = [
+            (index - 1) * width,
+            index * width,
+            (index + 1) * width,
+          ];
+
+          const dotWidth = scrollX.interpolate({
+            inputRange,
+            outputRange: [12, 32, 12],
+            extrapolate: 'clamp',
+          });
+
+          const opacity = scrollX.interpolate({
+            inputRange,
+            outputRange: [0.3, 1, 0.3],
+            extrapolate: 'clamp',
+          });
+
+          return (
+            <Animated.View
+              key={index}
+              style={[
+                styles.dot,
+                {
+                  width: dotWidth,
+                  opacity,
+                },
+              ]}
+            />
+          );
+        })}
+      </View>
+    );
+  };
+
+  return (
+    <LinearGradient
+      colors={[colors.neutral.slate900, colors.primary.purple900, colors.neutral.slate900]}
+      style={styles.container}
+    >
+      {/* Background Blobs */}
+      <View style={styles.blobContainer}>
+        <View style={[styles.blob, styles.blob1]} />
+        <View style={[styles.blob, styles.blob2]} />
+        <View style={[styles.blob, styles.blob3]} />
+      </View>
+
+      {/* Skip Button */}
+      <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
+        <Text style={styles.skipText}>Skip</Text>
+      </TouchableOpacity>
+
+      {/* Onboarding Slides */}
+      <FlatList
+        ref={flatListRef}
+        data={onboardingData}
+        renderItem={renderItem}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        bounces={false}
+        keyExtractor={(item) => item.id}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+          { useNativeDriver: false }
+        )}
+        onViewableItemsChanged={viewableItemsChanged}
+        viewabilityConfig={viewConfig}
+        scrollEventThrottle={16}
+      />
+
+      {/* Paginator */}
+      <Paginator />
+
+      {/* Next/Get Started Button */}
+      <View style={styles.buttonContainer}>
+        <GradientButton
+          title={currentIndex === onboardingData.length - 1 ? 'Get Started' : 'Continue'}
+          onPress={scrollToNext}
+          style={styles.button}
+        />
+      </View>
+    </LinearGradient>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  blobContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  blob: {
+    position: 'absolute',
+    borderRadius: 999,
+    opacity: 0.1,
+  },
+  blob1: {
+    width: 200,
+    height: 200,
+    backgroundColor: colors.primary.purple,
+    top: 100,
+    left: -60,
+  },
+  blob2: {
+    width: 150,
+    height: 150,
+    backgroundColor: colors.secondary.cyan,
+    top: 250,
+    right: -40,
+  },
+  blob3: {
+    width: 180,
+    height: 180,
+    backgroundColor: colors.primary.indigo,
+    bottom: 200,
+    left: 40,
+  },
+  skipButton: {
+    position: 'absolute',
+    top: 60,
+    right: 24,
+    zIndex: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  skipText: {
+    color: colors.text.secondary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  slide: {
+    width,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  moviePosterContainer: {
+    marginBottom: 50,
+  },
+  moviePoster: {
+    width: width * 0.65,
+    height: width * 0.88,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  posterImage: {
+    width: '100%',
+    height: '100%',
+  },
+  posterGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+  },
+  playButtonContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playIcon: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 16,
+    borderTopWidth: 10,
+    borderBottomWidth: 10,
+    borderLeftColor: colors.text.primary,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    marginLeft: 4,
+  },
+  movieInfo: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+  },
+  movieTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: 6,
+  },
+  movieMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  rating: {
+    fontSize: 13,
+    color: colors.accent.yellow,
+    fontWeight: '600',
+  },
+  metaText: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    fontWeight: '500',
+  },
+  gridTextTop: {
+    alignItems: 'center',
+    marginTop: 32,
+    marginBottom: 24,
+    paddingHorizontal: 24,
+  },
+  gridTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: 8,
+    letterSpacing: -0.3,
+  },
+  gridSubtitle: {
+    fontSize: 14,
+    color: 'rgba(148, 163, 184, 0.7)',
+    textAlign: 'center',
+    fontWeight: '400',
+  },
+  gridWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    overflow: 'hidden',
+    maxHeight: 400,
+  },
+  gridScrollContainer: {
+    paddingBottom: 600,
+  },
+  movieGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    width: width * 0.85,
+    gap: 8,
+  },
+  gridItem: {
+    width: (width * 0.85 - 32) / 3,
+    height: (width * 0.85 - 32) / 3 * 1.4,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: colors.neutral.slate800,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gridItemOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '40%',
+  },
+  gridFadeOut: {
+    position: 'absolute',
+    bottom: -20,
+    left: -50,
+    right: -50,
+    height: 150,
+  },
+  gridBottomText: {
+    alignItems: 'center',
+    paddingBottom: 20,
+  },
+  gridCTA: {
+    fontSize: 15,
+    color: colors.text.secondary,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  textContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 32,
+    letterSpacing: -0.3,
+  },
+  description: {
+    fontSize: 14,
+    color: 'rgba(148, 163, 184, 0.8)',
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: 'rgba(148, 163, 184, 0.6)',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  paginatorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  dot: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary.purple,
+    marginHorizontal: 4,
+  },
+  buttonContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 48,
+  },
+  button: {
+    width: '100%',
+  },
+});
+
+export default OnboardingScreen;

@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "OnviTV",
+    "slug": "onvitv-reactnative",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1e1b4b"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.onvitv.app"
+    },
+    "android": {
+      "package": "com.onvitv.com",
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

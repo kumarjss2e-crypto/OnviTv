@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1035586796015",
+    "project_id": "onvi-iptv-player",
+    "storage_bucket": "onvi-iptv-player.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1035586796015:android:817820a6bafa8090b71e1a",
+        "android_client_info": {
+          "package_name": "com.onvitv.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7C2uB1OuaEnJj3yskaFRqaWsCw1ahMro"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
