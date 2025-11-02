@@ -18,7 +18,7 @@ import { getUserMovies, getRecentMovies } from '../services/movieService';
 import { getUserSeries, getRecentSeries } from '../services/seriesService';
 
 const { width } = Dimensions.get('window');
-const CARD_W = (width - 16 * 2 - 12 * 2) / 3; // 3 columns, 16px padding, 12px gap
+const CARD_W = (width - 16 * 2 - 12) / 2; // 2 columns, 16px padding, 12px gap between
 const CARD_H = CARD_W * 1.5;
 
 const TABS = ['Movies', 'Series', 'Downloads'];
@@ -121,12 +121,34 @@ const MoviesScreen = ({ navigation }) => {
     return list;
   }, [items, search, category, sortKey]);
 
+  const handleMoviePress = (item) => {
+    navigation.navigate('MovieDetail', {
+      movie: {
+        id: item.id,
+        title: getTitle(item),
+        name: getTitle(item),
+        poster: getPoster(item),
+        cover: getPoster(item),
+        backdrop: item.backdrop || getPoster(item),
+        year: getYear(item),
+        rating: getRating(item),
+        duration: item.duration || item.runtime,
+        description: item.plot || item.description || item.overview,
+        genre: getCategory(item),
+        streamUrl: item.streamUrl || item.stream_url,
+        type: tab.toLowerCase() === 'movies' ? 'movie' : 'series',
+        cast: item.cast,
+        director: item.director,
+      },
+    });
+  };
+
   const renderCard = ({ item }) => {
     const poster = getPoster(item);
     const title = getTitle(item);
     const yr = getYear(item);
     return (
-      <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => console.log('Open details', title)}>
+      <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => handleMoviePress(item)}>
         {poster ? (
           <Image source={{ uri: poster }} style={styles.poster} resizeMode="cover" />
         ) : (
@@ -189,13 +211,15 @@ const MoviesScreen = ({ navigation }) => {
 
       {/* Categories */}
       {categories.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-          {categories.map((c) => (
-            <TouchableOpacity key={c} onPress={() => setCategory(c)} style={[styles.catChip, category === c && styles.catChipActive]}>
-              <Text style={[styles.catChipText, category === c && styles.catChipTextActive]}>{c}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <View style={styles.catWrapper}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+            {categories.map((c) => (
+              <TouchableOpacity key={c} onPress={() => setCategory(c)} style={[styles.catChip, category === c && styles.catChipActive]}>
+                <Text style={[styles.catChipText, category === c && styles.catChipTextActive]}>{c}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
       {/* Grid */}
@@ -208,10 +232,11 @@ const MoviesScreen = ({ navigation }) => {
         <FlatList
           data={filtered}
           keyExtractor={(it) => it.id}
-          numColumns={3}
+          numColumns={2}
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={styles.gridContent}
           renderItem={renderCard}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyWrap}>
               <Ionicons name="film-outline" size={56} color={colors.text.muted} />
@@ -244,13 +269,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral.slate900,
   },
   header: {
-    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: 12,
+    paddingTop: 44,
+    paddingBottom: 12,
     backgroundColor: colors.neutral.slate900,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral.slate800,
   },
   backButton: {
     width: 36,
@@ -259,7 +286,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text.primary,
   },
@@ -269,8 +296,9 @@ const styles = StyleSheet.create({
   tabsRow: {
     flexDirection: 'row',
     gap: 8,
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    marginBottom: 12,
   },
   tabBtn: {
     paddingVertical: 8,
@@ -282,7 +310,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary.purple,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text.secondary,
   },
@@ -290,8 +318,8 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   searchRow: {
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    paddingHorizontal: 12,
+    marginBottom: 10,
   },
   searchWrap: {
     flexDirection: 'row',
@@ -305,21 +333,18 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: colors.text.primary,
-    fontSize: 15,
+    fontSize: 14,
   },
   sortsWrapRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    paddingTop: 4,
-    gap: 8,
-    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 6,
   },
   sortChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: colors.neutral.slate800,
     borderRadius: 14,
-    height: 28,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -328,24 +353,26 @@ const styles = StyleSheet.create({
   },
   sortChipText: {
     color: colors.text.secondary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
   sortChipTextActive: {
     color: colors.text.primary,
   },
+  catWrapper: {
+    marginBottom: 12,
+    paddingVertical: 6,
+  },
   catRow: {
-    paddingHorizontal: 16,
-    gap: 8,
-    paddingBottom: 12,
-    marginBottom: 4,
+    paddingHorizontal: 12,
+    alignItems: 'center',
   },
   catChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     backgroundColor: colors.neutral.slate800,
-    borderRadius: 14,
-    height: 28,
+    borderRadius: 18,
+    marginRight: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -354,15 +381,14 @@ const styles = StyleSheet.create({
   },
   catChipText: {
     color: colors.text.secondary,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
   },
   catChipTextActive: {
     color: colors.text.primary,
   },
   gridContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: 12,
     paddingBottom: 16,
   },
   gridRow: {
@@ -390,20 +416,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardTitle: {
-    marginTop: 8,
+    marginTop: 6,
     color: colors.text.primary,
     fontWeight: '600',
     fontSize: 13,
+    lineHeight: 16,
   },
   cardMeta: {
-    marginTop: 4,
+    marginTop: 3,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   cardMetaText: {
     color: colors.text.muted,
-    fontSize: 11,
+    fontSize: 10,
   },
   ratingBadge: {
     flexDirection: 'row',

@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -48,6 +49,7 @@ const EPGScreen = () => {
   const [programsByChannel, setProgramsByChannel] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedProgram, setSelectedProgram] = useState(null);
 
   const totalGridWidth = SLOT_WIDTH * ((TOTAL_HOURS * 60) / SLOT_MINUTES);
   const now = new Date();
@@ -201,7 +203,12 @@ const EPGScreen = () => {
                     const progMs = Math.max(0, Math.min(totalMs, now.getTime() - p.start.getTime()));
                     const progPct = Math.max(0, Math.min(1, progMs / totalMs));
                     return (
-                      <View key={p.id} style={[styles.programBlock, { left, width }, isNow && styles.programBlockCurrent]}> 
+                      <TouchableOpacity 
+                        key={p.id} 
+                        style={[styles.programBlock, { left, width }, isNow && styles.programBlockCurrent]}
+                        onPress={() => setSelectedProgram({ ...p, channelName: item.name })}
+                        activeOpacity={0.7}
+                      > 
                         <Text style={styles.programTitle} numberOfLines={1}>{p.title}</Text>
                         <Text style={styles.programTime} numberOfLines={1}>
                           {p.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {p.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -211,7 +218,7 @@ const EPGScreen = () => {
                             <View style={[styles.progressFill, { width: `${(progPct * 100).toFixed(0)}%` }]} />
                           </View>
                         )}
-                      </View>
+                      </TouchableOpacity>
                     );
                   })}
                 </View>
@@ -236,10 +243,68 @@ const EPGScreen = () => {
               ) : null}
             />
 
-            
+            {/* Current time indicator line */}
+            {(() => {
+              const nowMinutes = minutesBetween(start, now);
+              const nowLeft = (nowMinutes / SLOT_MINUTES) * SLOT_WIDTH;
+              if (nowLeft >= 0 && nowLeft <= totalGridWidth) {
+                return <View style={[styles.nowLine, { left: nowLeft }]} />;
+              }
+              return null;
+            })()}
           </View>
         </ScrollView>
       </View>
+
+      {/* Program Details Modal */}
+      <Modal
+        visible={!!selectedProgram}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedProgram(null)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1}
+          onPress={() => setSelectedProgram(null)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{selectedProgram?.title || 'Program Details'}</Text>
+              <TouchableOpacity onPress={() => setSelectedProgram(null)} style={styles.modalClose}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {selectedProgram && (
+              <ScrollView style={styles.modalBody}>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Channel:</Text>
+                  <Text style={styles.modalValue}>{selectedProgram.channelName}</Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Time:</Text>
+                  <Text style={styles.modalValue}>
+                    {selectedProgram.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {selectedProgram.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </View>
+                <View style={styles.modalRow}>
+                  <Text style={styles.modalLabel}>Duration:</Text>
+                  <Text style={styles.modalValue}>
+                    {Math.round((selectedProgram.end - selectedProgram.start) / 60000)} minutes
+                  </Text>
+                </View>
+                {selectedProgram.description && (
+                  <View style={[styles.modalRow, { flexDirection: 'column', alignItems: 'flex-start' }]}>
+                    <Text style={styles.modalLabel}>Description:</Text>
+                    <Text style={[styles.modalValue, { marginTop: 8 }]}>{selectedProgram.description}</Text>
+                  </View>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -349,6 +414,101 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 2,
     backgroundColor: colors.accent.red,
+  },
+  programBlockCurrent: {
+    backgroundColor: colors.primary.purple + '20',
+    borderColor: colors.primary.purple,
+  },
+  progressBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: colors.neutral.slate700,
+    borderRadius: 2,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary.purple,
+    borderRadius: 2,
+  },
+  refreshBtn: {
+    position: 'absolute',
+    right: 16,
+    top: 14,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: colors.neutral.slate800,
+    borderRadius: 8,
+  },
+  refreshText: {
+    color: colors.text.primary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.neutral.slate900,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    borderWidth: 1,
+    borderColor: colors.neutral.slate800,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral.slate800,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+    flex: 1,
+    marginRight: 12,
+  },
+  modalClose: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: colors.neutral.slate800,
+  },
+  modalCloseText: {
+    fontSize: 18,
+    color: colors.text.secondary,
+    fontWeight: '600',
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.secondary,
+    width: 80,
+  },
+  modalValue: {
+    fontSize: 14,
+    color: colors.text.primary,
+    flex: 1,
   },
 });
 

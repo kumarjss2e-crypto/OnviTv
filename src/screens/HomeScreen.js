@@ -137,10 +137,21 @@ const HomeScreen = ({ navigation }) => {
     const title = item.metadata?.name || item.name || 'Untitled';
     
     const handlePress = () => {
-      // Navigate to player or details based on content type
-      console.log('Content item clicked:', title);
-      // TODO: Navigate to player when implemented
-      // navigation.navigate('Player', { item });
+      console.log('Movie/Content item clicked:', {
+        streamUrl: item.streamUrl,
+        title: item.title || item.name,
+        type: item.type,
+        id: item.id,
+        fullItem: item
+      });
+      
+      navigation.navigate('VideoPlayer', {
+        streamUrl: item.streamUrl,
+        title: item.title || item.name,
+        contentType: item.type || 'movie',
+        contentId: item.id,
+        thumbnail: item.poster || item.backdrop,
+      });
     };
     
     return (
@@ -162,9 +173,13 @@ const HomeScreen = ({ navigation }) => {
     const title = item.name || 'Untitled';
     
     const handlePress = () => {
-      console.log('Channel clicked:', title);
-      // TODO: Navigate to player when implemented
-      // navigation.navigate('Player', { item, type: 'channel' });
+      navigation.navigate('VideoPlayer', {
+        streamUrl: item.streamUrl,
+        title: item.name,
+        contentType: 'channel',
+        contentId: item.id,
+        thumbnail: item.logo,
+      });
     };
     
     return (

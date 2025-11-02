@@ -10,7 +10,8 @@ import {
   query, 
   where, 
   orderBy,
-  serverTimestamp 
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
 
 /**
@@ -122,14 +123,45 @@ export const updatePlaylist = async (playlistId, updates) => {
 // Delete playlist
 export const deletePlaylist = async (playlistId) => {
   try {
-    // Delete playlist document
+    console.log('Deleting playlist and associated content:', playlistId);
+    
+    // Delete associated content first
+    const collections = ['channels', 'movies', 'series'];
+    let deletedCount = { channels: 0, movies: 0, series: 0 };
+    
+    for (const collectionName of collections) {
+      const q = query(
+        collection(firestore, collectionName),
+        where('playlistId', '==', playlistId)
+      );
+      
+      const snapshot = await getDocs(q);
+      console.log(`Found ${snapshot.size} ${collectionName} to delete`);
+      
+      // Delete in batches
+      const batch = writeBatch(firestore);
+      snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+        deletedCount[collectionName]++;
+      });
+      
+      if (snapshot.size > 0) {
+        await batch.commit();
+      }
+    }
+    
+    console.log('Deleted content:', deletedCount);
+    
+    // Finally, delete the playlist document
     const docRef = doc(firestore, 'playlists', playlistId);
     await deleteDoc(docRef);
-
-    // TODO: Delete associated channels, movies, series, etc.
-    // This should be done in a Cloud Function for better performance
-
-    return { success: true };
+    
+    console.log('Playlist deleted successfully');
+    return { 
+      success: true, 
+      deletedCount,
+      message: `Deleted playlist and ${deletedCount.channels} channels, ${deletedCount.movies} movies, ${deletedCount.series} series`
+    };
   } catch (error) {
     console.error('Error deleting playlist:', error);
     return { success: false, error: error.message };

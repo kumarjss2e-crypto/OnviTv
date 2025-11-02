@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { getUserChannels } from '../services/channelService';
+import { getEPGForChannel, getEPGByEpgChannelId } from '../services/epgService';
+import { Timestamp } from 'firebase/firestore';
 import ChannelCard from '../components/ChannelCard';
 
 const LiveTVScreen = ({ navigation }) => {
@@ -26,12 +28,58 @@ const LiveTVScreen = ({ navigation }) => {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
+  const [epgByChannel, setEpgByChannel] = useState({});
 
   useEffect(() => {
     if (user) {
       loadChannels();
+      loadEPG();
     }
   }, [user]);
+
+  const loadEPG = async () => {
+    try {
+      if (!channels || channels.length === 0) return;
+      
+      // Get EPG for next 6 hours
+      const now = new Date();
+      const end = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+      const startTs = Timestamp.fromDate(now);
+      const endTs = Timestamp.fromDate(end);
+
+      // Fetch EPG for all channels (limit to first 50 to avoid too many requests)
+      const epgPromises = channels.slice(0, 50).map(async (ch) => {
+        try {
+          let items = [];
+          const epg = await getEPGForChannel(ch.id, startTs, endTs);
+          if (epg.success) items = epg.data || [];
+          if ((!items || items.length === 0) && ch.epgChannelId) {
+            const epg2 = await getEPGByEpgChannelId(ch.epgChannelId, startTs, endTs);
+            if (epg2.success) items = epg2.data || [];
+          }
+          return { id: ch.id, items };
+        } catch (e) {
+          return { id: ch.id, items: [] };
+        }
+      });
+
+      const results = await Promise.all(epgPromises);
+      const epgMap = {};
+      results.forEach(({ id, items }) => {
+        epgMap[id] = items;
+      });
+      setEpgByChannel(epgMap);
+    } catch (error) {
+      console.error('Error loading EPG:', error);
+    }
+  };
+
+  // Reload EPG when channels change
+  useEffect(() => {
+    if (channels.length > 0) {
+      loadEPG();
+    }
+  }, [channels]);
 
   useEffect(() => {
     filterChannels();
@@ -87,9 +135,13 @@ const LiveTVScreen = ({ navigation }) => {
   };
 
   const handleChannelPress = (channel) => {
-    console.log('Channel pressed:', channel.name);
-    // TODO: Navigate to player when implemented
-    // navigation.navigate('Player', { channel, type: 'channel' });
+    navigation.navigate('VideoPlayer', {
+      streamUrl: channel.streamUrl,
+      title: channel.name,
+      contentType: 'channel',
+      contentId: channel.id,
+      thumbnail: channel.logo,
+    });
   };
 
   const handleFavorite = (channel) => {
@@ -129,6 +181,7 @@ const LiveTVScreen = ({ navigation }) => {
       onFavorite={handleFavorite}
       isFavorited={favorites.includes(item.id)}
       viewMode={viewMode}
+      epgData={epgByChannel[item.id] || []}
     />
   );
 
@@ -201,14 +254,15 @@ const LiveTVScreen = ({ navigation }) => {
 
       {/* Category Tabs */}
       {categories.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriesContainer}
-          contentContainerStyle={styles.categoriesContent}
-        >
-          {categories.map(renderCategoryTab)}
-        </ScrollView>
+        <View style={styles.categoriesWrapper}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesContent}
+          >
+            {categories.map(renderCategoryTab)}
+          </ScrollView>
+        </View>
       )}
 
       {/* Channels Grid/List */}
@@ -291,13 +345,12 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: 4,
   },
-  categoriesContainer: {
+  categoriesWrapper: {
     marginBottom: 16,
-    height: 60,
+    paddingVertical: 8,
   },
   categoriesContent: {
     paddingHorizontal: 16,
-    flexDirection: 'row',
     alignItems: 'center',
   },
   categoryTab: {
@@ -306,7 +359,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.neutral.slate800,
     marginRight: 8,
-    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },

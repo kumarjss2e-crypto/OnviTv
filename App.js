@@ -18,6 +18,8 @@ import PlaylistManagementScreen from './src/screens/PlaylistManagementScreen';
 import AddPlaylistScreen from './src/screens/AddPlaylistScreen';
 import EditPlaylistScreen from './src/screens/EditPlaylistScreen';
 import EPGScreen from './src/screens/EPGScreen';
+import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
+import MovieDetailScreen from './src/screens/MovieDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -51,6 +53,21 @@ export default function App() {
                   headerStyle: { backgroundColor: colors.neutral.slate900 },
                   headerTintColor: colors.text.primary,
                   headerTitleStyle: { color: colors.text.primary },
+                }}
+              />
+              <Stack.Screen 
+                name="VideoPlayer" 
+                component={VideoPlayerScreen}
+                options={{
+                  headerShown: false,
+                  orientation: 'landscape',
+                }}
+              />
+              <Stack.Screen 
+                name="MovieDetail" 
+                component={MovieDetailScreen}
+                options={{
+                  headerShown: false,
                 }}
               />
             </Stack.Navigator>

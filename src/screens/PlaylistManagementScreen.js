@@ -101,20 +101,27 @@ const PlaylistManagementScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              setRefreshing(true);
               const result = await deletePlaylist(playlist.id);
               if (result.success) {
                 setPlaylists(prev => prev.filter(p => p.id !== playlist.id));
-                CustomAlert.alert('Success', 'Playlist deleted successfully');
+                CustomAlert.alert(
+                  'Success', 
+                  result.message || 'Playlist and all associated content deleted successfully'
+                );
               } else {
                 CustomAlert.alert('Error', result.error || 'Failed to delete playlist');
               }
             } catch (error) {
               console.error('Error deleting playlist:', error);
               CustomAlert.alert('Error', 'Failed to delete playlist');
+            } finally {
+              setRefreshing(false);
             }
           },
         },
-      ]
+      ],
+      { cancelable: true }
     );
   };
 
