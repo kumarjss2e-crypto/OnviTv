@@ -9,11 +9,16 @@ import {
   onAuthStateChanged as firebaseOnAuthStateChanged,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult
+  signInWithCredential
 } from 'firebase/auth';
 import { createUserProfile, updateLastLogin } from './userService';
 import { Platform } from 'react-native';
+
+// Only import GoogleSignin on native platforms (not web)
+let GoogleSignin = null;
+if (Platform.OS !== 'web') {
+  GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+}
 
 /**
  * Authentication Service - Handles user authentication
@@ -132,37 +137,50 @@ export const signInWithGoogle = async () => {
       throw new Error('Firebase Auth is not initialized');
     }
 
-    const provider = new GoogleAuthProvider();
-    provider.addScope('profile');
-    provider.addScope('email');
+    let user;
     
-    let result;
-    
-    // Use popup for web, redirect for mobile
     if (Platform.OS === 'web') {
+      // Web: Use Firebase popup
+      const provider = new GoogleAuthProvider();
+      provider.addScope('profile');
+      provider.addScope('email');
+      
       try {
-        result = await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(auth, provider);
+        if (!result || !result.user) {
+          return { success: false, error: 'No user data received' };
+        }
+        user = result.user;
       } catch (popupError) {
-        // If popup fails, try redirect
-        console.log('Popup failed, trying redirect:', popupError);
-        await signInWithRedirect(auth, provider);
-        return { success: false, error: 'Redirecting to Google sign in...' };
+        console.log('Google sign-in error:', popupError);
+        return { success: false, error: popupError.message || 'Failed to sign in with Google' };
       }
     } else {
-      // For mobile
-      await signInWithRedirect(auth, provider);
-      result = await getRedirectResult(auth);
-      
-      if (!result) {
-        return { success: false, error: 'Sign in cancelled' };
+      // Mobile: Use Google Sign-In SDK
+      try {
+        // Check if device supports Google Play services
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        
+        // Get user info from Google
+        const { idToken } = await GoogleSignin.signIn();
+        
+        // Create a Google credential with the token
+        const googleCredential = GoogleAuthProvider.credential(idToken);
+        
+        // Sign in to Firebase with the Google credential
+        const result = await signInWithCredential(auth, googleCredential);
+        if (!result || !result.user) {
+          return { success: false, error: 'No user data received' };
+        }
+        user = result.user;
+      } catch (error) {
+        console.log('Google sign-in error:', error);
+        if (error.code === 'SIGN_IN_CANCELLED') {
+          return { success: false, error: 'Sign in cancelled' };
+        }
+        return { success: false, error: error.message || 'Failed to sign in with Google' };
       }
     }
-    
-    if (!result || !result.user) {
-      return { success: false, error: 'No user data received' };
-    }
-    
-    const user = result.user;
     
     // Create or update user profile in Firestore
     await createUserProfile(user.uid, {

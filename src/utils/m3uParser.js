@@ -149,6 +149,11 @@ const parseM3UContent = (content) => {
       if (contentType === 'movie') {
         movies.push(currentItem);
       } else if (contentType === 'series') {
+        // Try to extract episode info
+        const episodeInfo = extractEpisodeInfo(currentItem.name);
+        if (episodeInfo) {
+          currentItem.episodeInfo = episodeInfo;
+        }
         series.push(currentItem);
       } else {
         channels.push(currentItem);
@@ -232,18 +237,61 @@ const detectContentType = (item) => {
     return 'movie';
   }
 
-  // Check for series indicators
-  const seriesKeywords = ['series', 'show', 'episode', 'season', 'tv show', 'serie'];
-  const isSeries = seriesKeywords.some(keyword => 
-    category.includes(keyword) || name.includes(keyword) || url.includes('/series/')
+  // Check for series/episode indicators (S01E01, 1x01, etc.)
+  const episodePattern = /s\d+e\d+|season\s*\d+|episode\s*\d+|\d+x\d+/i;
+  const hasEpisodeInfo = episodePattern.test(name) || episodePattern.test(url);
+  
+  // Check for series keywords
+  const seriesKeywords = ['series', 'show', 'tv show', 'serie'];
+  const hasSeriesKeyword = seriesKeywords.some(keyword => 
+    category.includes(keyword) || url.includes('/series/')
   );
 
-  if (isSeries) {
+  if (hasEpisodeInfo || hasSeriesKeyword) {
     return 'series';
   }
 
   // Default to channel (live TV)
   return 'channel';
+};
+
+/**
+ * Extract episode info from name (S01E01, 1x01, etc.)
+ * @param {string} name - Item name
+ * @returns {Object|null} - Episode info or null
+ */
+const extractEpisodeInfo = (name) => {
+  // Pattern: S01E01 or s01e01
+  let match = name.match(/s(\d+)e(\d+)/i);
+  if (match) {
+    return {
+      seasonNumber: parseInt(match[1]),
+      episodeNumber: parseInt(match[2]),
+      seriesName: name.replace(/s\d+e\d+/i, '').trim(),
+    };
+  }
+
+  // Pattern: 1x01
+  match = name.match(/(\d+)x(\d+)/);
+  if (match) {
+    return {
+      seasonNumber: parseInt(match[1]),
+      episodeNumber: parseInt(match[2]),
+      seriesName: name.replace(/\d+x\d+/, '').trim(),
+    };
+  }
+
+  // Pattern: Season 1 Episode 1
+  match = name.match(/season\s*(\d+)\s*episode\s*(\d+)/i);
+  if (match) {
+    return {
+      seasonNumber: parseInt(match[1]),
+      episodeNumber: parseInt(match[2]),
+      seriesName: name.replace(/season\s*\d+\s*episode\s*\d+/i, '').trim(),
+    };
+  }
+
+  return null;
 };
 
 /**
@@ -419,6 +467,10 @@ const saveBatch = async (collectionName, items, playlistId, userId, batchSize) =
         data.title = item.name;
         data.poster = item.logo;
         data.seasons = [];
+        // Store episode info if available
+        if (item.episodeInfo) {
+          data.episodeInfo = item.episodeInfo;
+        }
       }
 
       batch.set(docRef, data);

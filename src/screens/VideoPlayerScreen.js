@@ -10,7 +10,7 @@ import {
   Platform,
   BackHandler,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import Video from 'react-native-video';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -190,7 +190,7 @@ const WebVideo = ({ source, onPlaybackStatusUpdate, videoRef }) => {
 };
 
 export default function VideoPlayerScreen({ route, navigation }) {
-  const { streamUrl, title, contentType, contentId, thumbnail } = route.params;
+  const { streamUrl, title, contentType, contentId, thumbnail, nextEpisode, seriesId, seasonNumber, episodeNumber } = route.params;
   const { user } = useAuth();
   
   // Test stream URL for debugging (remove this later)
@@ -365,25 +365,27 @@ export default function VideoPlayerScreen({ route, navigation }) {
   };
 
   const togglePlayPause = async () => {
-    if (status.isPlaying) {
-      await videoRef.current.pauseAsync();
-    } else {
-      await videoRef.current.playAsync();
-    }
+    setStatus(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
   };
 
   const handleSeek = async (value) => {
-    await videoRef.current.setPositionAsync(value);
+    if (videoRef.current) {
+      videoRef.current.seek(value / 1000);
+    }
   };
 
   const skipForward = async () => {
     const newPosition = (status.positionMillis || 0) + 10000;
-    await videoRef.current.setPositionAsync(Math.min(newPosition, status.durationMillis));
+    if (videoRef.current) {
+      videoRef.current.seek(Math.min(newPosition, status.durationMillis) / 1000);
+    }
   };
 
   const skipBackward = async () => {
     const newPosition = (status.positionMillis || 0) - 10000;
-    await videoRef.current.setPositionAsync(Math.max(newPosition, 0));
+    if (videoRef.current) {
+      videoRef.current.seek(Math.max(newPosition, 0) / 1000);
+    }
   };
 
   const formatTime = (millis) => {
@@ -417,13 +419,15 @@ export default function VideoPlayerScreen({ route, navigation }) {
         const savedPosition = await loadProgress();
         if (savedPosition > 0) {
           try {
-            await videoRef.current.setPositionAsync(savedPosition);
+            videoRef.current.seek(savedPosition / 1000);
             console.log('Resumed playback from:', formatTime(savedPosition));
           } catch (error) {
             console.error('Error resuming playback:', error);
           }
         }
         setHasResumed(true);
+        // Auto-play after resuming
+        setStatus(prev => ({ ...prev, isPlaying: true }));
       }
       
       if (playbackStatus.didJustFinish) {
@@ -467,11 +471,57 @@ export default function VideoPlayerScreen({ route, navigation }) {
             ref={videoRef}
             source={{ uri: actualStreamUrl }}
             style={styles.video}
-            resizeMode={ResizeMode.CONTAIN}
-            shouldPlay
-            onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+            resizeMode="contain"
+            paused={!status.isPlaying}
             onLoadStart={() => setIsLoading(true)}
-            onLoad={() => setIsLoading(false)}
+            onLoad={(data) => {
+              setIsLoading(false);
+              handlePlaybackStatusUpdate({
+                isLoaded: true,
+                isPlaying: false,
+                positionMillis: 0,
+                durationMillis: data.duration * 1000,
+                isBuffering: false,
+              });
+            }}
+            onProgress={(data) => {
+              handlePlaybackStatusUpdate({
+                isLoaded: true,
+                isPlaying: !status.paused,
+                positionMillis: data.currentTime * 1000,
+                durationMillis: data.seekableDuration * 1000,
+                isBuffering: false,
+              });
+            }}
+            onBuffer={({ isBuffering }) => setIsBuffering(isBuffering)}
+            onEnd={() => {
+              handlePlaybackStatusUpdate({
+                isLoaded: true,
+                didJustFinish: true,
+                durationMillis: status.durationMillis,
+              });
+              
+              // Auto-play next episode if available
+              if (nextEpisode && contentType === 'episode') {
+                setTimeout(() => {
+                  navigation.replace('VideoPlayer', {
+                    streamUrl: nextEpisode.streamUrl || nextEpisode.stream_url,
+                    title: `${title.split(' - ')[0]} - S${nextEpisode.seasonNumber}E${nextEpisode.episodeNumber}`,
+                    contentType: 'episode',
+                    contentId: nextEpisode.id,
+                    seriesId: seriesId,
+                    seasonNumber: nextEpisode.seasonNumber,
+                    episodeNumber: nextEpisode.episodeNumber,
+                    thumbnail: nextEpisode.thumbnail || thumbnail,
+                  });
+                }, 2000); // 2 second delay before auto-playing next episode
+              }
+            }}
+            onError={(error) => {
+              console.error('Video error:', error);
+              setError(error.error?.errorString || 'Failed to load video');
+              setIsLoading(false);
+            }}
           />
         )}
 

@@ -97,30 +97,30 @@ const OnboardingScreen = ({ navigation }) => {
 
   const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
-  // Grid auto-scroll animation - up and down movement
-  useEffect(() => {
-    if (currentIndex === 2) {
-      gridFloatAnim.setValue(0);
-      const animation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(gridFloatAnim, {
-            toValue: 1,
-            duration: 12000,
-            useNativeDriver: true,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          Animated.timing(gridFloatAnim, {
-            toValue: 0,
-            duration: 12000,
-            useNativeDriver: true,
-            easing: Easing.inOut(Easing.ease),
-          }),
-        ])
-      );
-      animation.start();
-      return () => animation.stop();
-    }
-  }, [currentIndex]);
+  // Grid auto-scroll animation - DISABLED to fix crash
+  // useEffect(() => {
+  //   if (currentIndex === 2) {
+  //     gridFloatAnim.setValue(0);
+  //     const animation = Animated.loop(
+  //       Animated.sequence([
+  //         Animated.timing(gridFloatAnim, {
+  //           toValue: 1,
+  //           duration: 12000,
+  //           useNativeDriver: true,
+  //           easing: Easing.inOut(Easing.ease),
+  //         }),
+  //         Animated.timing(gridFloatAnim, {
+  //           toValue: 0,
+  //           duration: 12000,
+  //           useNativeDriver: true,
+  //           easing: Easing.inOut(Easing.ease),
+  //         }),
+  //       ])
+  //     );
+  //     animation.start();
+  //     return () => animation.stop();
+  //   }
+  // }, [currentIndex]);
 
   const scrollToNext = () => {
     console.log('Button clicked! Current index:', currentIndex);

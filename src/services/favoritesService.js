@@ -4,7 +4,8 @@ import {
   doc, 
   addDoc, 
   deleteDoc, 
-  getDocs, 
+  getDocs,
+  getDoc,
   query, 
   where, 
   orderBy,
@@ -42,19 +43,25 @@ export const addToFavorites = async (userId, contentData) => {
   }
 };
 
-// Remove from favorites
-export const removeFromFavorites = async (favoriteId) => {
+// Remove from favorites (by favorite document ID or by userId + contentId)
+export const removeFromFavorites = async (userIdOrFavoriteId, contentId = null, contentType = null) => {
   try {
-    const docRef = doc(firestore, 'favorites', favoriteId);
-    await deleteDoc(docRef);
-    return { success: true };
+    if (contentId && contentType) {
+      // Remove by userId + contentId + contentType
+      return await removeFavoriteByContentId(userIdOrFavoriteId, contentId, contentType);
+    } else {
+      // Remove by favorite document ID
+      const docRef = doc(firestore, 'favorites', userIdOrFavoriteId);
+      await deleteDoc(docRef);
+      return { success: true };
+    }
   } catch (error) {
     console.error('Error removing from favorites:', error);
     return { success: false, error: error.message };
   }
 };
 
-// Get user favorites
+// Get user favorites with full content data
 export const getUserFavorites = async (userId, contentType = null) => {
   try {
     const favoritesRef = collection(firestore, 'favorites');
@@ -78,9 +85,57 @@ export const getUserFavorites = async (userId, contentType = null) => {
     const snapshot = await getDocs(q);
     const favorites = [];
     
-    snapshot.forEach(docSnap => {
-      favorites.push({ id: docSnap.id, ...docSnap.data() });
-    });
+    // Fetch full content data for each favorite
+    for (const docSnap of snapshot.docs) {
+      const favoriteData = docSnap.data();
+      const contentId = favoriteData.contentId;
+      const type = favoriteData.contentType;
+      
+      try {
+        // Get full content data from respective collection
+        let contentDocRef;
+        if (type === 'channel') {
+          contentDocRef = doc(firestore, 'channels', contentId);
+        } else if (type === 'movie') {
+          contentDocRef = doc(firestore, 'movies', contentId);
+        } else if (type === 'series') {
+          contentDocRef = doc(firestore, 'series', contentId);
+        }
+        
+        if (contentDocRef) {
+          const contentDoc = await getDoc(contentDocRef);
+          
+          if (contentDoc.exists()) {
+            favorites.push({
+              id: contentId,
+              favoriteId: docSnap.id,
+              contentType: type,
+              favoritedAt: favoriteData.addedAt,
+              ...contentDoc.data(),
+            });
+          } else {
+            // If content doesn't exist anymore, just use metadata
+            favorites.push({
+              id: contentId,
+              favoriteId: docSnap.id,
+              contentType: type,
+              favoritedAt: favoriteData.addedAt,
+              ...favoriteData.metadata,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching content data:', err);
+        // Fallback to metadata
+        favorites.push({
+          id: contentId,
+          favoriteId: docSnap.id,
+          contentType: type,
+          favoritedAt: favoriteData.addedAt,
+          ...favoriteData.metadata,
+        });
+      }
+    }
 
     return { success: true, data: favorites };
   } catch (error) {
@@ -108,14 +163,15 @@ export const isFavorited = async (userId, contentId) => {
   }
 };
 
-// Remove favorite by content ID
-export const removeFavoriteByContentId = async (userId, contentId) => {
+// Remove favorite by content ID and type
+export const removeFavoriteByContentId = async (userId, contentId, contentType) => {
   try {
     const favoritesRef = collection(firestore, 'favorites');
     const q = query(
       favoritesRef,
       where('userId', '==', userId),
-      where('contentId', '==', contentId)
+      where('contentId', '==', contentId),
+      where('contentType', '==', contentType)
     );
     const snapshot = await getDocs(q);
 

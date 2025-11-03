@@ -1,0 +1,12 @@
+// Gradle init script to fix react-native-reanimated lint issues with Gradle 8.x
+allprojects {
+    afterEvaluate { project ->
+        if (project.name == 'react-native-reanimated') {
+            project.tasks.configureEach { task ->
+                if (task.name.contains('Lint') && task.name.contains('bundle')) {
+                    task.enabled = false
+                }
+            }
+        }
+    }
+}

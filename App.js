@@ -20,6 +20,9 @@ import EditPlaylistScreen from './src/screens/EditPlaylistScreen';
 import EPGScreen from './src/screens/EPGScreen';
 import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
 import MovieDetailScreen from './src/screens/MovieDetailScreen';
+import SeriesDetailScreen from './src/screens/SeriesDetailScreen';
+import SearchScreen from './src/screens/SearchScreen';
+import FavoritesScreen from './src/screens/FavoritesScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -66,6 +69,27 @@ export default function App() {
               <Stack.Screen 
                 name="MovieDetail" 
                 component={MovieDetailScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="SeriesDetail" 
+                component={SeriesDetailScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="Search" 
+                component={SearchScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="Favorites" 
+                component={FavoritesScreen}
                 options={{
                   headerShown: false,
                 }}

@@ -45,6 +45,9 @@ const HomeScreen = ({ navigation }) => {
   const [playlists, setPlaylists] = useState([]);
   const [hasContent, setHasContent] = useState(false);
   const lastRefreshRef = useRef(0);
+  const dataCache = useRef({});
+  const cacheTimestamp = useRef(0);
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
   useEffect(() => {
     if (user) {
@@ -64,29 +67,72 @@ const HomeScreen = ({ navigation }) => {
     return () => unsub();
   }, [user]);
 
-  const loadData = async () => {
+  const loadData = async (forceRefresh = false) => {
     if (!user) return;
 
     try {
-      setLoading(true);
-      console.log('Loading data for userId:', user.uid);
+      // Check cache first
+      const now = Date.now();
+      if (!forceRefresh && dataCache.current.data && (now - cacheTimestamp.current < CACHE_DURATION)) {
+        console.log('Using cached data');
+        const cached = dataCache.current.data;
+        setContinueWatching(cached.continueWatching || []);
+        setFavorites(cached.favorites || []);
+        setRecentMovies(cached.movies || []);
+        setRecentSeries(cached.series || []);
+        setLiveChannels(cached.channels || []);
+        setPlaylists(cached.playlists || []);
+        setHasContent(cached.hasContent || false);
+        setLoading(false);
+        return;
+      }
 
-      // Load all data in parallel
-      const [continueResult, favoritesResult, moviesResult, seriesResult, channelsResult, playlistsResult] = await Promise.all([
+      setLoading(true);
+      console.log('Loading fresh data for userId:', user.uid);
+
+      // Load only essential data first (faster initial load)
+      const [continueResult, playlistsResult] = await Promise.all([
         getContinueWatching(user.uid),
-        getUserFavorites(user.uid),
-        getRecentMovies(user.uid, 10),
-        getRecentSeries(user.uid, 10),
-        getUserChannels(user.uid),
         getUserPlaylists(user.uid),
       ]);
 
+      // Set initial data immediately
       if (continueResult.success) setContinueWatching(continueResult.data);
+      if (playlistsResult.success) setPlaylists(playlistsResult.data);
+
+      setLoading(false);
+
+      // Load remaining data in background (lazy loading)
+      const [favoritesResult, moviesResult, seriesResult, channelsResult] = await Promise.all([
+        getUserFavorites(user.uid),
+        getRecentMovies(user.uid, 10),
+        getRecentSeries(user.uid, 10),
+        getUserChannels(user.uid).then(result => {
+          // Limit channels to reduce data
+          if (result.success) {
+            return { ...result, data: result.data.slice(0, 10) };
+          }
+          return result;
+        }),
+      ]);
+
+      // Update remaining data
       if (favoritesResult.success) setFavorites(favoritesResult.data);
       if (moviesResult.success) setRecentMovies(moviesResult.data);
       if (seriesResult.success) setRecentSeries(seriesResult.data);
-      if (channelsResult.success) setLiveChannels(channelsResult.data.slice(0, 10));
-      if (playlistsResult.success) setPlaylists(playlistsResult.data);
+      if (channelsResult.success) setLiveChannels(channelsResult.data);
+
+      // Cache the data
+      dataCache.current.data = {
+        continueWatching: continueResult.data || [],
+        favorites: favoritesResult.data || [],
+        movies: moviesResult.data || [],
+        series: seriesResult.data || [],
+        channels: channelsResult.data || [],
+        playlists: playlistsResult.data || [],
+        hasContent: false, // will be set below
+      };
+      cacheTimestamp.current = Date.now();
 
       // Debug logging
       console.log('Home data loaded:', {
@@ -105,14 +151,15 @@ const HomeScreen = ({ navigation }) => {
 
       // Check if user has any content
       const hasAnyContent = 
-        (continueResult.data && continueResult.data.length > 0) ||
-        (favoritesResult.data && favoritesResult.data.length > 0) ||
-        (moviesResult.data && moviesResult.data.length > 0) ||
-        (seriesResult.data && seriesResult.data.length > 0) ||
-        (channelsResult.data && channelsResult.data.length > 0) ||
-        (playlistsResult.data && playlistsResult.data.length > 0);
+        (continueResult.data?.length > 0) ||
+        (favoritesResult.data?.length > 0) ||
+        (moviesResult.data?.length > 0) ||
+        (seriesResult.data?.length > 0) ||
+        (channelsResult.data?.length > 0) ||
+        (playlistsResult.data?.length > 0);
       
       setHasContent(hasAnyContent);
+      dataCache.current.data.hasContent = hasAnyContent;
     } catch (error) {
       console.error('Error loading home data:', error);
     } finally {
@@ -122,7 +169,7 @@ const HomeScreen = ({ navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await loadData(true); // Force refresh, bypass cache
     setRefreshing(false);
   };
 
@@ -157,7 +204,11 @@ const HomeScreen = ({ navigation }) => {
     return (
       <TouchableOpacity style={styles.contentCard} activeOpacity={0.8} onPress={handlePress}>
         {imageUri ? (
-          <Image source={{ uri: imageUri }} style={styles.contentPoster} />
+          <Image 
+            source={{ uri: imageUri }} 
+            style={styles.contentPoster}
+            resizeMode="cover"
+          />
         ) : (
           <View style={[styles.contentPoster, styles.placeholderPoster]}>
             <Ionicons name="tv-outline" size={32} color={colors.text.muted} />
@@ -258,7 +309,10 @@ const HomeScreen = ({ navigation }) => {
               style={refreshing ? styles.spinning : null}
             />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => navigation.navigate('Search')}
+          >
             <Ionicons name="search-outline" size={22} color={colors.text.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton}>

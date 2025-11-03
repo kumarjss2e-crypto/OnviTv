@@ -275,10 +275,76 @@ const getSeriesStreams = async (serverUrl, username, password) => {
       director: series.director || '',
       genre: series.genre || '',
       seasons: [], // Will be populated when user selects the series
+      // Store Xtream credentials for later episode fetching
+      xtreamServer: serverUrl,
+      xtreamUsername: username,
+      xtreamPassword: password,
     }));
   } catch (error) {
     console.error('Error fetching series:', error);
     return [];
+  }
+};
+
+/**
+ * Get series info with episodes (on-demand)
+ * @param {string} serverUrl - Server URL
+ * @param {string} username - Username
+ * @param {string} password - Password
+ * @param {string} seriesId - Series ID from Xtream
+ * @returns {Promise<Object>} - Series info with episodes
+ */
+export const getSeriesInfo = async (serverUrl, username, password, seriesId) => {
+  try {
+    const url = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=get_series_info&series_id=${seriesId}`;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Parse episodes from seasons
+    const episodes = [];
+    if (data.episodes) {
+      Object.keys(data.episodes).forEach(seasonNum => {
+        const seasonEpisodes = data.episodes[seasonNum];
+        seasonEpisodes.forEach(ep => {
+          episodes.push({
+            id: `${seriesId}_S${seasonNum}_E${ep.episode_num}`, // Unique ID for tracking
+            seasonNumber: parseInt(seasonNum),
+            episodeNumber: parseInt(ep.episode_num),
+            title: ep.title || `Episode ${ep.episode_num}`,
+            name: ep.title || `Episode ${ep.episode_num}`,
+            streamUrl: `${serverUrl}/series/${username}/${password}/${ep.id}.${ep.container_extension || 'mp4'}`,
+            thumbnail: ep.info?.movie_image || data.info?.cover || '',
+            duration: ep.info?.duration || null,
+            description: ep.info?.plot || '',
+            rating: ep.info?.rating || null,
+            releaseDate: ep.info?.releasedate || null,
+          });
+        });
+      });
+    }
+    
+    return {
+      success: true,
+      totalSeasons: Object.keys(data.episodes || {}).length,
+      episodes: episodes,
+      info: data.info || {},
+    };
+  } catch (error) {
+    console.error('Error fetching series info:', error);
+    return {
+      success: false,
+      error: error.message,
+      episodes: [],
+    };
   }
 };
 

@@ -122,25 +122,31 @@ const MoviesScreen = ({ navigation }) => {
   }, [items, search, category, sortKey]);
 
   const handleMoviePress = (item) => {
-    navigation.navigate('MovieDetail', {
-      movie: {
-        id: item.id,
-        title: getTitle(item),
-        name: getTitle(item),
-        poster: getPoster(item),
-        cover: getPoster(item),
-        backdrop: item.backdrop || getPoster(item),
-        year: getYear(item),
-        rating: getRating(item),
-        duration: item.duration || item.runtime,
-        description: item.plot || item.description || item.overview,
-        genre: getCategory(item),
-        streamUrl: item.streamUrl || item.stream_url,
-        type: tab.toLowerCase() === 'movies' ? 'movie' : 'series',
-        cast: item.cast,
-        director: item.director,
-      },
-    });
+    const contentType = tab.toLowerCase() === 'movies' ? 'movie' : 'series';
+    const contentData = {
+      id: item.id,
+      title: getTitle(item),
+      name: getTitle(item),
+      poster: getPoster(item),
+      cover: getPoster(item),
+      backdrop: item.backdrop || getPoster(item),
+      year: getYear(item),
+      rating: getRating(item),
+      duration: item.duration || item.runtime,
+      description: item.plot || item.description || item.overview,
+      genre: getCategory(item),
+      streamUrl: item.streamUrl || item.stream_url,
+      type: contentType,
+      cast: item.cast,
+      director: item.director,
+      totalSeasons: item.totalSeasons || item.seasons,
+    };
+
+    if (contentType === 'series') {
+      navigation.navigate('SeriesDetail', { series: contentData });
+    } else {
+      navigation.navigate('MovieDetail', { movie: contentData });
+    }
   };
 
   const renderCard = ({ item }) => {
@@ -189,16 +195,13 @@ const MoviesScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.searchRow}>
-        <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={18} color={colors.text.muted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={`Search ${tab.toLowerCase()}...`}
-            placeholderTextColor={colors.text.muted}
-            value={search}
-            onChangeText={setSearch}
-          />
-        </View>
+        <TouchableOpacity 
+          style={styles.searchBox}
+          onPress={() => navigation.navigate('Search')}
+        >
+          <Ionicons name="search-outline" size={20} color={colors.text.muted} />
+          <Text style={styles.searchPlaceholder}>Search {tab.toLowerCase()}...</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortsWrapRow}>
@@ -321,7 +324,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 10,
   },
-  searchWrap: {
+  searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -330,9 +333,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 42,
   },
-  searchInput: {
+  searchPlaceholder: {
     flex: 1,
-    color: colors.text.primary,
+    color: colors.text.muted,
     fontSize: 14,
   },
   sortsWrapRow: {

@@ -66,6 +66,8 @@ const MoreScreen = ({ navigation }) => {
                   navigation.navigate('PlaylistManagement');
                 } else if (item.screen === 'EPG') {
                   navigation.navigate('EPG');
+                } else if (item.screen === 'Favorites') {
+                  navigation.navigate('Favorites');
                 } else {
                   console.log(`Navigate to ${item.screen}`);
                 }
