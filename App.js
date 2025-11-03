@@ -23,6 +23,15 @@ import MovieDetailScreen from './src/screens/MovieDetailScreen';
 import SeriesDetailScreen from './src/screens/SeriesDetailScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import FavoritesScreen from './src/screens/FavoritesScreen';
+import DownloadsScreen from './src/screens/DownloadsScreen';
+import WatchHistoryScreen from './src/screens/WatchHistoryScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+import ParentalControlsScreen from './src/screens/ParentalControlsScreen';
+import PINEntryScreen from './src/screens/PINEntryScreen';
+import PINSetupScreen from './src/screens/PINSetupScreen';
+import HelpSupportScreen from './src/screens/HelpSupportScreen';
+import AboutScreen from './src/screens/AboutScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -90,6 +99,71 @@ export default function App() {
               <Stack.Screen 
                 name="Favorites" 
                 component={FavoritesScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="Downloads" 
+                component={DownloadsScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="WatchHistory" 
+                component={WatchHistoryScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="Settings" 
+                component={SettingsScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="Profile" 
+                component={ProfileScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="ParentalControls" 
+                component={ParentalControlsScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="PINEntry" 
+                component={PINEntryScreen}
+                options={{
+                  headerShown: false,
+                  presentation: 'modal',
+                }}
+              />
+              <Stack.Screen 
+                name="PINSetup" 
+                component={PINSetupScreen}
+                options={{
+                  headerShown: false,
+                  presentation: 'modal',
+                }}
+              />
+              <Stack.Screen 
+                name="HelpSupport" 
+                component={HelpSupportScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="About" 
+                component={AboutScreen}
                 options={{
                   headerShown: false,
                 }}

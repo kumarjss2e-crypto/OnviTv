@@ -15,16 +15,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
-import { doc, setDoc, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore } from '../config/firebase';
 import { getSeriesEpisodes } from '../services/seriesService';
+import { addToFavorites, isFavorited as checkFavorited, removeFavoriteByContentId } from '../services/favoritesService';
 import { getSeriesInfo } from '../services/xtreamAPI';
+import { enrichContentWithMetadata, getSeasonEpisodes } from '../services/metadataService';
 
 const { width, height } = Dimensions.get('window');
 
 const SeriesDetailScreen = ({ route, navigation }) => {
-  const { series } = route.params;
+  const { series: initialSeries } = route.params;
   const { user } = useAuth();
+  const [series, setSeries] = useState(initialSeries);
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedSeason, setSelectedSeason] = useState(1);
@@ -33,20 +35,45 @@ const SeriesDetailScreen = ({ route, navigation }) => {
   const [showSeasonDropdown, setShowSeasonDropdown] = useState(false);
 
   useEffect(() => {
+    enrichSeriesMetadata();
     checkIfFavorited();
-    loadEpisodes(selectedSeason);
   }, []);
 
   useEffect(() => {
-    loadEpisodes(selectedSeason);
-  }, [selectedSeason]);
+    if (!loading) {
+      loadEpisodes(selectedSeason);
+    }
+  }, [selectedSeason, loading]);
+
+  const enrichSeriesMetadata = async () => {
+    try {
+      setLoading(true);
+      // Try to enrich with TMDb metadata if not already enriched
+      if (!series.tmdbId) {
+        console.log('Enriching series metadata for:', series.title || series.name);
+        const enriched = await enrichContentWithMetadata(series, 'series');
+        if (enriched && enriched.tmdbId) {
+          console.log('Series enriched with TMDb ID:', enriched.tmdbId);
+          setSeries(enriched);
+        }
+      }
+      // Load episodes after enrichment
+      await loadEpisodes(selectedSeason);
+    } catch (error) {
+      console.error('Error enriching series metadata:', error);
+      await loadEpisodes(selectedSeason);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const checkIfFavorited = async () => {
     try {
       if (!user) return;
-      const favRef = doc(firestore, 'users', user.uid, 'favorites', series.id);
-      const favSnap = await getDoc(favRef);
-      setIsFavorited(favSnap.exists());
+      const result = await checkFavorited(user.uid, series.id);
+      if (result.success) {
+        setIsFavorited(result.isFavorited);
+      }
     } catch (error) {
       console.error('Error checking favorite:', error);
     } finally {
@@ -57,6 +84,112 @@ const SeriesDetailScreen = ({ route, navigation }) => {
   const loadEpisodes = async (seasonNumber) => {
     try {
       setLoadingEpisodes(true);
+      
+      // Try to get episodes from Firebase/M3U first (they have stream URLs)
+      let firebaseEpisodes = [];
+      
+      console.log('Series object:', { 
+        id: series.id, 
+        hasEpisodeInfo: !!series.episodeInfo,
+        episodeInfo: series.episodeInfo,
+        streamUrl: series.streamUrl 
+      });
+      
+      // First try to get from episodes collection
+      const result = await getSeriesEpisodes(series.id, seasonNumber);
+      console.log('Episodes from collection:', result);
+      if (result.success && result.data.length > 0) {
+        firebaseEpisodes = result.data;
+      } else if (series.episodeInfo && series.episodeInfo.seriesName) {
+        // For M3U playlists, episodes might be stored as separate series entries
+        console.log('Trying M3U episode format for:', series.episodeInfo.seriesName);
+        const { collection: firestoreCollection, query: firestoreQuery, where, getDocs } = await import('firebase/firestore');
+        const { firestore } = await import('../config/firebase');
+        
+        const seriesRef = firestoreCollection(firestore, 'series');
+        const q = firestoreQuery(
+          seriesRef,
+          where('playlistId', '==', series.playlistId)
+        );
+        const snapshot = await getDocs(q);
+        
+        const m3uEpisodes = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.episodeInfo && data.episodeInfo.seriesName === series.episodeInfo.seriesName) {
+            if (data.episodeInfo.seasonNumber === seasonNumber) {
+              m3uEpisodes.push({
+                id: doc.id,
+                seasonNumber: data.episodeInfo.seasonNumber,
+                episodeNumber: data.episodeInfo.episodeNumber,
+                title: data.name || data.title,
+                name: data.name || data.title,
+                streamUrl: data.streamUrl,
+                thumbnail: data.logo || data.poster,
+                description: '',
+              });
+            }
+          }
+        });
+        
+        m3uEpisodes.sort((a, b) => a.episodeNumber - b.episodeNumber);
+        firebaseEpisodes = m3uEpisodes;
+      }
+      
+      // If we have TMDb ID, enrich episodes with metadata
+      if (series.tmdbId && firebaseEpisodes.length > 0) {
+        console.log('Enriching episodes with TMDb metadata for season:', seasonNumber);
+        const tmdbEpisodes = await getSeasonEpisodes(series.tmdbId, seasonNumber);
+        
+        if (tmdbEpisodes && tmdbEpisodes.length > 0) {
+          // Merge TMDb metadata with Firebase stream URLs
+          const enrichedEpisodes = firebaseEpisodes.map(fbEp => {
+            const tmdbEp = tmdbEpisodes.find(t => t.episodeNumber === fbEp.episodeNumber);
+            if (tmdbEp) {
+              return {
+                ...fbEp,
+                title: tmdbEp.title || fbEp.title,
+                plot: tmdbEp.plot || fbEp.description,
+                description: tmdbEp.plot || fbEp.description,
+                thumbnail: tmdbEp.thumbnail || fbEp.thumbnail,
+                rating: tmdbEp.rating,
+                airDate: tmdbEp.airDate,
+                runtime: tmdbEp.runtime,
+              };
+            }
+            return fbEp;
+          });
+          setEpisodes(enrichedEpisodes);
+          setLoadingEpisodes(false);
+          return;
+        }
+      }
+      
+      // If we have episodes from Firebase, use them
+      if (firebaseEpisodes.length > 0) {
+        setEpisodes(firebaseEpisodes);
+        setLoadingEpisodes(false);
+        return;
+      }
+      
+      // If no Firebase episodes but we have TMDb ID, use TMDb episodes with series stream URL
+      if (series.tmdbId && firebaseEpisodes.length === 0) {
+        console.log('No Firebase episodes found. Using TMDb episodes with series stream URL as fallback');
+        const tmdbEpisodes = await getSeasonEpisodes(series.tmdbId, seasonNumber);
+        
+        if (tmdbEpisodes && tmdbEpisodes.length > 0) {
+          // Use TMDb episodes but add the series stream URL to each episode
+          const episodesWithStreamUrl = tmdbEpisodes.map(ep => ({
+            ...ep,
+            streamUrl: series.streamUrl, // Use series stream URL for all episodes
+            id: `${series.id}_s${seasonNumber}e${ep.episodeNumber}`,
+          }));
+          console.log(`Using ${episodesWithStreamUrl.length} TMDb episodes with series stream URL`);
+          setEpisodes(episodesWithStreamUrl);
+          setLoadingEpisodes(false);
+          return;
+        }
+      }
       
       // Check if series has Xtream credentials (from Xtream API)
       if (series.xtreamServer && series.xtreamUsername && series.xtreamPassword && series.seriesId) {
@@ -81,55 +214,7 @@ const SeriesDetailScreen = ({ route, navigation }) => {
           console.error('Failed to fetch episodes from Xtream:', result.error);
         }
       } else {
-        // Fallback to Firebase (for M3U playlists or manually added series)
-        console.log('Fetching episodes from Firebase for series:', series.id);
-        
-        // First try to get from episodes collection
-        const result = await getSeriesEpisodes(series.id, seasonNumber);
-        if (result.success && result.data.length > 0) {
-          setEpisodes(result.data);
-        } else {
-          // For M3U playlists, episodes might be stored as separate series entries
-          // Only try this if the series has episodeInfo
-          if (series.episodeInfo && series.episodeInfo.seriesName) {
-            console.log('Trying M3U episode format for:', series.episodeInfo.seriesName);
-            const { collection: firestoreCollection, query: firestoreQuery, where, getDocs } = await import('firebase/firestore');
-            const { firestore } = await import('../config/firebase');
-            
-            const seriesRef = firestoreCollection(firestore, 'series');
-            const q = firestoreQuery(
-              seriesRef,
-              where('playlistId', '==', series.playlistId)
-            );
-            const snapshot = await getDocs(q);
-            
-            const m3uEpisodes = [];
-            snapshot.forEach(doc => {
-              const data = doc.data();
-              if (data.episodeInfo && data.episodeInfo.seriesName === series.episodeInfo.seriesName) {
-                if (data.episodeInfo.seasonNumber === seasonNumber) {
-                  m3uEpisodes.push({
-                    id: doc.id,
-                    seasonNumber: data.episodeInfo.seasonNumber,
-                    episodeNumber: data.episodeInfo.episodeNumber,
-                    title: data.name || data.title,
-                    name: data.name || data.title,
-                    streamUrl: data.streamUrl,
-                    thumbnail: data.logo || data.poster,
-                    description: '',
-                  });
-                }
-              }
-            });
-            
-            // Sort by episode number
-            m3uEpisodes.sort((a, b) => a.episodeNumber - b.episodeNumber);
-            setEpisodes(m3uEpisodes);
-            console.log(`Found ${m3uEpisodes.length} M3U episodes for season ${seasonNumber}`);
-          } else {
-            console.log('Series does not have episodeInfo - M3U playlist needs to be re-imported with new parser');
-          }
-        }
+        console.log('No episodes found for series');
       }
     } catch (error) {
       console.error('Error loading episodes:', error);
@@ -141,20 +226,24 @@ const SeriesDetailScreen = ({ route, navigation }) => {
   const toggleFavorite = async () => {
     try {
       if (!user) return;
-      const favRef = doc(firestore, 'users', user.uid, 'favorites', series.id);
       
       if (isFavorited) {
-        await deleteDoc(favRef);
-        setIsFavorited(false);
+        const result = await removeFavoriteByContentId(user.uid, series.id, 'series');
+        if (result.success) {
+          setIsFavorited(false);
+        }
       } else {
-        await setDoc(favRef, {
-          contentId: series.id,
+        const result = await addToFavorites(user.uid, {
           contentType: 'series',
-          title: series.title || series.name,
+          contentId: series.id,
+          playlistId: series.playlistId || '',
+          name: series.title || series.name,
           poster: series.poster || series.cover,
-          addedAt: serverTimestamp(),
+          streamUrl: '',
         });
-        setIsFavorited(true);
+        if (result.success) {
+          setIsFavorited(true);
+        }
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -342,68 +431,90 @@ const SeriesDetailScreen = ({ route, navigation }) => {
             <Text style={styles.description}>{description}</Text>
           </View>
 
-          {/* Season selector */}
-          <View style={styles.section}>
-            <View style={styles.seasonHeader}>
-              <Text style={styles.sectionTitle}>Episodes</Text>
+          {/* Play button for series without episodes */}
+          {!loadingEpisodes && episodes.length === 0 && series.streamUrl && (
+            <View style={styles.section}>
               <TouchableOpacity 
-                style={styles.seasonSelector}
-                onPress={() => setShowSeasonDropdown(!showSeasonDropdown)}
+                style={styles.playSeriesButton}
+                onPress={() => {
+                  navigation.navigate('VideoPlayer', {
+                    streamUrl: series.streamUrl,
+                    title: title,
+                    contentType: 'series',
+                    contentId: series.id,
+                  });
+                }}
               >
-                <Text style={styles.seasonSelectorText}>Season {selectedSeason}</Text>
-                <Ionicons 
-                  name={showSeasonDropdown ? "chevron-up" : "chevron-down"} 
-                  size={20} 
-                  color={colors.text.primary} 
-                />
+                <Ionicons name="play-circle" size={32} color="#fff" />
+                <Text style={styles.playSeriesButtonText}>Play Series</Text>
               </TouchableOpacity>
+              <Text style={styles.noEpisodesText}>
+                This is a 24/7 channel. Individual episodes are not available.
+              </Text>
             </View>
+          )}
 
-            {/* Season dropdown */}
-            {showSeasonDropdown && (
-              <View style={styles.seasonDropdown}>
-                {seasonNumbers.map((seasonNum) => (
-                  <TouchableOpacity
-                    key={seasonNum}
-                    style={[
-                      styles.seasonOption,
-                      selectedSeason === seasonNum && styles.seasonOptionSelected
-                    ]}
-                    onPress={() => {
-                      setSelectedSeason(seasonNum);
-                      setShowSeasonDropdown(false);
-                    }}
+          {/* Season selector and Episodes */}
+          {episodes.length > 0 && (
+            <>
+              <View style={styles.section}>
+                <View style={styles.seasonHeader}>
+                  <Text style={styles.sectionTitle}>Episodes</Text>
+                  <TouchableOpacity 
+                    style={styles.seasonSelector}
+                    onPress={() => setShowSeasonDropdown(!showSeasonDropdown)}
                   >
-                    <Text style={[
-                      styles.seasonOptionText,
-                      selectedSeason === seasonNum && styles.seasonOptionTextSelected
-                    ]}>
-                      Season {seasonNum}
-                    </Text>
+                    <Text style={styles.seasonSelectorText}>Season {selectedSeason}</Text>
+                    <Ionicons 
+                      name={showSeasonDropdown ? "chevron-up" : "chevron-down"} 
+                      size={20} 
+                      color={colors.text.primary} 
+                    />
                   </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Episodes list */}
-          {loadingEpisodes ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
-            </View>
-          ) : episodes.length > 0 ? (
-            <View style={styles.episodesList}>
-              {episodes.map((episode) => (
-                <View key={episode.id}>
-                  {renderEpisodeCard({ item: episode })}
                 </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="film-outline" size={60} color={colors.text.muted} />
-              <Text style={styles.emptyText}>No episodes available for this season</Text>
-            </View>
+
+                {/* Season dropdown */}
+                {showSeasonDropdown && (
+                  <View style={styles.seasonDropdown}>
+                    {seasonNumbers.map((seasonNum) => (
+                      <TouchableOpacity
+                        key={seasonNum}
+                        style={[
+                          styles.seasonOption,
+                          selectedSeason === seasonNum && styles.seasonOptionSelected
+                        ]}
+                        onPress={() => {
+                          setSelectedSeason(seasonNum);
+                          setShowSeasonDropdown(false);
+                        }}
+                      >
+                        <Text style={[
+                          styles.seasonOptionText,
+                          selectedSeason === seasonNum && styles.seasonOptionTextSelected
+                        ]}>
+                          Season {seasonNum}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Episodes list */}
+              {loadingEpisodes ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+              ) : (
+                <View style={styles.episodesList}>
+                  {episodes.map((episode) => (
+                    <View key={episode.id}>
+                      {renderEpisodeCard({ item: episode })}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
@@ -565,6 +676,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text.secondary,
     lineHeight: 20,
+  },
+  playSeriesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary.purple,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  playSeriesButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginLeft: 12,
+  },
+  noEpisodesText: {
+    fontSize: 14,
+    color: colors.text.muted,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   seasonHeader: {
     flexDirection: 'row',

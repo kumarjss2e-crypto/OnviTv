@@ -69,6 +69,9 @@ export const parseM3UPlaylist = async (playlistId, userId, m3uUrl) => {
 
     // Step 6: Update last fetched timestamp
     await updateLastFetched(playlistId, 'm3u');
+    
+    // Note: Metadata enrichment happens on-demand when content is displayed
+    // See MoviesScreen.js and SeriesScreen.js for batchEnrichContent usage
 
     // Set parsing status to false (completed)
     await setPlaylistParsingStatus(playlistId, false, { step: 'Completed', progress: 100 });

@@ -120,14 +120,42 @@ export const updatePlaylist = async (playlistId, updates) => {
   }
 };
 
-// Delete playlist
-export const deletePlaylist = async (playlistId) => {
+// Delete playlist with progress tracking
+export const deletePlaylist = async (playlistId, onProgress = null) => {
   try {
     console.log('Deleting playlist and associated content:', playlistId);
     
     // Delete associated content first
     const collections = ['channels', 'movies', 'series'];
     let deletedCount = { channels: 0, movies: 0, series: 0 };
+    let totalToDelete = 0;
+    let totalDeleted = 0;
+    
+    // First, count total items to delete
+    for (const collectionName of collections) {
+      const q = query(
+        collection(firestore, collectionName),
+        where('playlistId', '==', playlistId)
+      );
+      const snapshot = await getDocs(q);
+      totalToDelete += snapshot.size;
+    }
+    
+    console.log(`Total items to delete: ${totalToDelete}`);
+    
+    // Report initial progress
+    if (onProgress) {
+      onProgress({
+        phase: 'counting',
+        total: totalToDelete,
+        deleted: 0,
+        percentage: 0,
+        message: `Found ${totalToDelete} items to delete...`
+      });
+    }
+    
+    // Delete in batches of 500 (Firebase limit)
+    const BATCH_SIZE = 500;
     
     for (const collectionName of collections) {
       const q = query(
@@ -136,34 +164,89 @@ export const deletePlaylist = async (playlistId) => {
       );
       
       const snapshot = await getDocs(q);
-      console.log(`Found ${snapshot.size} ${collectionName} to delete`);
+      const docs = snapshot.docs;
+      console.log(`Deleting ${docs.length} ${collectionName}...`);
       
-      // Delete in batches
-      const batch = writeBatch(firestore);
-      snapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
-        deletedCount[collectionName]++;
-      });
-      
-      if (snapshot.size > 0) {
+      // Process in batches
+      for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+        const batch = writeBatch(firestore);
+        const batchDocs = docs.slice(i, i + BATCH_SIZE);
+        
+        batchDocs.forEach(docSnap => {
+          batch.delete(docSnap.ref);
+        });
+        
         await batch.commit();
+        
+        const batchDeleted = batchDocs.length;
+        deletedCount[collectionName] += batchDeleted;
+        totalDeleted += batchDeleted;
+        
+        // Report progress
+        if (onProgress) {
+          const percentage = Math.round((totalDeleted / totalToDelete) * 100);
+          onProgress({
+            phase: 'deleting',
+            total: totalToDelete,
+            deleted: totalDeleted,
+            percentage,
+            currentCollection: collectionName,
+            message: `Deleting ${collectionName}... ${totalDeleted}/${totalToDelete}`
+          });
+        }
+        
+        console.log(`Deleted batch: ${i + batchDeleted}/${docs.length} ${collectionName}`);
       }
     }
     
     console.log('Deleted content:', deletedCount);
+    
+    // Report final phase
+    if (onProgress) {
+      onProgress({
+        phase: 'finalizing',
+        total: totalToDelete,
+        deleted: totalDeleted,
+        percentage: 100,
+        message: 'Finalizing deletion...'
+      });
+    }
     
     // Finally, delete the playlist document
     const docRef = doc(firestore, 'playlists', playlistId);
     await deleteDoc(docRef);
     
     console.log('Playlist deleted successfully');
+    
+    // Report completion
+    if (onProgress) {
+      onProgress({
+        phase: 'complete',
+        total: totalToDelete,
+        deleted: totalDeleted,
+        percentage: 100,
+        message: `Successfully deleted ${totalDeleted} items`
+      });
+    }
+    
     return { 
       success: true, 
       deletedCount,
+      totalDeleted,
       message: `Deleted playlist and ${deletedCount.channels} channels, ${deletedCount.movies} movies, ${deletedCount.series} series`
     };
   } catch (error) {
     console.error('Error deleting playlist:', error);
+    
+    // Report error
+    if (onProgress) {
+      onProgress({
+        phase: 'error',
+        error: error.message,
+        message: `Error: ${error.message}`
+      });
+    }
+    
     return { success: false, error: error.message };
   }
 };

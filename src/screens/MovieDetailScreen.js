@@ -14,8 +14,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
-import { doc, setDoc, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore } from '../config/firebase';
+import { startDownload, isDownloaded, getDownloadByContentId } from '../services/downloadService';
+import { addToFavorites, isFavorited as checkFavorited, removeFavoriteByContentId } from '../services/favoritesService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,17 +25,22 @@ const MovieDetailScreen = ({ route, navigation }) => {
   const { user } = useAuth();
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isDownloadedState, setIsDownloadedState] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     checkIfFavorited();
+    checkIfDownloaded();
   }, []);
 
   const checkIfFavorited = async () => {
     try {
       if (!user) return;
-      const favRef = doc(firestore, 'users', user.uid, 'favorites', movie.id);
-      const favSnap = await getDoc(favRef);
-      setIsFavorited(favSnap.exists());
+      const result = await checkFavorited(user.uid, movie.id);
+      if (result.success) {
+        setIsFavorited(result.isFavorited);
+      }
     } catch (error) {
       console.error('Error checking favorite:', error);
     } finally {
@@ -42,23 +48,74 @@ const MovieDetailScreen = ({ route, navigation }) => {
     }
   };
 
+  const checkIfDownloaded = async () => {
+    try {
+      if (!user) return;
+      const result = await isDownloaded(user.uid, movie.id);
+      if (result.success) {
+        setIsDownloadedState(result.isDownloaded);
+      }
+    } catch (error) {
+      console.error('Error checking download:', error);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (isDownloadedState) {
+      // Navigate to downloads screen
+      navigation.navigate('Downloads');
+      return;
+    }
+
+    if (isDownloading) return;
+
+    try {
+      setIsDownloading(true);
+      const result = await startDownload(user.uid, {
+        contentType: 'movie',
+        contentId: movie.id,
+        title: title,
+        streamUrl: movie.streamUrl || movie.stream_url,
+        poster: posterUri,
+        metadata: {
+          year,
+          rating,
+          duration,
+        },
+      });
+
+      if (result.success) {
+        setIsDownloadedState(true);
+        // Optionally show success message
+      }
+    } catch (error) {
+      console.error('Error starting download:', error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const toggleFavorite = async () => {
     try {
       if (!user) return;
-      const favRef = doc(firestore, 'users', user.uid, 'favorites', movie.id);
       
       if (isFavorited) {
-        await deleteDoc(favRef);
-        setIsFavorited(false);
+        const result = await removeFavoriteByContentId(user.uid, movie.id, 'movie');
+        if (result.success) {
+          setIsFavorited(false);
+        }
       } else {
-        await setDoc(favRef, {
+        const result = await addToFavorites(user.uid, {
+          contentType: 'movie',
           contentId: movie.id,
-          contentType: movie.type || 'movie',
-          title: movie.title || movie.name,
+          playlistId: movie.playlistId || '',
+          name: movie.title || movie.name,
           poster: movie.poster || movie.cover,
-          addedAt: serverTimestamp(),
+          streamUrl: movie.streamUrl || movie.stream_url,
         });
-        setIsFavorited(true);
+        if (result.success) {
+          setIsFavorited(true);
+        }
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -179,8 +236,16 @@ const MovieDetailScreen = ({ route, navigation }) => {
               <Text style={styles.playButtonText}>Play Now</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="download-outline" size={24} color={colors.text.primary} />
+            <TouchableOpacity style={styles.actionButton} onPress={handleDownload} disabled={isDownloading}>
+              {isDownloading ? (
+                <ActivityIndicator size="small" color={colors.text.primary} />
+              ) : (
+                <Ionicons 
+                  name={isDownloadedState ? "checkmark-circle" : "download-outline"} 
+                  size={24} 
+                  color={isDownloadedState ? colors.primary.purple : colors.text.primary} 
+                />
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionButton}>

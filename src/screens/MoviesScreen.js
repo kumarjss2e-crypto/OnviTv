@@ -16,6 +16,7 @@ import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { getUserMovies, getRecentMovies } from '../services/movieService';
 import { getUserSeries, getRecentSeries } from '../services/seriesService';
+import { batchEnrichContent } from '../services/metadataService';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 16 * 2 - 12) / 2; // 2 columns, 16px padding, 12px gap between
@@ -53,17 +54,33 @@ const MoviesScreen = ({ navigation }) => {
         if (tab === 'Movies') {
           const res = await getUserMovies(user.uid);
           console.log(`[MoviesScreen] Movies loaded:`, { success: res.success, count: res.data?.length || 0 });
-          if (res.data && res.data.length > 0) {
-            console.log('[MoviesScreen] Sample movie:', res.data[0]);
+          if (res.success && res.data) {
+            // Enrich movies with metadata from TMDb (optimized for large datasets)
+            const enriched = await batchEnrichContent(res.data, 'movie', {
+              maxConcurrent: 5,
+              onlyEnrichVisible: true,
+              visibleCount: 20, // Only enrich first 20 immediately
+            });
+            console.log('[MoviesScreen] Movies enriched with metadata');
+            setItems(enriched);
+          } else {
+            setItems([]);
           }
-          setItems(res.success ? res.data || [] : []);
         } else if (tab === 'Series') {
           const res = await getUserSeries(user.uid);
           console.log(`[MoviesScreen] Series loaded:`, { success: res.success, count: res.data?.length || 0 });
-          if (res.data && res.data.length > 0) {
-            console.log('[MoviesScreen] Sample series:', res.data[0]);
+          if (res.success && res.data) {
+            // Enrich series with metadata from TMDb (optimized for large datasets)
+            const enriched = await batchEnrichContent(res.data, 'series', {
+              maxConcurrent: 5,
+              onlyEnrichVisible: true,
+              visibleCount: 20, // Only enrich first 20 immediately
+            });
+            console.log('[MoviesScreen] Series enriched with metadata');
+            setItems(enriched);
+          } else {
+            setItems([]);
           }
-          setItems(res.success ? res.data || [] : []);
         } else {
           // Downloads placeholder: filter from movies/series with downloaded flag if available
           const [mRes, sRes] = await Promise.all([
@@ -204,13 +221,15 @@ const MoviesScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortsWrapRow}>
-        {SORTS.map((s) => (
-          <TouchableOpacity key={s.key} style={[styles.sortChip, sortKey === s.key && styles.sortChipActive]} onPress={() => setSortKey(s.key)}>
-            <Text style={[styles.sortChipText, sortKey === s.key && styles.sortChipTextActive]}>{s.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.sortsWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortsWrapRow}>
+          {SORTS.map((s) => (
+            <TouchableOpacity key={s.key} style={[styles.sortChip, sortKey === s.key && styles.sortChipActive]} onPress={() => setSortKey(s.key)}>
+              <Text style={[styles.sortChipText, sortKey === s.key && styles.sortChipTextActive]}>{s.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Categories */}
       {categories.length > 1 && (
@@ -338,6 +357,9 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     fontSize: 14,
   },
+  sortsWrapper: {
+    maxHeight: 50,
+  },
   sortsWrapRow: {
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -365,6 +387,7 @@ const styles = StyleSheet.create({
   catWrapper: {
     marginBottom: 12,
     paddingVertical: 6,
+    maxHeight: 60,
   },
   catRow: {
     paddingHorizontal: 12,

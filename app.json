@@ -12,13 +12,25 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#7C3AED",
+      "androidMode": "default",
+      "androidCollapsedTitle": "OnviTV"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.onvitv.app"
     },
     "android": {
       "package": "com.onvitv.com",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./android/app/google-services.json",
+      "useNextNotificationsApi": true,
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK"
+      ]
     },
     "web": {
       "bundler": "metro"

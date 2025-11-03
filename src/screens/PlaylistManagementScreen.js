@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -21,6 +22,8 @@ const PlaylistManagementScreen = ({ navigation }) => {
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteProgress, setDeleteProgress] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -91,9 +94,13 @@ const PlaylistManagementScreen = ({ navigation }) => {
   };
 
   const handleDeletePlaylist = (playlist) => {
+    const totalItems = (playlist.stats?.totalChannels || 0) + 
+                      (playlist.stats?.totalMovies || 0) + 
+                      (playlist.stats?.totalSeries || 0);
+    
     CustomAlert.alert(
       'Delete Playlist',
-      `Are you sure you want to delete "${playlist.name}"? This will remove all associated channels and content.`,
+      `Are you sure you want to delete "${playlist.name}"? This will permanently remove ${totalItems.toLocaleString()} items (${playlist.stats?.totalChannels || 0} channels, ${playlist.stats?.totalMovies || 0} movies, ${playlist.stats?.totalSeries || 0} series).`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -101,27 +108,47 @@ const PlaylistManagementScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              setRefreshing(true);
-              const result = await deletePlaylist(playlist.id);
+              // Show progress modal
+              setShowDeleteModal(true);
+              setDeleteProgress({
+                phase: 'starting',
+                total: 0,
+                deleted: 0,
+                percentage: 0,
+                message: 'Preparing to delete...'
+              });
+              
+              const result = await deletePlaylist(playlist.id, (progress) => {
+                setDeleteProgress(progress);
+              });
+              
               if (result.success) {
                 setPlaylists(prev => prev.filter(p => p.id !== playlist.id));
-                CustomAlert.alert(
-                  'Success', 
-                  result.message || 'Playlist and all associated content deleted successfully'
-                );
+                
+                // Keep modal open briefly to show success
+                setTimeout(() => {
+                  setShowDeleteModal(false);
+                  setDeleteProgress(null);
+                  CustomAlert.alert(
+                    'Success', 
+                    result.message || 'Playlist deleted successfully'
+                  );
+                }, 1500);
               } else {
+                setShowDeleteModal(false);
+                setDeleteProgress(null);
                 CustomAlert.alert('Error', result.error || 'Failed to delete playlist');
               }
             } catch (error) {
               console.error('Error deleting playlist:', error);
+              setShowDeleteModal(false);
+              setDeleteProgress(null);
               CustomAlert.alert('Error', 'Failed to delete playlist');
-            } finally {
-              setRefreshing(false);
             }
           },
         },
       ],
-      { cancelable: true }
+      { cancelable: false }
     );
   };
 
@@ -237,6 +264,64 @@ const PlaylistManagementScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* Delete Progress Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.progressModal}>
+            <View style={styles.progressHeader}>
+              <Ionicons 
+                name={deleteProgress?.phase === 'complete' ? 'checkmark-circle' : 'trash-outline'} 
+                size={48} 
+                color={deleteProgress?.phase === 'complete' ? '#22c55e' : colors.primary.purple} 
+              />
+              <Text style={styles.progressTitle}>
+                {deleteProgress?.phase === 'complete' ? 'Deletion Complete!' : 'Deleting Playlist'}
+              </Text>
+            </View>
+            
+            <View style={styles.progressContent}>
+              <Text style={styles.progressMessage}>{deleteProgress?.message || 'Processing...'}</Text>
+              
+              {deleteProgress?.total > 0 && (
+                <View style={styles.progressStats}>
+                  <Text style={styles.progressCount}>
+                    {deleteProgress.deleted.toLocaleString()} / {deleteProgress.total.toLocaleString()} items
+                  </Text>
+                  <Text style={styles.progressPercentage}>{deleteProgress.percentage}%</Text>
+                </View>
+              )}
+              
+              <View style={styles.progressBarContainer}>
+                <View 
+                  style={[
+                    styles.progressBarFill, 
+                    { 
+                      width: `${deleteProgress?.percentage || 0}%`,
+                      backgroundColor: deleteProgress?.phase === 'complete' ? '#22c55e' : colors.primary.purple
+                    }
+                  ]} 
+                />
+              </View>
+              
+              {deleteProgress?.phase === 'deleting' && deleteProgress?.currentCollection && (
+                <Text style={styles.progressDetail}>
+                  Currently deleting: {deleteProgress.currentCollection}
+                </Text>
+              )}
+            </View>
+            
+            {deleteProgress?.phase !== 'complete' && (
+              <ActivityIndicator size="large" color={colors.primary.purple} style={styles.progressSpinner} />
+            )}
+          </View>
+        </View>
+      </Modal>
+
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -472,6 +557,79 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.text.primary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  progressModal: {
+    backgroundColor: colors.neutral.slate800,
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  progressHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  progressTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  progressContent: {
+    marginBottom: 20,
+  },
+  progressMessage: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  progressStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  progressCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  progressPercentage: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.primary.purple,
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: 'rgba(148, 163, 184, 0.2)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+    transition: 'width 0.3s ease',
+  },
+  progressDetail: {
+    fontSize: 12,
+    color: colors.text.muted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  progressSpinner: {
+    marginTop: 8,
   },
 });
 

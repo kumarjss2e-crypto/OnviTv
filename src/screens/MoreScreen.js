@@ -40,7 +40,10 @@ const MoreScreen = ({ navigation }) => {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
         {/* Profile Section */}
-        <View style={styles.profileSection}>
+        <TouchableOpacity 
+          style={styles.profileSection}
+          onPress={() => navigation.navigate('Profile')}
+        >
           <View style={styles.avatar}>
             {photoURL ? (
               <Image source={{ uri: photoURL }} style={styles.avatarImage} />
@@ -53,7 +56,8 @@ const MoreScreen = ({ navigation }) => {
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{subscriptionPlan}</Text>
           </View>
-        </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.text.muted} style={styles.profileChevron} />
+        </TouchableOpacity>
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
@@ -68,6 +72,16 @@ const MoreScreen = ({ navigation }) => {
                   navigation.navigate('EPG');
                 } else if (item.screen === 'Favorites') {
                   navigation.navigate('Favorites');
+                } else if (item.screen === 'Downloads') {
+                  navigation.navigate('Downloads');
+                } else if (item.screen === 'History') {
+                  navigation.navigate('WatchHistory');
+                } else if (item.screen === 'Settings') {
+                  navigation.navigate('Settings');
+                } else if (item.screen === 'Support') {
+                  navigation.navigate('HelpSupport');
+                } else if (item.screen === 'About') {
+                  navigation.navigate('About');
                 } else {
                   console.log(`Navigate to ${item.screen}`);
                 }
@@ -137,6 +151,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text.muted,
     marginBottom: 12,
+  },
+  profileChevron: {
+    position: 'absolute',
+    top: 32,
+    right: 20,
   },
   badge: {
     backgroundColor: colors.primary.purple,

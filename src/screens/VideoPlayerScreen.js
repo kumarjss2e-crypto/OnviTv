@@ -10,6 +10,12 @@ import {
   Platform,
   BackHandler,
 } from 'react-native';
+
+// Conditionally import ScreenOrientation only for mobile
+let ScreenOrientation;
+if (Platform.OS !== 'web') {
+  ScreenOrientation = require('expo-screen-orientation');
+}
 import Video from 'react-native-video';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,7 +25,10 @@ import { firestore } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import Hls from 'hls.js';
 
-const { width, height } = Dimensions.get('window');
+const getScreenDimensions = () => {
+  const { width, height } = Dimensions.get('window');
+  return { width, height };
+};
 
 // Web-compatible video player component with HLS.js support
 const WebVideo = ({ source, onPlaybackStatusUpdate, videoRef }) => {
@@ -117,9 +126,24 @@ const WebVideo = ({ source, onPlaybackStatusUpdate, videoRef }) => {
     
     const handleError = (e) => {
       console.error('Video error:', e, video.error);
+      
+      let errorMessage = 'Failed to load video';
+      
+      // Detect CORS errors
+      if (video.error?.code === 4 || video.error?.message?.includes('Format error')) {
+        // Check if it's likely a CORS issue (common on localhost)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          errorMessage = 'CORS_BLOCKED_ON_LOCALHOST';
+        } else {
+          errorMessage = video.error?.message || 'Format error';
+        }
+      } else {
+        errorMessage = video.error?.message || 'Failed to load video';
+      }
+      
       onPlaybackStatusUpdate({ 
         isLoaded: false, 
-        error: video.error?.message || 'Failed to load video' 
+        error: errorMessage
       });
     };
     
@@ -209,6 +233,8 @@ export default function VideoPlayerScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const [hasResumed, setHasResumed] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [dimensions, setDimensions] = useState(getScreenDimensions());
   const controlsTimeout = useRef(null);
   const progressSaveInterval = useRef(null);
   const lastSavedPosition = useRef(0);
@@ -216,7 +242,17 @@ export default function VideoPlayerScreen({ route, navigation }) {
   useEffect(() => {
     StatusBar.setHidden(true);
     
+    // Lock to landscape on mobile
+    if (Platform.OS !== 'web') {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    }
+    
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBack);
+    
+    // Listen for dimension changes
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setDimensions({ width: window.width, height: window.height });
+    });
     
     return () => {
       StatusBar.setHidden(false);
@@ -224,6 +260,13 @@ export default function VideoPlayerScreen({ route, navigation }) {
       if (controlsTimeout.current) {
         clearTimeout(controlsTimeout.current);
       }
+      
+      // Unlock orientation on unmount
+      if (Platform.OS !== 'web') {
+        ScreenOrientation.unlockAsync();
+      }
+      
+      subscription?.remove();
     };
   }, []);
 
@@ -451,6 +494,41 @@ export default function VideoPlayerScreen({ route, navigation }) {
     }
   };
 
+  const toggleFullscreen = async () => {
+    if (Platform.OS === 'web') {
+      // Web fullscreen API
+      const elem = document.documentElement;
+      if (!document.fullscreenElement) {
+        if (elem.requestFullscreen) {
+          await elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+          await elem.webkitRequestFullscreen();
+        }
+        setIsFullscreen(true);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          await document.webkitExitFullscreen();
+        }
+        setIsFullscreen(false);
+      }
+    } else {
+      // Mobile: Toggle between landscape orientations
+      const currentOrientation = await ScreenOrientation.getOrientationAsync();
+      if (currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
+          currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT) {
+        // Already in landscape, maybe toggle to portrait for "exit fullscreen"
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+        setIsFullscreen(false);
+      } else {
+        // Go to landscape
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+        setIsFullscreen(true);
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
       <TouchableOpacity 
@@ -473,8 +551,16 @@ export default function VideoPlayerScreen({ route, navigation }) {
             style={styles.video}
             resizeMode="contain"
             paused={!status.isPlaying}
-            onLoadStart={() => setIsLoading(true)}
+            controls={false}
+            playInBackground={false}
+            playWhenInactive={false}
+            ignoreSilentSwitch="ignore"
+            onLoadStart={() => {
+              console.log('Video loading started:', actualStreamUrl);
+              setIsLoading(true);
+            }}
             onLoad={(data) => {
+              console.log('Video loaded successfully:', data);
               setIsLoading(false);
               handlePlaybackStatusUpdate({
                 isLoaded: true,
@@ -493,8 +579,12 @@ export default function VideoPlayerScreen({ route, navigation }) {
                 isBuffering: false,
               });
             }}
-            onBuffer={({ isBuffering }) => setIsBuffering(isBuffering)}
+            onBuffer={({ isBuffering }) => {
+              console.log('Video buffering:', isBuffering);
+              setIsBuffering(isBuffering);
+            }}
             onEnd={() => {
+              console.log('Video ended');
               handlePlaybackStatusUpdate({
                 isLoaded: true,
                 didJustFinish: true,
@@ -518,8 +608,29 @@ export default function VideoPlayerScreen({ route, navigation }) {
               }
             }}
             onError={(error) => {
-              console.error('Video error:', error);
-              setError(error.error?.errorString || 'Failed to load video');
+              console.error('Video playback error:', error);
+              let errorMsg = 'Failed to load video';
+              
+              // Parse error details
+              if (error.error) {
+                const errStr = error.error.errorString || error.error.localizedDescription || '';
+                
+                if (errStr.includes('BAD_HTTP_STATUS') || errStr.includes('403') || errStr.includes('401')) {
+                  errorMsg = 'Stream requires authentication or is blocked. This stream may need login credentials.';
+                } else if (errStr.includes('404')) {
+                  errorMsg = 'Stream not found (404). The URL may be expired or invalid.';
+                } else if (errStr.includes('NETWORK')) {
+                  errorMsg = 'Network error. Check your internet connection.';
+                } else if (errStr.includes('TIMEOUT')) {
+                  errorMsg = 'Connection timeout. The stream server is not responding.';
+                } else if (errStr.includes('SOURCE')) {
+                  errorMsg = 'Invalid stream format. The video format may not be supported.';
+                } else {
+                  errorMsg = `Playback error: ${errStr}`;
+                }
+              }
+              
+              setError(errorMsg);
               setIsLoading(false);
             }}
           />
@@ -541,7 +652,13 @@ export default function VideoPlayerScreen({ route, navigation }) {
               <Text style={styles.errorTitle}>Playback Error</Text>
               <Text style={styles.errorMessage}>{error}</Text>
               <Text style={styles.errorHint}>
-                This stream may be offline, blocked, or unavailable.
+                {error.includes('CORS_BLOCKED_ON_LOCALHOST')
+                  ? '🌐 LOCALHOST LIMITATION: Videos are blocked by browser CORS policy. This is normal! Install the mobile APK to test video playback - it works perfectly on mobile devices.'
+                  : error.includes('authentication') || error.includes('blocked') 
+                  ? 'This IPTV stream requires login credentials. Try using an Xtream Codes playlist with username/password instead of M3U URLs.'
+                  : error.includes('404') || error.includes('expired')
+                  ? 'The stream URL may have expired. Try re-importing your playlist or use a different source.'
+                  : 'This stream may be offline, geo-blocked, or temporarily unavailable. Try another movie or channel.'}
               </Text>
               <View style={styles.errorButtons}>
                 <TouchableOpacity 
@@ -628,8 +745,12 @@ export default function VideoPlayerScreen({ route, navigation }) {
                   <TouchableOpacity style={styles.iconButton}>
                     <Ionicons name="settings-outline" size={24} color="#fff" />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.iconButton}>
-                    <Ionicons name="expand-outline" size={24} color="#fff" />
+                  <TouchableOpacity style={styles.iconButton} onPress={toggleFullscreen}>
+                    <Ionicons 
+                      name={isFullscreen ? "contract-outline" : "expand-outline"} 
+                      size={24} 
+                      color="#fff" 
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -652,8 +773,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   video: {
-    width: width,
-    height: height,
+    width: '100%',
+    height: '100%',
   },
   loadingContainer: {
     ...StyleSheet.absoluteFillObject,
