@@ -25,6 +25,7 @@ import { getUserFavorites } from '../services/favoritesService';
 import { getUserPlaylists } from '../services/playlistService';
 import { firestore } from '../config/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { asyncLog } from '../utils/asyncLogger';
 
 const { width, height } = Dimensions.get('window');
 
@@ -74,7 +75,10 @@ const HomeScreen = ({ navigation }) => {
       // Check cache first
       const now = Date.now();
       if (!forceRefresh && dataCache.current.data && (now - cacheTimestamp.current < CACHE_DURATION)) {
-        console.log('Using cached data');
+        asyncLog.info('HomeScreen: Using cached data', {
+          cacheAge: Math.round((now - cacheTimestamp.current) / 1000) + 's',
+          userId: user.uid
+        });
         const cached = dataCache.current.data;
         setContinueWatching(cached.continueWatching || []);
         setFavorites(cached.favorites || []);
@@ -88,7 +92,7 @@ const HomeScreen = ({ navigation }) => {
       }
 
       setLoading(true);
-      console.log('Loading fresh data for userId:', user.uid);
+      asyncLog.info('HomeScreen: Loading fresh data', { userId: user.uid });
 
       // Load only essential data first (faster initial load)
       const [continueResult, playlistsResult] = await Promise.all([
@@ -135,19 +139,20 @@ const HomeScreen = ({ navigation }) => {
       cacheTimestamp.current = Date.now();
 
       // Debug logging
-      console.log('Home data loaded:', {
+      asyncLog.info('HomeScreen: All data loaded', {
         continueWatching: continueResult.data?.length || 0,
         favorites: favoritesResult.data?.length || 0,
         movies: moviesResult.data?.length || 0,
         series: seriesResult.data?.length || 0,
         channels: channelsResult.data?.length || 0,
         playlists: playlistsResult.data?.length || 0,
+        userId: user.uid
       });
 
       // Log errors if any
-      if (!moviesResult.success) console.error('Movies error:', moviesResult.error);
-      if (!seriesResult.success) console.error('Series error:', seriesResult.error);
-      if (!channelsResult.success) console.error('Channels error:', channelsResult.error);
+      if (!moviesResult.success) asyncLog.error('HomeScreen: Movies load failed', { error: moviesResult.error });
+      if (!seriesResult.success) asyncLog.error('HomeScreen: Series load failed', { error: seriesResult.error });
+      if (!channelsResult.success) asyncLog.error('HomeScreen: Channels load failed', { error: channelsResult.error });
 
       // Check if user has any content
       const hasAnyContent = 
@@ -161,7 +166,7 @@ const HomeScreen = ({ navigation }) => {
       setHasContent(hasAnyContent);
       dataCache.current.data.hasContent = hasAnyContent;
     } catch (error) {
-      console.error('Error loading home data:', error);
+      asyncLog.error('HomeScreen: Critical load error', { error: error.message, userId: user.uid });
     } finally {
       setLoading(false);
     }

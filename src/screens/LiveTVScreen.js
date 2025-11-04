@@ -17,6 +17,7 @@ import { getUserChannels } from '../services/channelService';
 import { getEPGForChannel, getEPGByEpgChannelId } from '../services/epgService';
 import { Timestamp } from 'firebase/firestore';
 import ChannelCard from '../components/ChannelCard';
+import { asyncLog } from '../utils/asyncLogger';
 
 const LiveTVScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -70,7 +71,7 @@ const LiveTVScreen = ({ navigation }) => {
       });
       setEpgByChannel(epgMap);
     } catch (error) {
-      console.error('Error loading EPG:', error);
+      asyncLog.error('LiveTVScreen: EPG load error', { error: error.message });
     }
   };
 
@@ -100,11 +101,9 @@ const LiveTVScreen = ({ navigation }) => {
             .filter(Boolean)
         )];
         setCategories(uniqueCategories);
-
-        
       }
     } catch (error) {
-      console.error('Error loading channels:', error);
+      asyncLog.error('LiveTVScreen: Channels load error', { error: error.message, userId: user.uid });
     } finally {
       setLoading(false);
     }

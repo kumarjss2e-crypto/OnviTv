@@ -9,6 +9,7 @@ import {
   orderBy,
   limit 
 } from 'firebase/firestore';
+import { asyncLog } from '../utils/asyncLogger';
 
 /**
  * Movie Service - Handles movie-related operations
@@ -46,7 +47,7 @@ export const getFeaturedMovie = async () => {
 
     return { success: false, error: 'No movies found' };
   } catch (error) {
-    console.error('Error getting featured movie:', error);
+    asyncLog.error('movieService: Featured movie error', { error: error.message });
     return { success: false, error: error.message };
   }
 };
@@ -70,7 +71,7 @@ export const getMoviesByCategory = async (categoryName, limitCount = 10) => {
 
     return { success: true, data: movies };
   } catch (error) {
-    console.error('Error getting movies by category:', error);
+    asyncLog.error('movieService: Get by category error', { error: error.message, category: categoryName });
     return { success: false, error: error.message };
   }
 };
@@ -94,7 +95,7 @@ export const getMoviesByPlaylist = async (playlistId, limitCount = 20) => {
 
     return { success: true, data: movies };
   } catch (error) {
-    console.error('Error getting movies by playlist:', error);
+    asyncLog.error('movieService: Get by playlist error', { error: error.message, playlistId });
     return { success: false, error: error.message };
   }
 };
@@ -113,7 +114,7 @@ export const getUserMovies = async (userId) => {
 
     return { success: true, data: movies };
   } catch (error) {
-    console.error('Error getting user movies:', error);
+    asyncLog.error('movieService: Get user movies error', { error: error.message, userId });
     return { success: false, error: error.message };
   }
 };
@@ -130,7 +131,7 @@ export const getMovie = async (movieId) => {
       return { success: false, error: 'Movie not found' };
     }
   } catch (error) {
-    console.error('Error getting movie:', error);
+    asyncLog.error('movieService: Get movie error', { error: error.message, movieId });
     return { success: false, error: error.message };
   }
 };
@@ -152,7 +153,7 @@ export const searchMovies = async (userId, searchTerm) => {
 
     return { success: true, data: movies };
   } catch (error) {
-    console.error('Error searching movies:', error);
+    asyncLog.error('movieService: Search error', { error: error.message, searchTerm });
     return { success: false, error: error.message };
   }
 };
@@ -175,7 +176,7 @@ export const getTrendingMovies = async (limitCount = 10) => {
 
     return { success: true, data: movies };
   } catch (error) {
-    console.error('Error getting trending movies:', error);
+    asyncLog.error('movieService: Trending movies error', { error: error.message });
     return { success: false, error: error.message };
   }
 };
@@ -199,7 +200,7 @@ export const getRecentMovies = async (userId, limitCount = 10) => {
 
     return { success: true, data: movies };
   } catch (error) {
-    console.error('Error getting recent movies:', error);
+    asyncLog.error('movieService: Recent movies error', { error: error.message, userId });
     return { success: false, error: error.message };
   }
 };

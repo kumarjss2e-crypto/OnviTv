@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { getUserMovies, getRecentMovies } from '../services/movieService';
 import { getUserSeries, getRecentSeries } from '../services/seriesService';
 import { batchEnrichContent } from '../services/metadataService';
+import { asyncLog } from '../utils/asyncLogger';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 16 * 2 - 12) / 2; // 2 columns, 16px padding, 12px gap between
@@ -53,7 +54,7 @@ const MoviesScreen = ({ navigation }) => {
       try {
         if (tab === 'Movies') {
           const res = await getUserMovies(user.uid);
-          console.log(`[MoviesScreen] Movies loaded:`, { success: res.success, count: res.data?.length || 0 });
+          asyncLog.info('MoviesScreen: Movies loaded', { success: res.success, count: res.data?.length || 0, userId: user.uid });
           if (res.success && res.data) {
             // Enrich movies with metadata from TMDb (optimized for large datasets)
             const enriched = await batchEnrichContent(res.data, 'movie', {
@@ -61,14 +62,14 @@ const MoviesScreen = ({ navigation }) => {
               onlyEnrichVisible: true,
               visibleCount: 20, // Only enrich first 20 immediately
             });
-            console.log('[MoviesScreen] Movies enriched with metadata');
+            asyncLog.info('MoviesScreen: Movies enriched with metadata', { count: enriched.length });
             setItems(enriched);
           } else {
             setItems([]);
           }
         } else if (tab === 'Series') {
           const res = await getUserSeries(user.uid);
-          console.log(`[MoviesScreen] Series loaded:`, { success: res.success, count: res.data?.length || 0 });
+          asyncLog.info('MoviesScreen: Series loaded', { success: res.success, count: res.data?.length || 0, userId: user.uid });
           if (res.success && res.data) {
             // Enrich series with metadata from TMDb (optimized for large datasets)
             const enriched = await batchEnrichContent(res.data, 'series', {
@@ -76,7 +77,7 @@ const MoviesScreen = ({ navigation }) => {
               onlyEnrichVisible: true,
               visibleCount: 20, // Only enrich first 20 immediately
             });
-            console.log('[MoviesScreen] Series enriched with metadata');
+            asyncLog.info('MoviesScreen: Series enriched with metadata', { count: enriched.length });
             setItems(enriched);
           } else {
             setItems([]);
@@ -92,11 +93,11 @@ const MoviesScreen = ({ navigation }) => {
             ...(sRes.success ? sRes.data || [] : []),
           ];
           const downloaded = all.filter((x) => !!x.isDownloaded);
-          console.log(`[MoviesScreen] Downloads filtered:`, { total: all.length, downloaded: downloaded.length });
+          asyncLog.info('MoviesScreen: Downloads filtered', { total: all.length, downloaded: downloaded.length });
           setItems(downloaded);
         }
       } catch (e) {
-        console.error('[MoviesScreen] Load error:', e);
+        asyncLog.error('MoviesScreen: Load error', { error: e.message, tab, userId: user.uid });
         setItems([]);
       } finally {
         setLoading(false);
