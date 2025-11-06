@@ -19,8 +19,14 @@ import { useAuth } from '../context/AuthContext';
 import { getUserChannels } from '../services/channelService';
 import { getUserMovies } from '../services/movieService';
 import { getUserSeries } from '../services/seriesService';
-
-const { width } = Dimensions.get('window');
+import { 
+  spacing, 
+  fontSizes, 
+  wp, 
+  hp,
+  isShortScreen,
+  getResponsiveValue 
+} from '../utils/responsive';
 
 const CONTENT_TYPES = [
   { id: 'all', label: 'All', icon: 'grid-outline' },
@@ -365,60 +371,60 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral.slate900,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 14,
+    marginTop: spacing.lg,
+    fontSize: fontSizes.sm,
     color: colors.text.secondary,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 50,
-    paddingBottom: 10,
+    paddingHorizontal: spacing.lg,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + (isShortScreen() ? 8 : 10) : (isShortScreen() ? 40 : 50),
+    paddingBottom: isShortScreen() ? 8 : 10,
     backgroundColor: colors.neutral.slate900,
   },
   logo: {
-    width: 100,
-    height: 35,
+    width: wp(100),
+    height: hp(35),
   },
   headerRight: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: wp(36),
+    height: wp(36),
     justifyContent: 'center',
     alignItems: 'center',
   },
   chipsContainer: {
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     backgroundColor: colors.neutral.slate900,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(148, 163, 184, 0.1)',
   },
   chipsList: {
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     borderRadius: 20,
     backgroundColor: 'rgba(30, 41, 59, 0.6)',
     borderWidth: 1,
     borderColor: 'rgba(148, 163, 184, 0.2)',
-    gap: 6,
+    gap: spacing.xs,
   },
   chipSelected: {
     backgroundColor: colors.primary.purple,
     borderColor: colors.primary.purple,
   },
   chipText: {
-    fontSize: 14,
+    fontSize: fontSizes.sm,
     fontWeight: '500',
     color: colors.text.secondary,
   },
@@ -428,55 +434,55 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginVertical: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
     backgroundColor: 'rgba(30, 41, 59, 0.6)',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(148, 163, 184, 0.2)',
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: fontSizes.sm,
     color: colors.text.primary,
   },
   contentContainer: {
-    paddingBottom: 32,
+    paddingBottom: spacing['2xl'],
   },
   categorySection: {
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   categoryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
   },
   categoryTitle: {
-    fontSize: 18,
+    fontSize: fontSizes.xl,
     fontWeight: '700',
     color: colors.text.primary,
   },
   categoryCount: {
-    fontSize: 12,
+    fontSize: fontSizes.xs,
     color: colors.text.muted,
   },
   contentList: {
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
   },
   contentCard: {
-    width: 120,
+    width: getResponsiveValue({ small: 100, medium: 110, large: 120 }),
   },
   contentPoster: {
-    width: 120,
-    height: 170,
+    width: getResponsiveValue({ small: 100, medium: 110, large: 120 }),
+    height: getResponsiveValue({ small: 142, medium: 156, large: 170 }),
     borderRadius: 8,
     backgroundColor: colors.neutral.slate800,
   },
@@ -485,8 +491,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   contentTitle: {
-    marginTop: 6,
-    fontSize: 12,
+    marginTop: spacing.xs + 2,
+    fontSize: fontSizes.xs,
     color: colors.text.secondary,
     fontWeight: '500',
   },
@@ -494,11 +500,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: isShortScreen() ? spacing['2xl'] : spacing['3xl'] + 20,
   },
   emptyText: {
-    marginTop: 16,
-    fontSize: 14,
+    marginTop: spacing.lg,
+    fontSize: fontSizes.sm,
     color: colors.text.muted,
   },
 });
