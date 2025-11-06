@@ -29,7 +29,6 @@ const MoreScreen = ({ navigation }) => {
     { icon: 'star-outline', title: 'Favorites', subtitle: 'Your favorite content', screen: 'Favorites' },
     { icon: 'download-outline', title: 'Downloads', subtitle: 'Offline content', screen: 'Downloads' },
     { icon: 'time-outline', title: 'Watch History', subtitle: 'Recently watched', screen: 'History' },
-    { icon: 'card-outline', title: 'Subscription', subtitle: 'Manage your plan', screen: 'Subscription' },
     { icon: 'calendar-outline', title: 'Electronic Program Guide', subtitle: 'Browse TV schedule', screen: 'EPG' },
     { icon: 'settings-outline', title: 'Settings', subtitle: 'App preferences', screen: 'Settings' },
     { icon: 'help-circle-outline', title: 'Help & Support', subtitle: 'Get help', screen: 'Support' },

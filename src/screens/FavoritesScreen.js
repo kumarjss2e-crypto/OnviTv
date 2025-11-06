@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral.slate800,
   },
   activeSortChip: {
-    backgroundColor: colors.accent.red,
+    backgroundColor: colors.primary.purple,
   },
   sortChipText: {
     fontSize: 12,

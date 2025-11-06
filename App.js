@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -7,6 +7,20 @@ import { AuthProvider } from './src/context/AuthContext';
 import { ToastProvider } from './src/context/ToastContext';
 import { AlertProvider } from './src/components/CustomAlert';
 import { colors } from './src/theme/colors';
+
+// Custom dark theme to prevent white flash
+const CustomDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: colors.primary.purple,
+    background: colors.neutral.slate900,
+    card: colors.neutral.slate900,
+    text: colors.text.primary,
+    border: colors.neutral.slate800,
+    notification: colors.primary.purple,
+  },
+};
 
 // Screens
 import SplashScreen from './src/screens/SplashScreen';
@@ -40,13 +54,14 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <NavigationContainer>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.neutral.slate900 }}>
+          <NavigationContainer theme={CustomDarkTheme}>
             <StatusBar style="light" />
             <Stack.Navigator
               screenOptions={{
                 headerShown: false,
                 animation: 'fade',
+                contentStyle: { backgroundColor: colors.neutral.slate900 },
               }}
             >
               <Stack.Screen name="Splash" component={SplashScreen} />

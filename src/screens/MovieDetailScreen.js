@@ -32,7 +32,39 @@ const MovieDetailScreen = ({ route, navigation }) => {
   useEffect(() => {
     checkIfFavorited();
     checkIfDownloaded();
-  }, []);
+    
+    // Set up listener for download status changes
+    const interval = setInterval(() => {
+      if (isDownloading) {
+        checkDownloadStatus();
+      }
+    }, 2000); // Check every 2 seconds
+    
+    return () => clearInterval(interval);
+  }, [isDownloading]);
+  
+  const checkDownloadStatus = async () => {
+    try {
+      if (!user) return;
+      const downloadCheck = await getDownloadByContentId(user.uid, movie.id);
+      if (downloadCheck.success && downloadCheck.download) {
+        const download = downloadCheck.download;
+        if (download.status === 'completed') {
+          setIsDownloading(false);
+          setIsDownloadedState(true);
+        } else if (download.status === 'failed' || download.status === 'cancelled') {
+          setIsDownloading(false);
+        } else if (download.progress) {
+          setDownloadProgress(download.progress);
+        }
+      } else {
+        // Download not found, reset state
+        setIsDownloading(false);
+      }
+    } catch (error) {
+      console.error('Error checking download status:', error);
+    }
+  };
 
   const checkIfFavorited = async () => {
     try {
@@ -85,12 +117,17 @@ const MovieDetailScreen = ({ route, navigation }) => {
       });
 
       if (result.success) {
+        // Check if download is now in progress
+        const downloadCheck = await getDownloadByContentId(user.uid, movie.id);
+        if (downloadCheck.success && downloadCheck.download) {
+          // Download started successfully - keep button in downloading state
+          // Don't set isDownloading to false, let it show as downloading
+          return;
+        }
         setIsDownloadedState(true);
-        // Optionally show success message
       }
     } catch (error) {
       console.error('Error starting download:', error);
-    } finally {
       setIsDownloading(false);
     }
   };
@@ -236,9 +273,18 @@ const MovieDetailScreen = ({ route, navigation }) => {
               <Text style={styles.playButtonText}>Play Now</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionButton} onPress={handleDownload} disabled={isDownloading}>
+            <TouchableOpacity 
+              style={[styles.actionButton, isDownloading && styles.downloadingButton]} 
+              onPress={handleDownload} 
+              disabled={isDownloading}
+            >
               {isDownloading ? (
-                <ActivityIndicator size="small" color={colors.text.primary} />
+                <View style={styles.downloadingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary.purple} />
+                  {downloadProgress > 0 && (
+                    <Text style={styles.downloadProgressText}>{Math.round(downloadProgress)}%</Text>
+                  )}
+                </View>
               ) : (
                 <Ionicons 
                   name={isDownloadedState ? "checkmark-circle" : "download-outline"} 
@@ -425,6 +471,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral.slate800,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  downloadingButton: {
+    backgroundColor: 'rgba(124, 58, 237, 0.2)',
+    borderWidth: 1,
+    borderColor: colors.primary.purple,
+  },
+  downloadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadProgressText: {
+    fontSize: 10,
+    color: colors.primary.purple,
+    fontWeight: '600',
+    marginTop: 2,
   },
   section: {
     marginBottom: 24,
