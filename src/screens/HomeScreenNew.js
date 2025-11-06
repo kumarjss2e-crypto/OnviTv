@@ -11,7 +11,6 @@ import {
   StatusBar,
   ActivityIndicator,
   TextInput,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -31,7 +30,7 @@ const CONTENT_TYPES = [
   { id: 'channels', label: 'Channels', icon: 'radio-outline' },
 ];
 
-const HomeScreen = ({ navigation }) => {
+const HomeScreenNew = ({ navigation }) => {
   const { user } = useAuth();
   const [selectedType, setSelectedType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -374,7 +373,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 50,
+    paddingTop: 10,
     paddingBottom: 10,
     backgroundColor: colors.neutral.slate900,
   },
@@ -503,4 +502,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HomeScreen;
+export default HomeScreenNew;

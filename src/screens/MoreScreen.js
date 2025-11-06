@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -38,6 +38,7 @@ const MoreScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
       <ScrollView style={styles.scrollView}>
         {/* Profile Section */}
         <TouchableOpacity 
@@ -122,7 +123,8 @@ const styles = StyleSheet.create({
   },
   profileSection: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 32 : 60,
+    paddingBottom: 32,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral.slate800,

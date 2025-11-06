@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   StatusBar,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -301,7 +302,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 50,
     paddingBottom: 16,
     backgroundColor: colors.neutral.slate900,
   },

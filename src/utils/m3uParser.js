@@ -41,13 +41,22 @@ export const parseM3UPlaylist = async (playlistId, userId, m3uUrl) => {
     await setPlaylistParsingStatus(playlistId, true, { step: 'Parsing', progress: 20 });
 
     // Step 2: Parse M3U content
+    console.log('Parsing M3U content...');
     const parsedData = parseM3UContent(m3uContent);
     
+    // Log parsed data summary
+    const totalItems = parsedData.channels.length + parsedData.movies.length + parsedData.series.length;
     console.log('Parsed M3U data:', {
       channels: parsedData.channels.length,
       movies: parsedData.movies.length,
       series: parsedData.series.length,
+      total: totalItems,
     });
+
+    // Warn if playlist is very large
+    if (totalItems > 10000) {
+      console.warn(`⚠️ Large playlist detected: ${totalItems} items. This may take several minutes to save.`);
+    }
 
     await setPlaylistParsingStatus(playlistId, true, { step: 'Cleaning up old content', progress: 40 });
 
@@ -96,24 +105,82 @@ export const parseM3UPlaylist = async (playlistId, userId, m3uUrl) => {
 };
 
 /**
- * Fetch M3U file from URL
+ * Fetch M3U file from URL with retry logic
  * @param {string} url - M3U file URL
+ * @param {number} retries - Number of retry attempts (default: 3)
+ * @param {number} timeout - Request timeout in ms (default: 30000)
  * @returns {Promise<string>} - M3U file content
  */
-const fetchM3UFile = async (url) => {
-  try {
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+const fetchM3UFile = async (url, retries = 3, timeout = 30000) => {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`Fetching M3U (attempt ${attempt}/${retries}):`, url);
+      
+      // Use XMLHttpRequest instead of fetch to avoid Response status 0 crash
+      const content = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        // Set timeout
+        xhr.timeout = timeout;
+        
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            console.log(`✅ Successfully fetched M3U file (${(xhr.responseText.length / 1024).toFixed(2)} KB)`);
+            resolve(xhr.responseText);
+          } else if (xhr.status === 0) {
+            reject(new Error('Network request failed - no response from server. Please check your internet connection.'));
+          } else {
+            reject(new Error(`Server returned ${xhr.status}: ${xhr.statusText}`));
+          }
+        };
+        
+        xhr.onerror = function() {
+          reject(new Error('Network request failed. Please check your internet connection and try again.'));
+        };
+        
+        xhr.ontimeout = function() {
+          reject(new Error(`Request timed out after ${timeout / 1000} seconds. Please check your internet connection.`));
+        };
+        
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader('Accept', '*/*');
+        xhr.setRequestHeader('User-Agent', 'OnviTV/1.0');
+        xhr.send();
+      });
+      
+      if (!content || content.trim().length === 0) {
+        throw new Error('Received empty response from server');
+      }
+      
+      return content;
+      
+    } catch (error) {
+      lastError = error;
+      
+      // Don't retry on certain errors
+      if (error.message.includes('404') || error.message.includes('403') || error.message.includes('401')) {
+        console.error(`❌ Non-retryable error: ${error.message}`);
+        break;
+      }
+      
+      console.warn(`Attempt ${attempt} failed:`, error.message);
+      
+      // Wait before retrying (exponential backoff)
+      if (attempt < retries) {
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
     }
-    
-    const content = await response.text();
-    return content;
-  } catch (error) {
-    console.error('Error fetching M3U file:', error);
-    throw error;
   }
+  
+  // All retries failed
+  console.error('❌ All retry attempts failed');
+  throw new Error(
+    lastError?.message || 'Failed to fetch M3U playlist after multiple attempts. Please check the URL and your internet connection.'
+  );
 };
 
 /**
@@ -122,61 +189,95 @@ const fetchM3UFile = async (url) => {
  * @returns {Object} - Parsed channels, movies, and series
  */
 const parseM3UContent = (content) => {
-  const lines = content.split('\n').map(line => line.trim());
+  console.log('Starting M3U content parsing...');
+  console.log(`Content size: ${(content.length / 1024 / 1024).toFixed(2)} MB`);
+  
   const channels = [];
   const movies = [];
   const series = [];
   const categories = new Set();
 
   let currentItem = null;
+  let lineCount = 0;
+  let itemCount = 0;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  try {
+    // Split content into lines - use a more memory-efficient approach
+    const lines = content.split('\n');
+    console.log(`Total lines to parse: ${lines.length}`);
 
-    // Skip empty lines and comments (except #EXTINF)
-    if (!line || (line.startsWith('#') && !line.startsWith('#EXTINF'))) {
-      continue;
-    }
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      lineCount++;
 
-    // Parse #EXTINF line
-    if (line.startsWith('#EXTINF')) {
-      currentItem = parseExtInfLine(line);
-    } 
-    // Parse stream URL
-    else if (currentItem && (line.startsWith('http://') || line.startsWith('https://'))) {
-      currentItem.streamUrl = line;
+      // Log progress every 1000 lines
+      if (lineCount % 1000 === 0) {
+        console.log(`Parsed ${lineCount} lines, found ${itemCount} items...`);
+      }
 
-      // Categorize content
-      const contentType = detectContentType(currentItem);
-      
-      if (contentType === 'movie') {
-        movies.push(currentItem);
-      } else if (contentType === 'series') {
-        // Try to extract episode info
-        const episodeInfo = extractEpisodeInfo(currentItem.name);
-        if (episodeInfo) {
-          currentItem.episodeInfo = episodeInfo;
+      // Skip empty lines and comments (except #EXTINF)
+      if (!line || (line.startsWith('#') && !line.startsWith('#EXTINF'))) {
+        continue;
+      }
+
+      // Parse #EXTINF line
+      if (line.startsWith('#EXTINF')) {
+        try {
+          currentItem = parseExtInfLine(line);
+        } catch (error) {
+          console.warn(`Error parsing EXTINF at line ${lineCount}:`, error.message);
+          currentItem = null;
         }
-        series.push(currentItem);
-      } else {
-        channels.push(currentItem);
-      }
+      } 
+      // Parse stream URL
+      else if (currentItem && (line.startsWith('http://') || line.startsWith('https://'))) {
+        try {
+          currentItem.streamUrl = line;
 
-      // Track categories
-      if (currentItem.category) {
-        categories.add(currentItem.category);
-      }
+          // Categorize content
+          const contentType = detectContentType(currentItem);
+          
+          if (contentType === 'movie') {
+            movies.push(currentItem);
+          } else if (contentType === 'series') {
+            // Try to extract episode info
+            const episodeInfo = extractEpisodeInfo(currentItem.name);
+            if (episodeInfo) {
+              currentItem.episodeInfo = episodeInfo;
+            }
+            series.push(currentItem);
+          } else {
+            channels.push(currentItem);
+          }
 
-      currentItem = null;
+          // Track categories
+          if (currentItem.category) {
+            categories.add(currentItem.category);
+          }
+
+          itemCount++;
+          currentItem = null;
+        } catch (error) {
+          console.warn(`Error processing item at line ${lineCount}:`, error.message);
+          currentItem = null;
+        }
+      }
     }
-  }
 
-  return {
-    channels,
-    movies,
-    series,
-    categories: Array.from(categories),
-  };
+    console.log('✅ M3U parsing completed successfully');
+    console.log(`Total items parsed: ${itemCount}`);
+    console.log(`Channels: ${channels.length}, Movies: ${movies.length}, Series: ${series.length}`);
+
+    return {
+      channels,
+      movies,
+      series,
+      categories: Array.from(categories),
+    };
+  } catch (error) {
+    console.error('❌ Fatal error during M3U parsing:', error);
+    throw new Error(`Failed to parse M3U content: ${error.message}`);
+  }
 };
 
 /**
@@ -196,25 +297,33 @@ const parseExtInfLine = (line) => {
     streamUrl: '',
   };
 
-  // Extract attributes using regex
-  const tvgIdMatch = line.match(/tvg-id="([^"]*)"/);
-  const tvgNameMatch = line.match(/tvg-name="([^"]*)"/);
-  const tvgLogoMatch = line.match(/tvg-logo="([^"]*)"/);
-  const groupTitleMatch = line.match(/group-title="([^"]*)"/);
-  const tvgLanguageMatch = line.match(/tvg-language="([^"]*)"/);
-  const tvgCountryMatch = line.match(/tvg-country="([^"]*)"/);
+  try {
+    // Extract attributes using regex with error handling
+    const tvgIdMatch = line.match(/tvg-id="([^"]*)"/);
+    const tvgNameMatch = line.match(/tvg-name="([^"]*)"/);
+    const tvgLogoMatch = line.match(/tvg-logo="([^"]*)"/);
+    const groupTitleMatch = line.match(/group-title="([^"]*)"/);
+    const tvgLanguageMatch = line.match(/tvg-language="([^"]*)"/);
+    const tvgCountryMatch = line.match(/tvg-country="([^"]*)"/);
 
-  if (tvgIdMatch) item.tvgId = tvgIdMatch[1];
-  if (tvgNameMatch) item.tvgName = tvgNameMatch[1];
-  if (tvgLogoMatch) item.logo = tvgLogoMatch[1];
-  if (groupTitleMatch) item.category = groupTitleMatch[1];
-  if (tvgLanguageMatch) item.language = tvgLanguageMatch[1];
-  if (tvgCountryMatch) item.country = tvgCountryMatch[1];
+    if (tvgIdMatch) item.tvgId = tvgIdMatch[1];
+    if (tvgNameMatch) item.tvgName = tvgNameMatch[1];
+    if (tvgLogoMatch) item.logo = tvgLogoMatch[1];
+    if (groupTitleMatch) item.category = groupTitleMatch[1];
+    if (tvgLanguageMatch) item.language = tvgLanguageMatch[1];
+    if (tvgCountryMatch) item.country = tvgCountryMatch[1];
 
-  // Extract name (after the last comma)
-  const nameMatch = line.match(/,(.+)$/);
-  if (nameMatch) {
-    item.name = nameMatch[1].trim();
+    // Extract name (after the last comma)
+    const nameMatch = line.match(/,(.+)$/);
+    if (nameMatch) {
+      item.name = nameMatch[1].trim();
+    } else {
+      // Fallback: use tvg-name or a default
+      item.name = item.tvgName || 'Unnamed Channel';
+    }
+  } catch (error) {
+    console.warn('Error parsing EXTINF line:', error.message);
+    item.name = 'Unknown';
   }
 
   return item;

@@ -12,15 +12,87 @@ import {
 } from 'firebase/firestore';
 import { DOMParser as XmldomParser } from '@xmldom/xmldom';
 
-// Download EPG feed (XMLTV or JSON). Returns raw string for XML, JSON object for JSON.
-export const fetchEPGFromProvider = async (url) => {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch EPG: ${res.status}`);
-  const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    return await res.json();
+// Download EPG feed (XMLTV or JSON) with retry logic. Returns raw string for XML, JSON object for JSON.
+export const fetchEPGFromProvider = async (url, retries = 3, timeout = 30000) => {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`Fetching EPG (attempt ${attempt}/${retries}):`, url);
+      
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'Accept': '*/*',
+          'User-Agent': 'OnviTV/1.0',
+        },
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Check if response status is valid
+      if (res.status === 0) {
+        throw new Error('Network request failed. Please check your internet connection.');
+      }
+      
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+      }
+      
+      const contentType = res.headers.get('content-type') || '';
+      
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        console.log('✅ EPG JSON fetched successfully');
+        return data;
+      }
+      
+      const text = await res.text();
+      
+      if (!text || text.trim().length === 0) {
+        throw new Error('Received empty EPG data from server');
+      }
+      
+      console.log('✅ EPG XMLTV fetched successfully');
+      return text;
+      
+    } catch (error) {
+      lastError = error;
+      
+      // Handle specific error types
+      if (error.name === 'AbortError') {
+        console.error(`Attempt ${attempt} timed out after ${timeout}ms`);
+        lastError = new Error(`Request timed out after ${timeout / 1000} seconds. The EPG server may be slow or unreachable.`);
+      } else if (error.message.includes('Network request failed')) {
+        console.error(`Attempt ${attempt} failed: Network error`);
+      } else {
+        console.error(`Attempt ${attempt} failed:`, error.message);
+      }
+      
+      // Don't retry on certain errors
+      if (error.message.includes('404') || error.message.includes('403') || error.message.includes('401')) {
+        console.error('Server error - not retrying');
+        break;
+      }
+      
+      // Wait before retrying (exponential backoff)
+      if (attempt < retries) {
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
   }
-  return await res.text();
+  
+  // All retries failed
+  console.error('❌ All EPG fetch attempts failed');
+  throw new Error(
+    lastError?.message || 'Failed to fetch EPG data after multiple attempts. Please check the URL and your internet connection.'
+  );
 };
 
 // Parse XMLTV content to normalized program objects

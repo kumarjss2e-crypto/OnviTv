@@ -6,7 +6,7 @@ import { colors } from '../theme/colors';
 // Screens
 import HomeScreen from '../screens/HomeScreen';
 import LiveTVScreen from '../screens/LiveTVScreen';
-import MoviesScreen from '../screens/MoviesScreen';
+import EPGScreen from '../screens/EPGScreen';
 import MoreScreen from '../screens/MoreScreen';
 
 const Tab = createBottomTabNavigator();
@@ -51,11 +51,11 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Movies"
-        component={MoviesScreen}
+        name="EPG"
+        component={EPGScreen}
         options={{
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "film" : "film-outline"} size={24} color={color} />
+            <Ionicons name={focused ? "list" : "list-outline"} size={24} color={color} />
           ),
         }}
       />

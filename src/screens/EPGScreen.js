@@ -9,7 +9,10 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Modal,
+  StatusBar,
+  Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { getUserChannels } from '../services/channelService';
@@ -42,7 +45,7 @@ const generateTimeSlots = () => {
 
 const minutesBetween = (a, b) => Math.max(0, Math.round((b.getTime() - a.getTime()) / 60000));
 
-const EPGScreen = () => {
+const EPGScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { start, slots } = useMemo(() => generateTimeSlots(), []);
   const [channels, setChannels] = useState([]);
@@ -126,18 +129,28 @@ const EPGScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>EPG</Text>
-        <Text style={styles.headerSub}>Now • {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-        <TouchableOpacity
-          onPress={() => loadData(true)}
-          style={styles.refreshBtn}
-        >
-          {refreshing ? (
-            <ActivityIndicator size="small" color={colors.text.primary} />
-          ) : (
-            <Text style={styles.refreshText}>Refresh</Text>
-          )}
-        </TouchableOpacity>
+        <View>
+          <Text style={styles.headerTitle}>EPG</Text>
+          <Text style={styles.headerSub}>Now • {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+        </View>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('EPGImport')}
+            style={styles.importBtn}
+          >
+            <Ionicons name="cloud-download-outline" size={18} color={colors.primary.purple} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => loadData(true)}
+            style={styles.refreshBtn}
+          >
+            {refreshing ? (
+              <ActivityIndicator size="small" color={colors.text.primary} />
+            ) : (
+              <Ionicons name="refresh-outline" size={18} color={colors.text.primary} />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.gridWrapper}>
@@ -315,12 +328,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   header: {
-    paddingTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 14 : 50,
     paddingBottom: 10,
     paddingHorizontal: 16,
     backgroundColor: colors.neutral.slate900,
     borderBottomColor: colors.neutral.slate800,
     borderBottomWidth: 1,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
   headerTitle: {
     color: colors.text.primary,
@@ -433,19 +453,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary.purple,
     borderRadius: 2,
   },
-  refreshBtn: {
-    position: 'absolute',
-    right: 16,
-    top: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+  importBtn: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: colors.neutral.slate800,
     borderRadius: 8,
   },
-  refreshText: {
-    color: colors.text.primary,
-    fontSize: 12,
-    fontWeight: '600',
+  refreshBtn: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.neutral.slate800,
+    borderRadius: 8,
   },
   modalOverlay: {
     flex: 1,

@@ -18,6 +18,7 @@ import PlaylistManagementScreen from './src/screens/PlaylistManagementScreen';
 import AddPlaylistScreen from './src/screens/AddPlaylistScreen';
 import EditPlaylistScreen from './src/screens/EditPlaylistScreen';
 import EPGScreen from './src/screens/EPGScreen';
+import EPGImportScreen from './src/screens/EPGImportScreen';
 import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
 import MovieDetailScreen from './src/screens/MovieDetailScreen';
 import SeriesDetailScreen from './src/screens/SeriesDetailScreen';
@@ -65,6 +66,13 @@ export default function App() {
                   headerStyle: { backgroundColor: colors.neutral.slate900 },
                   headerTintColor: colors.text.primary,
                   headerTitleStyle: { color: colors.text.primary },
+                }}
+              />
+              <Stack.Screen 
+                name="EPGImport" 
+                component={EPGImportScreen}
+                options={{
+                  headerShown: false,
                 }}
               />
               <Stack.Screen 
