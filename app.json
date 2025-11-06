@@ -20,7 +20,16 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.onvitv.app"
+      "bundleIdentifier": "com.onvitv.app",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
     },
     "android": {
       "package": "com.onvitv.com",
