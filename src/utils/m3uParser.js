@@ -10,6 +10,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { updatePlaylistStats, setPlaylistParsingStatus, updateLastFetched } from '../services/playlistService';
+import { httpGet } from './httpClient';
 
 /**
  * M3U Parser Utility
@@ -112,75 +113,14 @@ export const parseM3UPlaylist = async (playlistId, userId, m3uUrl) => {
  * @returns {Promise<string>} - M3U file content
  */
 const fetchM3UFile = async (url, retries = 3, timeout = 30000) => {
-  let lastError;
+  const content = await httpGet(url, { timeout, retries });
   
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      console.log(`Fetching M3U (attempt ${attempt}/${retries}):`, url);
-      
-      // Use XMLHttpRequest instead of fetch to avoid Response status 0 crash
-      const content = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        
-        // Set timeout
-        xhr.timeout = timeout;
-        
-        xhr.onload = function() {
-          if (xhr.status === 200) {
-            console.log(`✅ Successfully fetched M3U file (${(xhr.responseText.length / 1024).toFixed(2)} KB)`);
-            resolve(xhr.responseText);
-          } else if (xhr.status === 0) {
-            reject(new Error('Network request failed - no response from server. Please check your internet connection.'));
-          } else {
-            reject(new Error(`Server returned ${xhr.status}: ${xhr.statusText}`));
-          }
-        };
-        
-        xhr.onerror = function() {
-          reject(new Error('Network request failed. Please check your internet connection and try again.'));
-        };
-        
-        xhr.ontimeout = function() {
-          reject(new Error(`Request timed out after ${timeout / 1000} seconds. Please check your internet connection.`));
-        };
-        
-        xhr.open('GET', url, true);
-        xhr.setRequestHeader('Accept', '*/*');
-        xhr.setRequestHeader('User-Agent', 'OnviTV/1.0');
-        xhr.send();
-      });
-      
-      if (!content || content.trim().length === 0) {
-        throw new Error('Received empty response from server');
-      }
-      
-      return content;
-      
-    } catch (error) {
-      lastError = error;
-      
-      // Don't retry on certain errors
-      if (error.message.includes('404') || error.message.includes('403') || error.message.includes('401')) {
-        console.error(`❌ Non-retryable error: ${error.message}`);
-        break;
-      }
-      
-      console.warn(`Attempt ${attempt} failed:`, error.message);
-      
-      // Wait before retrying (exponential backoff)
-      if (attempt < retries) {
-        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-        console.log(`Waiting ${waitTime}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-      }
-    }
+  if (!content || content.trim().length === 0) {
+    throw new Error('Received empty response from server');
   }
   
-  // All retries failed
-  console.error('❌ All retry attempts failed');
-  throw new Error(
-    lastError?.message || 'Failed to fetch M3U playlist after multiple attempts. Please check the URL and your internet connection.'
-  );
+  console.log(`✅ Successfully fetched M3U file (${(content.length / 1024).toFixed(2)} KB)`);
+  return content;
 };
 
 /**

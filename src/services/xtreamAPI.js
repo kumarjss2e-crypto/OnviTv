@@ -9,6 +9,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { updatePlaylistStats, setPlaylistParsingStatus, updateLastFetched } from './playlistService';
+import { httpGetJSON } from '../utils/httpClient';
 
 /**
  * Xtream Codes API Service
@@ -114,18 +115,7 @@ const authenticate = async (serverUrl, username, password) => {
   try {
     const url = `${serverUrl}/player_api.php?username=${username}&password=${password}`;
     
-    // Add timeout to prevent hanging
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-    
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = await httpGetJSON(url, { timeout: 15000, retries: 2 });
     
     if (data.user_info && data.user_info.auth === 1) {
       return {
@@ -143,10 +133,12 @@ const authenticate = async (serverUrl, username, password) => {
     console.error('Authentication error:', error);
     
     let errorMessage = 'Authentication failed';
-    if (error.name === 'AbortError') {
+    if (error.message.includes('timed out')) {
       errorMessage = 'Connection timeout - Server took too long to respond';
-    } else if (error.message.includes('Failed to fetch')) {
+    } else if (error.message.includes('Network request failed')) {
       errorMessage = 'Cannot connect to server - Check URL or try a different server';
+    } else {
+      errorMessage = error.message;
     }
     
     return {
@@ -167,16 +159,7 @@ const getLiveStreams = async (serverUrl, username, password) => {
   try {
     const url = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=get_live_streams`;
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = await httpGetJSON(url, { timeout: 15000, retries: 2 });
     
     // Map Xtream data to our structure
     return data.map(stream => ({
@@ -207,16 +190,7 @@ const getVODStreams = async (serverUrl, username, password) => {
   try {
     const url = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=get_vod_streams`;
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = await httpGetJSON(url, { timeout: 15000, retries: 2 });
     
     // Map Xtream data to our structure
     return data.map(stream => ({
@@ -249,16 +223,7 @@ const getSeriesStreams = async (serverUrl, username, password) => {
   try {
     const url = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=get_series`;
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = await httpGetJSON(url, { timeout: 15000, retries: 2 });
     
     // Map Xtream data to our structure
     return data.map(series => ({
@@ -298,16 +263,7 @@ export const getSeriesInfo = async (serverUrl, username, password, seriesId) => 
   try {
     const url = `${serverUrl}/player_api.php?username=${username}&password=${password}&action=get_series_info&series_id=${seriesId}`;
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = await httpGetJSON(url, { timeout: 15000, retries: 2 });
     
     // Parse episodes from seasons
     const episodes = [];
