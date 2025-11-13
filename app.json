@@ -17,11 +17,26 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.0"
+            "deploymentTarget": "14.0",
+            "useFrameworks": "static"
           },
           "android": {
             "minSdkVersion": 21
           }
+        }
+      ],
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "react-native-video",
+        {
+          "enableNotificationControls": false
         }
       ]
     ],
@@ -33,9 +48,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.onvitv.app",
+      "bundleIdentifier": "com.onvitv.com",
       "buildNumber": "1.0.0",
-      "deploymentTarget": "15.0",
+      "deploymentTarget": "14.0",
+      "googleServicesFile": "./ios/GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -43,7 +59,16 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         },
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "GoogleSignIn",
+            "CFBundleURLSchemes": ["com.googleusercontent.apps.1035586796015-3e7fqts0ftqo7uppq4nchpu7vfl8pasp"]
+          }
+        ],
+        "UIAppFonts": [
+          "Ionicons.ttf"
+        ]
       }
     },
     "android": {
