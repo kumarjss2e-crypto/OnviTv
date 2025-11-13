@@ -1,6 +1,6 @@
 workflows:
-  ios-testflight:
-    name: OnviTV iOS TestFlight Build
+  ios-build:
+    name: OnviTV iOS Build
     instance_type: mac_mini_m1
     max_build_duration: 60
     environment:
@@ -30,25 +30,21 @@ workflows:
             --type IOS_APP_STORE \
             com.onvitv.app \
             --create
-      - name: Build .ipa for TestFlight
+      - name: Build .ipa
         script: |
           xcode-project build-ipa \
             --workspace ios/OnviTV.xcworkspace \
             --scheme OnviTV \
             --archive-flags="-destination 'generic/platform=iOS'"
-      - name: Upload to TestFlight
-        script: |
-          app-store-connect publish \
-            --testflight \
-            --beta-build-localizations
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        beta_groups:
-          - Internal Testing
+      email:
+        recipients:
+          - lucasjanssen70@gmail.com
+        notify:
+          success: true
+          failure: true
 
   ios-adhoc:
     name: OnviTV iOS Ad Hoc Build
