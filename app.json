@@ -51,7 +51,7 @@
       "bundleIdentifier": "com.onvitv.com",
       "buildNumber": "1.0.0",
       "deploymentTarget": "14.0",
-      "googleServicesFile": "./ios/GoogleService-Info.plist",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
