@@ -1,0 +1,91 @@
+workflows:
+  ios-testflight:
+    name: OnviTV iOS TestFlight Build
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.onvitv.app
+      vars:
+        APPLE_ID: lucasjanssen70@gmail.com
+        APP_SPECIFIC_PASSWORD: qjkf-aque-srwe-lfbt
+      node: 18.17.0
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm install
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install
+      - name: Set up keychain
+        script: |
+          keychain initialize
+      - name: Fetch signing files
+        script: |
+          app-store-connect fetch-signing-files \
+            --platform IOS \
+            --type IOS_APP_STORE \
+            com.onvitv.app \
+            --create
+      - name: Build .ipa for TestFlight
+        script: |
+          xcode-project build-ipa \
+            --workspace ios/OnviTV.xcworkspace \
+            --scheme OnviTV \
+            --archive-flags="-destination 'generic/platform=iOS'"
+      - name: Upload to TestFlight
+        script: |
+          app-store-connect publish \
+            --testflight \
+            --beta-build-localizations
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testing
+
+  ios-adhoc:
+    name: OnviTV iOS Ad Hoc Build
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: com.onvitv.app
+      vars:
+        APPLE_ID: lucasjanssen70@gmail.com
+        APP_SPECIFIC_PASSWORD: qjkf-aque-srwe-lfbt
+      node: 18.17.0
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm install
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install
+      - name: Set up keychain
+        script: |
+          keychain initialize
+      - name: Fetch signing files for Ad Hoc
+        script: |
+          app-store-connect fetch-signing-files \
+            --platform IOS \
+            --type IOS_APP_ADHOC \
+            com.onvitv.app \
+            --create
+      - name: Build .ipa for Ad Hoc distribution
+        script: |
+          xcode-project build-ipa \
+            --workspace ios/OnviTV.xcworkspace \
+            --scheme OnviTV \
+            --archive-flags="-destination 'generic/platform=iOS'"
+    artifacts:
+      - build/ios/ipa/*.ipa
