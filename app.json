@@ -12,6 +12,16 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "13.4"
+          }
+        }
+      ]
+    ],
     "notification": {
       "icon": "./assets/notification-icon.png",
       "color": "#7C3AED",
