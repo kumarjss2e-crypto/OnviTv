@@ -1,0 +1,122 @@
+# Build outputs (major space savers)
+android/app/build/
+android/build/
+android/.gradle/
+android/app/release/
+android/app/debug/
+ios/build/
+build/
+
+# Dependencies (will be reinstalled on EAS)
+node_modules/
+
+# Development files
+.expo/
+.vscode/
+.idea/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation and guides
+*.md
+docs/
+RESPONSIVE_DESIGN_GUIDE.md
+IOS_BUILD_GUIDE.md
+IOS_LOCAL_BUILD_GUIDE.md
+EPG_SYSTEM_ANALYSIS.md
+
+# Test files
+__tests__/
+*.test.js
+*.spec.js
+
+# Environment files
+.env*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Large media files (if any)
+*.mov
+*.mp4
+*.avi
+*.mkv
+
+# APK files
+*.apk
+
+# Backup files
+*.bak
+*.backup
+
+# Cache directories
+.cache/
+*.cache
+
+# Coverage reports
+coverage/
+
+# Storybook
+storybook-static/
+
+# Metro bundler cache
+.metro-health-check*
+
+# Flipper
+ios/Pods/Flipper*
+android/app/src/debug/
+
+# React Native
+react-native-*.tgz
+
+# Watchman
+.watchmanconfig
+
+# Buck
+buck-out/
+
+# Bundle artifacts
+*.jsbundle
+
+# CocoaPods
+ios/Pods/
+Podfile.lock
+
+# Gradle
+android/gradle/
+android/gradlew*
+android/local.properties
+
+# Xcode
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcodeproj/xcuserdata/
+ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+ios/build/
+DerivedData/
+
+# Android Studio
+android/.idea/
+android/app/release/
+android/app/debug/
+
+# Large assets (keep only necessary ones)
+# Uncomment if you have large unnecessary assets
+# assets/videos/
+# assets/large-images/
