@@ -17,7 +17,10 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "13.4"
+            "deploymentTarget": "15.0"
+          },
+          "android": {
+            "minSdkVersion": 21
           }
         }
       ]
@@ -32,6 +35,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.onvitv.app",
       "buildNumber": "1.0.0",
+      "deploymentTarget": "15.0",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
