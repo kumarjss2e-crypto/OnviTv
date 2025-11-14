@@ -51,7 +51,6 @@
     },
     "android": {
       "package": "com.onvitv.com",
-      "googleServicesFile": "./android/app/google-services.json",
       "useNextNotificationsApi": true,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
