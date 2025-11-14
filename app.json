@@ -17,7 +17,7 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "14.0",
+            "deploymentTarget": "16.0",
             "useFrameworks": "static"
           },
           "android": {
@@ -50,7 +50,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.onvitv.com",
       "buildNumber": "1.0.0",
-      "deploymentTarget": "14.0",
+      "deploymentTarget": "16.0",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [
