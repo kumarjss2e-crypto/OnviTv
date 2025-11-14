@@ -104,12 +104,8 @@ android/gradle/
 android/gradlew*
 android/local.properties
 
-# Xcode
-ios/*.xcworkspace/xcuserdata/
-ios/*.xcodeproj/xcuserdata/
-ios/*.xcodeproj/project.xcworkspace/xcuserdata/
-ios/build/
-DerivedData/
+# Xcode - exclude entire iOS folder to force regeneration
+ios/
 
 # Android Studio
 android/.idea/

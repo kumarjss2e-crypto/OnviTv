@@ -38,7 +38,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.onvitv.com",
       "buildNumber": "1.0.0",
-      "deploymentTarget": "16.0",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -51,7 +50,6 @@
     },
     "android": {
       "package": "com.onvitv.com",
-      "useNextNotificationsApi": true,
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
