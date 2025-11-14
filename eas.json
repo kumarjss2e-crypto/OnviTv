@@ -9,7 +9,14 @@
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "cocoapods": {
+          "cache": false
+        }
+      },
+      "env": {
+        "SKIP_BUNDLING": "1",
+        "EXPO_SKIP_MANIFEST_VALIDATION_ERRORS": "1"
       }
     },
     "preview": {
