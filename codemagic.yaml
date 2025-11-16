@@ -85,3 +85,113 @@ workflows:
             --archive-flags="-destination 'generic/platform=iOS'"
     artifacts:
       - build/ios/ipa/*.ipa
+
+  ios-eas-internal:
+    name: OnviTV iOS Internal (EAS)
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      vars:
+        EXPO_TOKEN: "${EXPO_TOKEN}"
+        EXPO_USERNAME: "pomosoro"
+        EAS_BUILD_PROFILE: "preview"
+      node: 18.17.0
+      xcode: latest
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+      - name: Install EAS CLI
+        script: |
+          npm i -g eas-cli@latest
+      - name: Authenticate to Expo using token
+        script: |
+          if ! eas whoami >/dev/null 2>&1; then
+            eas login --token "$EXPO_TOKEN"
+          fi
+      - name: Verify configuration
+        script: |
+          node -e "
+            const fs=require('fs');
+            const app=JSON.parse(fs.readFileSync('app.json','utf8'));
+            if(!app.expo||!app.expo.ios||!app.expo.ios.bundleIdentifier){
+              console.error('Missing expo.ios.bundleIdentifier in app.json');
+              process.exit(1);
+            }
+            console.log('Bundle Identifier:', app.expo.ios.bundleIdentifier);
+          "
+      - name: Start EAS iOS internal build and wait for completion
+        script: |
+          eas build -p ios --profile "$EAS_BUILD_PROFILE" --non-interactive --wait
+      - name: Download build artifact (.ipa) from Expo
+        script: |
+          ARTIFACT_URL=$(eas build:list --json --limit 1 | python3 - <<'PY'
+import sys,json
+j=json.load(sys.stdin)
+item=j[0] if isinstance(j,list) and j else {}
+art=item.get('artifacts') or {}
+print(art.get('buildUrl') or art.get('applicationArchiveUrl') or art.get('artifactsUrl') or '')
+PY
+          )
+          echo "Artifact URL: $ARTIFACT_URL"
+          if [ -z "$ARTIFACT_URL" ]; then
+            echo "Could not determine artifact URL automatically" && exit 1
+          fi
+          mkdir -p build/ios/ipa
+          curl -L "$ARTIFACT_URL" -o build/ios/ipa/onvitv.ipa
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      email:
+        recipients:
+          - ${CM_USER_EMAIL}
+        notify:
+          success: true
+          failure: true
+
+  ios-prebuild-adhoc:
+    name: OnviTV iOS Ad Hoc (Expo prebuild)
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      groups:
+        - appstore_credentials
+      vars:
+        BUNDLE_ID: com.onvitv.com
+      node: 18.17.0
+      xcode: latest
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+      - name: Generate native iOS project with Expo Prebuild
+        script: |
+          npx expo prebuild -p ios --non-interactive
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install
+      - name: Set up keychain
+        script: |
+          keychain initialize
+      - name: Fetch signing files for Ad Hoc
+        script: |
+          app-store-connect fetch-signing-files \
+            --platform IOS \
+            --type IOS_APP_ADHOC \
+            "$BUNDLE_ID" \
+            --create
+      - name: Detect workspace and scheme, then build .ipa
+        script: |
+          cd ios
+          WORKSPACE=$(ls *.xcworkspace | head -n 1)
+          echo "Detected workspace: $WORKSPACE"
+          SCHEME=$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c "import sys,json; d=json.load(sys.stdin); s=(d.get('workspace') or {}).get('schemes') or []; print(s[0] if s else '')")
+          if [ -z "$SCHEME" ]; then echo "Could not detect Xcode scheme" && exit 1; fi
+          echo "Detected scheme: $SCHEME"
+          cd ..
+          xcode-project build-ipa \
+            --workspace "ios/$WORKSPACE" \
+            --scheme "$SCHEME" \
+            --archive-flags="-destination 'generic/platform=iOS'"
+    artifacts:
+      - build/ios/ipa/*.ipa

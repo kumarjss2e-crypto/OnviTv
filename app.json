@@ -5,25 +5,86 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#1e1b4b"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
     },
     "assetBundlePatterns": [
       "**/*"
     ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.onvitv.com",
+      "buildNumber": "1.0.0",
+      "requireFullScreen": false,
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio",
+          "fetch",
+          "remote-notification"
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsArbitraryLoadsInWebContent": true
+        },
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for playlist import.",
+        "NSMicrophoneUsageDescription": "This app requires microphone access for video playback.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library for saving and loading playlists.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.1035586796015-3e7fqts0ftqo7uppq4nchpu7vfl8pasp"
+            ]
+          }
+        ]
+      },
+      "usesIcloudStorage": false,
+      "bitcode": false,
+      "entitlements": {
+        "com.apple.developer.applesignin": ["Default"]
+      }
+    },
+    "android": {
+      "package": "com.onvitv.com",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1e1b4b"
+      },
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE"
+      ],
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
     "plugins": [
+      [
+        "expo-apple-authentication"
+      ],
       [
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "16.0",
-            "cocoapods": {
-              "deterministic_uuids": false
-            }
+            "deploymentTarget": "13.4",
+            "useFrameworks": "static"
           },
           "android": {
-            "minSdkVersion": 21
+            "minSdkVersion": 21,
+            "compileSdkVersion": 33,
+            "targetSdkVersion": 33
           }
         }
       ]
@@ -34,36 +95,11 @@
       "androidMode": "default",
       "androidCollapsedTitle": "OnviTV"
     },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.onvitv.com",
-      "buildNumber": "1.0.0",
-      "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ],
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
-        },
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "package": "com.onvitv.com",
-      "permissions": [
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "WAKE_LOCK"
-      ]
-    },
-    "web": {
-      "bundler": "metro"
-    },
     "extra": {
       "eas": {
-        "projectId": "9462daaf-0d04-412c-8851-23877824ffcf"
+        "projectId": "5032b765-24c0-4233-b074-7b480b071a8d"
       }
     },
-    "owner": "kumar2003"
+    "owner": "pomosoro"
   }
 }
