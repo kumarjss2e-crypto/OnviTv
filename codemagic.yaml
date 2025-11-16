@@ -125,14 +125,7 @@ workflows:
           eas build -p ios --profile "$EAS_BUILD_PROFILE" --non-interactive --wait
       - name: Download build artifact (.ipa) from Expo
         script: |
-          ARTIFACT_URL=$(eas build:list --json --limit 1 | python3 - <<'PY'
-import sys,json
-j=json.load(sys.stdin)
-item=j[0] if isinstance(j,list) and j else {}
-art=item.get('artifacts') or {}
-print(art.get('buildUrl') or art.get('applicationArchiveUrl') or art.get('artifactsUrl') or '')
-PY
-          )
+          ARTIFACT_URL=$(eas build:list --json --limit 1 | node -e "const d=require('fs').readFileSync(0,'utf8'); const j=JSON.parse(d); const item=(Array.isArray(j)&&j[0])||{}; const art=item.artifacts||{}; console.log(art.buildUrl||art.applicationArchiveUrl||art.artifactsUrl||'');")
           echo "Artifact URL: $ARTIFACT_URL"
           if [ -z "$ARTIFACT_URL" ]; then
             echo "Could not determine artifact URL automatically" && exit 1
