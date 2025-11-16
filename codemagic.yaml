@@ -6,7 +6,7 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.onvitv.app
+        bundle_identifier: com.onvitv.com
       vars:
         APPLE_ID: lucasjanssen70@gmail.com
         APP_SPECIFIC_PASSWORD: qjkf-aque-srwe-lfbt
@@ -28,7 +28,7 @@ workflows:
           app-store-connect fetch-signing-files \
             --platform IOS \
             --type IOS_APP_STORE \
-            com.onvitv.app \
+            com.onvitv.com \
             --create
       - name: Build .ipa
         script: |
@@ -53,7 +53,7 @@ workflows:
     environment:
       ios_signing:
         distribution_type: ad_hoc
-        bundle_identifier: com.onvitv.app
+        bundle_identifier: com.onvitv.com
       vars:
         APPLE_ID: lucasjanssen70@gmail.com
         APP_SPECIFIC_PASSWORD: qjkf-aque-srwe-lfbt
@@ -75,7 +75,7 @@ workflows:
           app-store-connect fetch-signing-files \
             --platform IOS \
             --type IOS_APP_ADHOC \
-            com.onvitv.app \
+            com.onvitv.com \
             --create
       - name: Build .ipa for Ad Hoc distribution
         script: |
@@ -137,7 +137,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - ${CM_USER_EMAIL}
+          - support@onvitv.com
         notify:
           success: true
           failure: true
