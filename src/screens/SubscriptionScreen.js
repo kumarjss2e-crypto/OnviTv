@@ -9,7 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../styles/colors';
+- import { colors } from '../styles/colors';
++ import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { getUserSubscription, updateSubscription } from '../services/subscriptionService';
 

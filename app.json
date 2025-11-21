@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -48,7 +48,9 @@
       "usesIcloudStorage": false,
       "bitcode": false,
       "entitlements": {
-        "com.apple.developer.applesignin": ["Default"]
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
       }
     },
     "android": {
@@ -68,7 +70,7 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.ico"
     },
     "plugins": [
       [
@@ -90,16 +92,15 @@
       ]
     ],
     "notification": {
-      "icon": "./assets/notification-icon.png",
       "color": "#7C3AED",
       "androidMode": "default",
       "androidCollapsedTitle": "OnviTV"
     },
     "extra": {
       "eas": {
-        "projectId": "5032b765-24c0-4233-b074-7b480b071a8d"
+        "projectId": "5c94c869-d230-49cc-98a1-e1a14d648faf"
       }
     },
-    "owner": "pomosoro"
+    "owner": "webdevs72"
   }
 }

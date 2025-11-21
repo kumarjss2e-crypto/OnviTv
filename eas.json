@@ -20,15 +20,18 @@
     "preview": {
       "distribution": "internal",
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "image": "latest"
       },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "distribution": "store",
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "image": "latest"
       },
       "android": {
         "buildType": "apk"
@@ -42,7 +45,14 @@
       }
     }
   },
-  "submit": {
-    "production": {}
+    "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6755377309",
+        "ascApiKeyPath": "C:\\Users\\work4\\Desktop\\Onvitv\\OnviTV-ReactNative\\AuthKey_69ARWQKHPA.p8",
+        "ascApiKeyId": "69ARWQKHPA",
+        "ascApiKeyIssuerId": "054a5e3b-4fbc-4457-80be-b5e9c1c68fdd"
+      }
+    }
   }
 }

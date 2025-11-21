@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import GradientButton from '../components/GradientButton';
 import GlassInput from '../components/GlassInput';
-import { signInWithEmail, signInWithGoogle } from '../services/authService';
+import { signInWithEmail, signInWithGoogle, signInWithApple } from '../services/authService';
 import { useToast } from '../context/ToastContext';
 import SocialButton from '../components/SocialButton';
 
@@ -24,6 +24,7 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const { showError } = useToast();
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -87,6 +88,26 @@ const LoginScreen = ({ navigation }) => {
     }
     
     setGoogleLoading(false);
+  };
+
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    
+    const result = await signInWithApple();
+    
+    if (result.success) {
+      // Navigate to main app
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
+    } else {
+      if (result.error !== 'Sign in cancelled') {
+        showError(result.error || 'Could not sign in with Apple');
+      }
+    }
+    
+    setAppleLoading(false);
   };
 
   return (
@@ -159,13 +180,23 @@ const LoginScreen = ({ navigation }) => {
             </View>
 
             {/* Social Login */}
-            <SocialButton
-              title="Continue with Google"
-              iconName="logo-google"
-              onPress={handleGoogleSignIn}
-              loading={googleLoading}
-              style={styles.socialButton}
-            />
+            {Platform.OS === 'ios' ? (
+              <SocialButton
+                title="Continue with Apple"
+                iconName="logo-apple"
+                onPress={handleAppleSignIn}
+                loading={appleLoading}
+                style={styles.socialButton}
+              />
+            ) : (
+              <SocialButton
+                title="Continue with Google"
+                iconName="logo-google"
+                onPress={handleGoogleSignIn}
+                loading={googleLoading}
+                style={styles.socialButton}
+              />
+            )}
 
             {/* Sign Up Link */}
             <View style={styles.signupContainer}>

@@ -23,7 +23,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
-import Hls from 'hls.js';
+// Removed static import of hls.js; using guarded dynamic require for web only
+// import Hls from 'hls.js';
+
+// Guard Hls import for web only to avoid bundling error when missing dependency or running native
+let Hls;
+if (Platform.OS === 'web') {
+  try {
+    Hls = require('hls.js');
+  } catch (e) {
+    Hls = null;
+  }
+}
 
 const getScreenDimensions = () => {
   const { width, height } = Dimensions.get('window');
@@ -32,183 +43,28 @@ const getScreenDimensions = () => {
 
 // Web-compatible video player component with HLS.js support
 const WebVideo = ({ source, onPlaybackStatusUpdate, videoRef }) => {
+  // If Hls is unavailable, render a plain video element as a fallback
   const webVideoRef = useRef(null);
-  const hlsRef = useRef(null);
-  
   useEffect(() => {
+    if (!Hls) return; // fallback handled by native video element
     const video = webVideoRef.current;
     if (!video) return;
-    
-    const videoSrc = source.uri;
-    const isHLS = videoSrc.includes('.m3u8');
-    
-    // Use HLS.js for HLS streams if supported
-    if (isHLS && Hls.isSupported()) {
-      console.log('Using HLS.js for playback');
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        backBufferLength: 90,
-      });
-      
-      hlsRef.current = hls;
-      hls.loadSource(videoSrc);
-      hls.attachMedia(video);
-      
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('HLS manifest parsed, attempting autoplay');
-        video.play().catch(err => console.log('Autoplay prevented:', err));
-      });
-      
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('HLS.js error:', data);
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('Network error, trying to recover...');
-              hls.startLoad();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('Media error, trying to recover...');
-              hls.recoverMediaError();
-              break;
-            default:
-              console.log('Fatal error, cannot recover');
-              hls.destroy();
-              onPlaybackStatusUpdate({ 
-                isLoaded: false, 
-                error: data.details || 'HLS playback failed' 
-              });
-              break;
-          }
-        }
-      });
-    } else if (isHLS && video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native HLS support (Safari)
-      console.log('Using native HLS support');
-      video.src = videoSrc;
-    } else {
-      // Regular video
-      console.log('Using standard video playback');
-      video.src = videoSrc;
-    }
-    
-    const handleTimeUpdate = () => {
-      const duration = isFinite(video.duration) ? video.duration * 1000 : 0;
-      onPlaybackStatusUpdate({
-        isLoaded: true,
-        isPlaying: !video.paused,
-        positionMillis: video.currentTime * 1000,
-        durationMillis: duration,
-        isBuffering: video.readyState < 3,
-      });
-    };
-    
-    const handleLoadedMetadata = () => {
-      console.log('Video metadata loaded:', {
-        duration: video.duration,
-        readyState: video.readyState,
-        networkState: video.networkState
-      });
-      onPlaybackStatusUpdate({
-        isLoaded: true,
-        isPlaying: false,
-        positionMillis: 0,
-        durationMillis: isFinite(video.duration) ? video.duration * 1000 : 0,
-        isBuffering: false,
-      });
-    };
-    
-    const handleCanPlay = () => {
-      console.log('Video can play');
-      video.play().catch(err => console.log('Autoplay prevented:', err));
-    };
-    
-    const handleError = (e) => {
-      console.error('Video error:', e, video.error);
-      
-      let errorMessage = 'Failed to load video';
-      
-      // Detect CORS errors
-      if (video.error?.code === 4 || video.error?.message?.includes('Format error')) {
-        // Check if it's likely a CORS issue (common on localhost)
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          errorMessage = 'CORS_BLOCKED_ON_LOCALHOST';
-        } else {
-          errorMessage = video.error?.message || 'Format error';
-        }
-      } else {
-        errorMessage = video.error?.message || 'Failed to load video';
-      }
-      
-      onPlaybackStatusUpdate({ 
-        isLoaded: false, 
-        error: errorMessage
-      });
-    };
-    
-    const handleWaiting = () => {
-      onPlaybackStatusUpdate({ isLoaded: true, isBuffering: true });
-    };
-    
-    const handlePlaying = () => {
-      onPlaybackStatusUpdate({ isLoaded: true, isBuffering: false, isPlaying: true });
-    };
-    
-    const handleEnded = () => {
-      onPlaybackStatusUpdate({ isLoaded: true, didJustFinish: true });
-    };
-    
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('error', handleError);
-    video.addEventListener('waiting', handleWaiting);
-    video.addEventListener('playing', handlePlaying);
-    video.addEventListener('ended', handleEnded);
-    
-    // Expose methods to parent
-    if (videoRef) {
-      videoRef.current = {
-        playAsync: () => video.play(),
-        pauseAsync: () => video.pause(),
-        setPositionAsync: (millis) => { 
-          if (isFinite(video.duration)) {
-            video.currentTime = millis / 1000;
-          }
-        },
-      };
-    }
-    
+    const hls = new Hls();
+    hls.loadSource(source.uri);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      video.play();
+    });
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('error', handleError);
-      video.removeEventListener('waiting', handleWaiting);
-      video.removeEventListener('playing', handlePlaying);
-      video.removeEventListener('ended', handleEnded);
-      
-      // Cleanup HLS.js
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
+      hls.destroy();
     };
-  }, [source.uri]);
-  
+  }, [source?.uri]);
   return (
     <video
       ref={webVideoRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        objectFit: 'contain',
-        backgroundColor: '#000',
-      }}
-      controls={false}
-      playsInline
-      crossOrigin="anonymous"
+      src={Hls ? undefined : source?.uri}
+      controls
+      style={{ width: '100%', height: '100%', backgroundColor: 'black' }}
     />
   );
 };
@@ -240,32 +96,28 @@ export default function VideoPlayerScreen({ route, navigation }) {
   const lastSavedPosition = useRef(0);
 
   useEffect(() => {
-    StatusBar.setHidden(true);
-    
-    // Lock to landscape on mobile
-    if (Platform.OS !== 'web') {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-    }
-    
+    // Respect app default orientation (portrait). Do not force landscape on mount.
+    StatusBar.setHidden(false);
+
     const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBack);
-    
+
     // Listen for dimension changes
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
       setDimensions({ width: window.width, height: window.height });
     });
-    
+
     return () => {
       StatusBar.setHidden(false);
       backHandler.remove();
       if (controlsTimeout.current) {
         clearTimeout(controlsTimeout.current);
       }
-      
-      // Unlock orientation on unmount
-      if (Platform.OS !== 'web') {
+
+      // Unlock orientation on unmount (no-op if not locked)
+      if (Platform.OS !== 'web' && ScreenOrientation?.unlockAsync) {
         ScreenOrientation.unlockAsync();
       }
-      
+
       subscription?.remove();
     };
   }, []);
@@ -395,7 +247,18 @@ export default function VideoPlayerScreen({ route, navigation }) {
     }, 3000);
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
+    // If in fullscreen on mobile, exit fullscreen first instead of leaving the screen
+    if (Platform.OS !== 'web' && isFullscreen && ScreenOrientation?.lockAsync) {
+      try {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+      } catch (e) {
+        // ignore
+      }
+      setIsFullscreen(false);
+      StatusBar.setHidden(false);
+      return true; // prevent navigation, we just exited fullscreen
+    }
     navigation.goBack();
     return true;
   };
@@ -505,26 +368,41 @@ export default function VideoPlayerScreen({ route, navigation }) {
           await elem.webkitRequestFullscreen();
         }
         setIsFullscreen(true);
+        StatusBar.setHidden(true);
       } else {
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         } else if (document.webkitExitFullscreen) {
           await document.webkitExitFullscreen();
         }
-        setIsFullscreen(false);
+        const unsubscribe = navigation.addListener('beforeRemove', async () => {
+          // Restore portrait orientation and status bar when leaving the player
+          if (Platform.OS !== 'web' && ScreenOrientation?.lockAsync) {
+            try {
+              await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+            } catch (e) {
+              // ignore
+            }
+          }
+          setIsFullscreen(false);
+          StatusBar.setHidden(false);
+        });
+        return unsubscribe;
       }
     } else {
-      // Mobile: Toggle between landscape orientations
+      // Mobile: Toggle between app default (portrait) and landscape when user taps fullscreen
       const currentOrientation = await ScreenOrientation.getOrientationAsync();
-      if (currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
-          currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT) {
-        // Already in landscape, maybe toggle to portrait for "exit fullscreen"
+      if (
+        currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
+        currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT
+      ) {
         await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
         setIsFullscreen(false);
+        StatusBar.setHidden(false);
       } else {
-        // Go to landscape
         await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
         setIsFullscreen(true);
+        StatusBar.setHidden(true);
       }
     }
   };
@@ -585,11 +463,24 @@ export default function VideoPlayerScreen({ route, navigation }) {
             }}
             onEnd={() => {
               console.log('Video ended');
-              handlePlaybackStatusUpdate({
-                isLoaded: true,
-                didJustFinish: true,
-                durationMillis: status.durationMillis,
-              });
+              // Restore portrait and exit fullscreen before navigation
+              (async () => {
+                if (Platform.OS !== 'web' && ScreenOrientation?.lockAsync) {
+                  try {
+                    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+                  } catch (e) {
+                    // ignore
+                  }
+                }
+                setIsFullscreen(false);
+                StatusBar.setHidden(false);
+                handlePlaybackStatusUpdate({
+                  isLoaded: true,
+                  didJustFinish: true,
+                  durationMillis: status.durationMillis,
+                });
+                navigation.goBack();
+              })();
               
               // Auto-play next episode if available
               if (nextEpisode && contentType === 'episode') {
@@ -604,7 +495,7 @@ export default function VideoPlayerScreen({ route, navigation }) {
                     episodeNumber: nextEpisode.episodeNumber,
                     thumbnail: nextEpisode.thumbnail || thumbnail,
                   });
-                }, 2000); // 2 second delay before auto-playing next episode
+                }, 500);
               }
             }}
             onError={(error) => {

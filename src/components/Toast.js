@@ -85,6 +85,7 @@ const Toast = ({ visible, message, type = 'error', onHide }) => {
 
   return (
     <Animated.View
+      pointerEvents="none"
       style={[
         styles.container,
         {

@@ -8,17 +8,12 @@ import {
   deleteUser,
   onAuthStateChanged as firebaseOnAuthStateChanged,
   GoogleAuthProvider,
+  OAuthProvider,
   signInWithPopup,
   signInWithCredential
 } from 'firebase/auth';
 import { createUserProfile, updateLastLogin } from './userService';
 import { Platform } from 'react-native';
-
-// Only import GoogleSignin on native platforms (not web)
-let GoogleSignin = null;
-if (Platform.OS !== 'web') {
-  GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
-}
 
 /**
  * Authentication Service - Handles user authentication
@@ -45,6 +40,97 @@ export const signUpWithEmail = async (email, password, displayName) => {
   } catch (error) {
     console.error('Error signing up:', error);
     return { success: false, error: error.message };
+  }
+};
+
+// Sign in with Apple
+export const signInWithApple = async () => {
+  try {
+    // Check if auth is properly initialized
+    if (!auth) {
+      throw new Error('Firebase Auth is not initialized');
+    }
+
+    // Only available on iOS
+    if (Platform.OS !== 'ios') {
+      return { success: false, error: 'Apple Sign-In is only available on iOS' };
+    }
+
+    let AppleAuthentication;
+    try {
+      AppleAuthentication = require('expo-apple-authentication').AppleAuthentication;
+    } catch (e) {
+      console.warn('Apple Authentication module not available.');
+      return { success: false, error: 'Apple Sign-In not available' };
+    }
+
+    try {
+      // Request Apple Sign-In
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.Scope.FULL_NAME,
+          AppleAuthentication.Scope.EMAIL,
+        ],
+      });
+
+      if (!credential) {
+        return { success: false, error: 'No credential returned from Apple' };
+      }
+
+      // Create an OAuth credential for Firebase
+      const { identityToken, authorizationCode } = credential;
+
+      if (!identityToken) {
+        return { success: false, error: 'No identity token returned from Apple' };
+      }
+
+      // Create a Firebase credential with the Apple token
+      const provider = new OAuthProvider('apple.com');
+      const appleCredential = provider.credential({
+        idToken: identityToken,
+        rawNonce: authorizationCode, // optional, but recommended for security
+      });
+
+      // Sign in to Firebase with the Apple credential
+      const result = await signInWithCredential(auth, appleCredential);
+      if (!result || !result.user) {
+        return { success: false, error: 'No user data received' };
+      }
+
+      const user = result.user;
+
+      // Extract full name if available
+      const fullName = credential.fullName;
+      let displayName = user.displayName || '';
+      if (fullName && (fullName.givenName || fullName.familyName)) {
+        displayName = `${fullName.givenName || ''} ${fullName.familyName || ''}`.trim();
+        // Update Firebase user profile with the full name
+        if (displayName) {
+          await updateProfile(user, { displayName });
+        }
+      }
+
+      // Create or update user profile in Firestore
+      await createUserProfile(user.uid, {
+        email: user.email,
+        displayName: displayName || '',
+        photoURL: user.photoURL || '',
+      });
+
+      // Update last login
+      await updateLastLogin(user.uid);
+
+      return { success: true, user: user };
+    } catch (error) {
+      console.log('Apple sign-in error:', error);
+      if (error.code === 'ERR_CANCELED' || error.message?.includes('canceled')) {
+        return { success: false, error: 'Sign in cancelled' };
+      }
+      return { success: false, error: error.message || 'Failed to sign in with Apple' };
+    }
+  } catch (error) {
+    console.error('Error signing in with Apple:', error);
+    return { success: false, error: error.message || 'Failed to sign in with Apple' };
   }
 };
 
@@ -156,13 +242,27 @@ export const signInWithGoogle = async () => {
         return { success: false, error: popupError.message || 'Failed to sign in with Google' };
       }
     } else {
-      // Mobile: Use Google Sign-In SDK
+      // Mobile: Use Google Sign-In SDK via dynamic require to avoid web bundling
+      let GoogleSignin;
       try {
-        // Check if device supports Google Play services
-        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+      } catch (e) {
+        console.warn('Google Sign-In module not available on this platform.');
+        return { success: false, error: 'Google Sign-In not available' };
+      }
+
+      try {
+        // On Android, ensure Google Play Services are available
+        if (Platform.OS === 'android') {
+          await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        }
         
         // Get user info from Google
         const { idToken } = await GoogleSignin.signIn();
+        
+        if (!idToken) {
+          return { success: false, error: 'No ID token returned from Google' };
+        }
         
         // Create a Google credential with the token
         const googleCredential = GoogleAuthProvider.credential(idToken);
@@ -175,7 +275,7 @@ export const signInWithGoogle = async () => {
         user = result.user;
       } catch (error) {
         console.log('Google sign-in error:', error);
-        if (error.code === 'SIGN_IN_CANCELLED') {
+        if (error.code === 'SIGN_IN_CANCELLED' || error.message?.includes('canceled')) {
           return { success: false, error: 'Sign in cancelled' };
         }
         return { success: false, error: error.message || 'Failed to sign in with Google' };

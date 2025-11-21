@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../styles/colors';
+- import { colors } from '../styles/colors';
++ import { colors } from '../theme/colors';
 
 const PaymentScreen = ({ route, navigation }) => {
   const { planId, planName, price, interval, onSuccess } = route.params;

@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../styles/colors';
+- import { colors } from '../styles/colors';
++ import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { getPaymentHistory } from '../services/subscriptionService';
 
