@@ -11,6 +11,7 @@ import {
   StatusBar,
   FlatList,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
@@ -26,6 +27,7 @@ const { width, height } = Dimensions.get('window');
 const SeriesDetailScreen = ({ route, navigation }) => {
   const { series: initialSeries } = route.params;
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [series, setSeries] = useState(initialSeries);
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -352,7 +354,7 @@ const SeriesDetailScreen = ({ route, navigation }) => {
         <Ionicons name="arrow-back" size={24} color="#fff" />
       </TouchableOpacity>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 + insets.bottom }}>
         {/* Content */}
         <View style={styles.content}>
           {/* Poster and info */}

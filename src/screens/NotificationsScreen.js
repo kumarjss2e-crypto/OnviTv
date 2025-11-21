@@ -9,9 +9,9 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-- import { colors } from '../styles/colors';
-+ import { colors } from '../theme/colors';
+import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import {
   getNotificationPreferences,
@@ -22,6 +22,7 @@ import {
 
 const NotificationsScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preferences, setPreferences] = useState({
@@ -133,7 +134,7 @@ const NotificationsScreen = ({ navigation }) => {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 + insets.bottom }}>
         {/* Master Toggle */}
         <View style={styles.section}>
           <View style={styles.masterToggle}>

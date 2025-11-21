@@ -10,6 +10,7 @@ import {
   StatusBar,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -29,6 +30,7 @@ const SORT_OPTIONS = [
 
 export default function FavoritesScreen({ navigation }) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('All');
   const [sortKey, setSortKey] = useState('recent');
   const [favorites, setFavorites] = useState([]);
@@ -309,7 +311,7 @@ export default function FavoritesScreen({ navigation }) {
           renderItem={renderFavoriteCard}
           keyExtractor={(item) => `${item.contentType}-${item.id}`}
           numColumns={3}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 20 + insets.bottom }]}
           ListEmptyComponent={renderEmptyState}
           refreshing={refreshing}
           onRefresh={handleRefresh}

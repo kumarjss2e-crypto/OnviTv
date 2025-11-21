@@ -13,6 +13,7 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -39,6 +40,7 @@ const CONTENT_TYPES = [
 
 const HomeScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [selectedType, setSelectedType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -452,7 +454,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   contentContainer: {
-    paddingBottom: spacing['2xl'],
+    paddingBottom: spacing['2xl'] + insets.bottom + 20,
   },
   categorySection: {
     marginBottom: spacing.xl,

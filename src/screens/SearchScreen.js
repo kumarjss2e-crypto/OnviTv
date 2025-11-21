@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +18,7 @@ import { searchContent } from '../services/searchService';
 
 export default function SearchScreen({ navigation }) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({
     channels: [],
@@ -299,7 +301,7 @@ export default function SearchScreen({ navigation }) {
           data={getFilteredResults()}
           renderItem={renderSearchResult}
           keyExtractor={(item) => `${item.type}-${item.id}`}
-          contentContainerStyle={styles.resultsList}
+          contentContainerStyle={[styles.resultsList, { paddingBottom: 20 + insets.bottom }]}
           ListEmptyComponent={renderEmptyState}
         />
       )}

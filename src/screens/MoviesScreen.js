@@ -11,6 +11,7 @@ import {
   Dimensions,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -39,6 +40,7 @@ const getCategory = (item) => item.category || item.metadata?.genre || 'Uncatego
 
 const MoviesScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('Movies');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -257,7 +259,7 @@ const MoviesScreen = ({ navigation }) => {
           keyExtractor={(it) => it.id}
           numColumns={2}
           columnWrapperStyle={styles.gridRow}
-          contentContainerStyle={styles.gridContent}
+          contentContainerStyle={[styles.gridContent, { paddingBottom: 20 + insets.bottom }]}
           renderItem={renderCard}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={

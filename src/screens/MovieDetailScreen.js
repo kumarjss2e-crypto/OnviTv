@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
@@ -23,6 +24,7 @@ const { width, height } = Dimensions.get('window');
 const MovieDetailScreen = ({ route, navigation }) => {
   const { movie } = route.params;
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isDownloadedState, setIsDownloadedState] = useState(false);
@@ -215,7 +217,7 @@ const MovieDetailScreen = ({ route, navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 + insets.bottom }}>
         <View style={styles.content}>
           {/* Poster and Info */}
           <View style={styles.mainInfo}>

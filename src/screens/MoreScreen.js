@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, Platform } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +8,7 @@ import { signOut } from '../services/authService';
 
 const MoreScreen = ({ navigation }) => {
   const { user, userProfile } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const handleLogout = async () => {
     const result = await signOut();
@@ -38,7 +40,7 @@ const MoreScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 20 + insets.bottom }}>
         {/* Profile Section */}
         <TouchableOpacity 
           style={styles.profileSection}

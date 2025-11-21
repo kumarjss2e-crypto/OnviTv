@@ -10,6 +10,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +27,7 @@ const CARD_H = CARD_W * 1.5;
 
 const DownloadsScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [downloads, setDownloads] = useState([]);
   const [activeDownloads, setActiveDownloads] = useState([]);
   const [completedDownloads, setCompletedDownloads] = useState([]);
@@ -298,7 +300,7 @@ const DownloadsScreen = ({ navigation }) => {
             keyExtractor={(item) => item.id}
             numColumns={2}
             columnWrapperStyle={styles.gridRow}
-            contentContainerStyle={styles.gridContent}
+            contentContainerStyle={[styles.gridContent, { paddingBottom: 20 + insets.bottom }]}
             onRefresh={handleRefresh}
             refreshing={refreshing}
           />

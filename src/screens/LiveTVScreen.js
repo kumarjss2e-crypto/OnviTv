@@ -11,6 +11,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -22,6 +23,7 @@ import { asyncLog } from '../utils/asyncLogger';
 
 const LiveTVScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [channels, setChannels] = useState([]);
   const [filteredChannels, setFilteredChannels] = useState([]);
   const [categories, setCategories] = useState(['All']);
@@ -273,7 +275,7 @@ const LiveTVScreen = ({ navigation }) => {
         numColumns={viewMode === 'grid' ? 2 : 1}
         key={viewMode} // Force re-render when view mode changes
         columnWrapperStyle={viewMode === 'grid' ? styles.row : null}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: 20 + insets.bottom }]}
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
       />

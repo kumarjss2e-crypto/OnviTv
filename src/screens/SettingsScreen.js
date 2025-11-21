@@ -10,11 +10,13 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
 
 const SettingsScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [settings, setSettings] = useState({
     autoPlay: true,
     autoPlayNextEpisode: true,
@@ -170,7 +172,7 @@ const SettingsScreen = ({ navigation }) => {
         <View style={styles.headerRight} />
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 20 + insets.bottom }}>
         {renderSection('Playback', [
           {
             type: 'toggle',

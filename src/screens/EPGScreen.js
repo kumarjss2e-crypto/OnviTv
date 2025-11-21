@@ -12,6 +12,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -47,6 +48,7 @@ const minutesBetween = (a, b) => Math.max(0, Math.round((b.getTime() - a.getTime
 
 const EPGScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const { start, slots } = useMemo(() => generateTimeSlots(), []);
   const [channels, setChannels] = useState([]);
   const [programsByChannel, setProgramsByChannel] = useState({});

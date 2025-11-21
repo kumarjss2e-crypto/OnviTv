@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +20,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const PlaylistManagementScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -347,7 +349,7 @@ const PlaylistManagementScreen = ({ navigation }) => {
           data={playlists}
           renderItem={renderPlaylistCard}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 20 + insets.bottom }]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

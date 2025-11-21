@@ -12,6 +12,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
@@ -21,6 +22,7 @@ import { firestore } from '../config/firebase';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, userProfile, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -242,7 +244,7 @@ const ProfileScreen = ({ navigation }) => {
         )}
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 20 + insets.bottom }}>
         <View style={styles.profileSection}>
           <View style={styles.avatarContainer}>
             {photoURL ? (

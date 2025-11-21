@@ -10,17 +10,23 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import GradientButton from '../components/GradientButton';
 
 const { width, height } = Dimensions.get('window');
 
+// Import local asset images
+const onboardingImage1 = require('../../assets/photo-158490506689-3-7d5c142ba4e1.png');
+const onboardingImage2 = require('../../assets/photo-170230895490-5-341065817003.png');
+const onboardingImage3 = require('../../assets/premium_photo-1710409625244-e9ed7e98f67b.png');
+
 const onboardingData = [
   {
     id: '1',
     type: 'movie',
-    movieImage: 'https://images.unsplash.com/photo-1574267432644-f74f8ec55d33?w=400&h=600&fit=crop',
+    movieImage: onboardingImage1,
     movieTitle: 'Epic Adventure',
     rating: '9.2',
     year: '2024',
@@ -31,7 +37,7 @@ const onboardingData = [
   {
     id: '2',
     type: 'movie',
-    movieImage: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&h=600&fit=crop',
+    movieImage: onboardingImage2,
     movieTitle: 'Midnight Dreams',
     rating: '8.8',
     year: '2024',
@@ -49,42 +55,33 @@ const onboardingData = [
 ];
 
 const movieGridImages = [
-  // Row 1 - Action & Adventure
-  'https://images.unsplash.com/photo-1574267432644-f74f8ec55d33?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=300&h=450&fit=crop',
-  // Row 2 - Drama & Thriller
-  'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&h=450&fit=crop',
-  // Row 3 - Sci-Fi & Fantasy
-  'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=300&h=450&fit=crop',
-  // Row 4 - Mystery & Suspense
-  'https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=450&fit=crop',
-  // Row 5 - Romance & Comedy
-  'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=300&h=450&fit=crop',
-  // Row 6 - Horror & Dark
-  'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1533158326339-7f3cf2404354?w=300&h=450&fit=crop',
-  // Row 7 - Documentary & Nature
-  'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=300&h=450&fit=crop',
-  // Row 8 - Urban & Modern
-  'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=300&h=450&fit=crop',
-  'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=300&h=450&fit=crop',
+  // Using local assets for grid images
+  onboardingImage3,
+  onboardingImage1,
+  onboardingImage2,
+  onboardingImage3,
+  onboardingImage1,
+  onboardingImage2,
+  onboardingImage3,
+  onboardingImage1,
+  onboardingImage2,
+  onboardingImage3,
+  onboardingImage1,
+  onboardingImage2,
+  onboardingImage3,
+  onboardingImage1,
+  onboardingImage2,
+  onboardingImage3,
+  onboardingImage1,
+  onboardingImage2,
+  onboardingImage3,
+  onboardingImage1,
+  onboardingImage2,
 ];
 
 const OnboardingScreen = ({ navigation }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const insets = useSafeAreaInsets();
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef(null);
   const gridFloatAnim = useRef(new Animated.Value(0)).current;
@@ -181,7 +178,7 @@ const OnboardingScreen = ({ navigation }) => {
           >
             <View style={styles.moviePoster}>
               <Image
-                source={{ uri: item.movieImage }}
+                source={typeof item.movieImage === 'string' ? { uri: item.movieImage } : item.movieImage}
                 style={styles.posterImage}
                 resizeMode="cover"
               />
@@ -269,7 +266,7 @@ const OnboardingScreen = ({ navigation }) => {
                   ]}
                 >
                   <Image
-                    source={{ uri: imageUrl }}
+                    source={typeof imageUrl === 'string' ? { uri: imageUrl } : imageUrl}
                     style={styles.gridImage}
                     resizeMode="cover"
                   />
@@ -641,7 +638,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     paddingHorizontal: 24,
-    paddingBottom: 48,
+    paddingBottom: 48 + insets.bottom,
   },
   button: {
     width: '100%',
