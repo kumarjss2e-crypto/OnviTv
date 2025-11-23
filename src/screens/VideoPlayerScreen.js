@@ -23,15 +23,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { firestore } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
-// Removed static import of hls.js; using guarded dynamic require for web only
-// import Hls from 'hls.js';
+import { useFreeUserAds } from '../hooks/subscriptionHooks';
+import { showRewardAd } from '../services/admobService';
 
-// Guard Hls import for web only to avoid bundling error when missing dependency or running native
-let Hls;
-if (Platform.OS === 'web') {
+// Guard Hls import for web only - HLS.js only needed for HLS streams on web
+let Hls = null;
+if (Platform.OS === 'web' && typeof window !== 'undefined') {
   try {
-    Hls = require('hls.js');
+    Hls = require('hls.js').default || require('hls.js');
   } catch (e) {
+    console.warn('HLS.js not available, using native video playback');
     Hls = null;
   }
 }
@@ -43,26 +44,38 @@ const getScreenDimensions = () => {
 
 // Web-compatible video player component with HLS.js support
 const WebVideo = ({ source, onPlaybackStatusUpdate, videoRef }) => {
-  // If Hls is unavailable, render a plain video element as a fallback
   const webVideoRef = useRef(null);
+  
   useEffect(() => {
-    if (!Hls) return; // fallback handled by native video element
-    const video = webVideoRef.current;
-    if (!video) return;
-    const hls = new Hls();
-    hls.loadSource(source.uri);
-    hls.attachMedia(video);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      video.play();
-    });
-    return () => {
-      hls.destroy();
-    };
+    if (!webVideoRef.current) return;
+    
+    // Only try to use HLS if available and source is HLS
+    if (!Hls || !source?.uri || !source.uri.includes('.m3u8')) {
+      return; // Use native video element fallback
+    }
+    
+    try {
+      const video = webVideoRef.current;
+      const hls = new Hls();
+      hls.loadSource(source.uri);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(() => {
+          // Autoplay may be blocked by browser
+        });
+      });
+      return () => {
+        hls.destroy();
+      };
+    } catch (err) {
+      console.warn('HLS initialization error:', err);
+    }
   }, [source?.uri]);
+  
   return (
     <video
       ref={webVideoRef}
-      src={Hls ? undefined : source?.uri}
+      src={source?.uri}
       controls
       style={{ width: '100%', height: '100%', backgroundColor: 'black' }}
     />
@@ -72,6 +85,7 @@ const WebVideo = ({ source, onPlaybackStatusUpdate, videoRef }) => {
 export default function VideoPlayerScreen({ route, navigation }) {
   const { streamUrl, title, contentType, contentId, thumbnail, nextEpisode, seriesId, seasonNumber, episodeNumber } = route.params;
   const { user } = useAuth();
+  const { needsAdToWatch, handleAdComplete, canStreamWithoutAd } = useFreeUserAds();
   
   // Test stream URL for debugging (remove this later)
   const testStreamUrl = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
@@ -91,6 +105,8 @@ export default function VideoPlayerScreen({ route, navigation }) {
   const [retryKey, setRetryKey] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [dimensions, setDimensions] = useState(getScreenDimensions());
+  const [showAdScreen, setShowAdScreen] = useState(false);
+  const [isWatchingAd, setIsWatchingAd] = useState(false);
   const controlsTimeout = useRef(null);
   const progressSaveInterval = useRef(null);
   const lastSavedPosition = useRef(0);
@@ -271,6 +287,14 @@ export default function VideoPlayerScreen({ route, navigation }) {
   };
 
   const togglePlayPause = async () => {
+    // Check if free user needs to watch ad
+    if (needsAdToWatch && !status.isPlaying) {
+      const adHandled = await handleAdRequired();
+      if (!adHandled) {
+        // Ad couldn't be shown, don't play
+        return;
+      }
+    }
     setStatus(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
   };
 
@@ -309,6 +333,50 @@ export default function VideoPlayerScreen({ route, navigation }) {
     }
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
+
+  // Handle showing ad for free users
+  const handleAdRequired = useCallback(async () => {
+    if (needsAdToWatch) {
+      console.log('Showing reward ad before video playback');
+      setShowAdScreen(true);
+      setIsWatchingAd(true);
+      
+      // Show the reward ad
+      const adShown = await showRewardAd(
+        (reward) => {
+          console.log('Reward earned:', reward);
+          handleAdComplete();
+          setShowAdScreen(false);
+          setIsWatchingAd(false);
+          // Resume video playback
+          if (videoRef.current) {
+            videoRef.current.playAsync?.();
+          }
+        },
+        () => {
+          console.log('Ad closed without completing');
+          setShowAdScreen(false);
+          setIsWatchingAd(false);
+          // Allow them to continue anyway
+          if (videoRef.current) {
+            videoRef.current.playAsync?.();
+          }
+        },
+        (error) => {
+          console.error('Ad failed to load:', error);
+          setShowAdScreen(false);
+          setIsWatchingAd(false);
+          // Allow them to continue without ad if it fails
+          if (videoRef.current) {
+            videoRef.current.playAsync?.();
+          }
+        }
+      );
+
+      return adShown;
+    }
+    return true;
+  }, [needsAdToWatch, handleAdComplete]);
 
   const handlePlaybackStatusUpdate = useCallback(async (playbackStatus) => {
     // Update both state and ref

@@ -1,6 +1,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform } from 'react-native';
 import { colors } from '../theme/colors';
 
 // Screens
@@ -12,6 +14,8 @@ import MoreScreen from '../screens/MoreScreen';
 const Tab = createBottomTabNavigator();
 
 const MainTabs = () => {
+  const insets = Platform.OS === 'web' ? { bottom: 0 } : useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -20,8 +24,8 @@ const MainTabs = () => {
           backgroundColor: colors.neutral.slate900,
           borderTopColor: colors.neutral.slate800,
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          height: 70 + insets.bottom,
+          paddingBottom: 12 + insets.bottom,
           paddingTop: 8,
         },
         tabBarActiveTintColor: colors.text.primary,

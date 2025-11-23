@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/context/AuthContext';
+import { SubscriptionProvider } from './src/context/SubscriptionContext';
 import { ToastProvider } from './src/context/ToastContext';
 import { AlertProvider } from './src/components/CustomAlert';
 import { colors } from './src/theme/colors';
@@ -29,6 +30,8 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import MainTabs from './src/navigation/MainTabs';
+import PremiumUpgradeScreen from './src/screens/PremiumUpgradeScreen';
+import RewardAdScreen from './src/screens/RewardAdScreen';
 import PlaylistManagementScreen from './src/screens/PlaylistManagementScreen';
 import AddPlaylistScreen from './src/screens/AddPlaylistScreen';
 import EditPlaylistScreen from './src/screens/EditPlaylistScreen';
@@ -54,10 +57,11 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   return (
     <AuthProvider>
-      <ToastProvider>
-        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.neutral.slate900 }}>
-          <NavigationContainer theme={CustomDarkTheme}>
-            <StatusBar style="light" />
+      <SubscriptionProvider>
+        <ToastProvider>
+          <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.neutral.slate900 }}>
+            <NavigationContainer theme={CustomDarkTheme}>
+              <StatusBar style="light" />
             <Stack.Navigator
               screenOptions={{
                 headerShown: false,
@@ -69,7 +73,28 @@ export default function App() {
               <Stack.Screen name="Onboarding" component={OnboardingScreen} />
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="Signup" component={SignupScreen} />
-              <Stack.Screen name="Main" component={MainTabs} />
+              <Stack.Screen 
+                name="Main" 
+                component={MainTabs}
+                options={{
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen 
+                name="PremiumUpgrade" 
+                component={PremiumUpgradeScreen}
+                options={{
+                  headerShown: false,
+                  animationEnabled: true,
+                }}
+              />
+              <Stack.Screen 
+                name="RewardAd" 
+                component={RewardAdScreen}
+                options={{
+                  headerShown: false,
+                }}
+              />
               <Stack.Screen name="PlaylistManagement" component={PlaylistManagementScreen} />
               <Stack.Screen name="AddPlaylist" component={AddPlaylistScreen} />
               <Stack.Screen name="EditPlaylist" component={EditPlaylistScreen} />
@@ -197,7 +222,8 @@ export default function App() {
           <AlertProvider />
         </GestureHandlerRootView>
       </ToastProvider>
-    </AuthProvider>
+    </SubscriptionProvider>
+  </AuthProvider>
   );
 }
 

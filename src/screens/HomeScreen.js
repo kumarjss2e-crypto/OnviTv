@@ -40,7 +40,8 @@ const CONTENT_TYPES = [
 
 const HomeScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const [selectedType, setSelectedType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -347,7 +348,7 @@ const HomeScreen = ({ navigation }) => {
         renderItem={renderCategory}
         keyExtractor={(item, index) => `${item.title}-${index}`}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[styles.contentContainer, { paddingBottom: spacing['2xl'] + 20 + insets.bottom }]}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="film-outline" size={64} color={colors.text.muted} />
@@ -454,7 +455,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   contentContainer: {
-    paddingBottom: spacing['2xl'] + insets.bottom + 20,
+    paddingBottom: spacing['2xl'] + 20,
   },
   categorySection: {
     marginBottom: spacing.xl,
@@ -512,3 +513,4 @@ const styles = StyleSheet.create({
 });
 
 export default HomeScreen;
+

@@ -1,6 +1,61 @@
 import { db } from '../config/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 
+// Subscription plans
+export const SUBSCRIPTION_PLANS = {
+  FREE: 'free',
+  PREMIUM_MONTHLY: 'premium_monthly',
+  PREMIUM_YEARLY: 'premium_yearly',
+};
+
+export const PLAN_DETAILS = {
+  free: {
+    name: 'Free',
+    price: '$0',
+    period: 'Forever',
+    features: [
+      'Limited video streaming',
+      'Watch ads to unlock videos',
+      'Limited downloads (5/month)',
+      'SD quality',
+      'Ad-supported',
+    ],
+    limitations: [
+      'Must watch reward ads',
+      '5 downloads per month',
+      'SD quality only',
+      'Ad breaks between content',
+    ],
+  },
+  premium_monthly: {
+    name: 'Premium Monthly',
+    price: '$9.99',
+    period: 'per month',
+    features: [
+      'Unlimited video streaming',
+      'No ads',
+      'Unlimited downloads',
+      '4K quality',
+      'Offline viewing',
+      'Early access to new content',
+    ],
+  },
+  premium_yearly: {
+    name: 'Premium Yearly',
+    price: '$99.99',
+    period: 'per year',
+    savings: '17% OFF',
+    features: [
+      'Unlimited video streaming',
+      'No ads',
+      'Unlimited downloads',
+      '4K quality',
+      'Offline viewing',
+      'Early access to new content',
+    ],
+  },
+};
+
 /**
  * Get user's current subscription
  * @param {string} userId - User ID
@@ -25,7 +80,8 @@ export const getUserSubscription = async (userId) => {
         success: true,
         data: {
           id: userId,
-          planId: 'free',
+          planId: SUBSCRIPTION_PLANS.FREE,
+          plan: SUBSCRIPTION_PLANS.FREE,
           status: 'active',
           createdAt: new Date().toISOString(),
         },
@@ -41,31 +97,70 @@ export const getUserSubscription = async (userId) => {
 };
 
 /**
- * Update user subscription
+ * Create free subscription for new user
  * @param {string} userId - User ID
- * @param {string} planId - New plan ID
+ * @returns {Promise<Object>} - Created subscription data
+ */
+export const createFreeSubscription = async (userId) => {
+  try {
+    const subscriptionRef = doc(db, 'subscriptions', userId);
+    const freeSubscriptionData = {
+      userId,
+      plan: SUBSCRIPTION_PLANS.FREE,
+      planId: SUBSCRIPTION_PLANS.FREE,
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await setDoc(subscriptionRef, freeSubscriptionData);
+
+    return {
+      success: true,
+      data: {
+        id: userId,
+        ...freeSubscriptionData,
+      },
+    };
+  } catch (error) {
+    console.error('Error creating free subscription:', error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+};
+
+/**
+ * Upgrade user subscription
+ * @param {string} userId - User ID
+ * @param {string} plan - New plan (premium_monthly or premium_yearly)
+ * @param {Object} paymentData - Payment information
  * @returns {Promise<Object>} - Update result
  */
-export const updateSubscription = async (userId, planId) => {
+export const upgradeSubscription = async (userId, plan, paymentData = null) => {
   try {
     const subscriptionRef = doc(db, 'subscriptions', userId);
     const now = new Date();
     
-    // Calculate expiry date based on plan
-    let expiresAt = new Date(now);
-    if (planId === 'annual') {
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-    } else if (planId !== 'free') {
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-    } else {
-      expiresAt = null; // Free plan doesn't expire
+    // Calculate renewal date based on plan
+    let renewalDate = new Date(now);
+    if (plan === SUBSCRIPTION_PLANS.PREMIUM_YEARLY) {
+      renewalDate.setFullYear(renewalDate.getFullYear() + 1);
+    } else if (plan === SUBSCRIPTION_PLANS.PREMIUM_MONTHLY) {
+      renewalDate.setMonth(renewalDate.getMonth() + 1);
     }
 
     const subscriptionData = {
-      planId,
+      plan,
+      planId: plan, // Keep both for compatibility
       status: 'active',
+      startDate: now.toISOString(),
       updatedAt: now.toISOString(),
-      expiresAt: expiresAt ? expiresAt.toISOString() : null,
+      renewalDate: renewalDate.toISOString(),
+      paymentId: paymentData?.paymentId || null,
+      paymentMethod: paymentData?.method || null,
+      amount: paymentData?.amount || null,
     };
 
     // Check if subscription exists
@@ -86,13 +181,18 @@ export const updateSubscription = async (userId, planId) => {
       data: subscriptionData,
     };
   } catch (error) {
-    console.error('Error updating subscription:', error);
+    console.error('Error upgrading subscription:', error);
     return {
       success: false,
       error: error.message,
     };
   }
 };
+
+/**
+ * Update user subscription (legacy)
+ */
+export const updateSubscription = upgradeSubscription;
 
 /**
  * Cancel user subscription
@@ -192,6 +292,28 @@ export const addPayment = async (paymentData) => {
 };
 
 /**
+ * Check if user is premium
+ * @param {string} userId - User ID
+ * @returns {Promise<boolean>} - True if premium user
+ */
+export const isPremiumUser = async (userId) => {
+  try {
+    const result = await getUserSubscription(userId);
+    if (result.success && result.data) {
+      const plan = result.data.plan || result.data.planId;
+      return (
+        plan === SUBSCRIPTION_PLANS.PREMIUM_MONTHLY ||
+        plan === SUBSCRIPTION_PLANS.PREMIUM_YEARLY
+      );
+    }
+    return false;
+  } catch (error) {
+    console.error('Error checking premium status:', error);
+    return false;
+  }
+};
+
+/**
  * Check if user has active subscription
  * @param {string} userId - User ID
  * @returns {Promise<boolean>} - True if active subscription
@@ -200,17 +322,19 @@ export const hasActiveSubscription = async (userId) => {
   try {
     const result = await getUserSubscription(userId);
     if (result.success && result.data) {
-      const { status, expiresAt, planId } = result.data;
+      const { status, renewalDate, expiresAt, planId, plan } = result.data;
+      const currentPlan = plan || planId;
       
       // Free plan is always active
-      if (planId === 'free') {
+      if (currentPlan === SUBSCRIPTION_PLANS.FREE) {
         return true;
       }
 
       // Check if subscription is active and not expired
       if (status === 'active') {
-        if (!expiresAt) return true;
-        return new Date(expiresAt) > new Date();
+        const expireDate = renewalDate || expiresAt;
+        if (!expireDate) return true;
+        return new Date(expireDate) > new Date();
       }
     }
     return false;

@@ -8,6 +8,7 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +23,8 @@ import {
 
 const NotificationsScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [preferences, setPreferences] = useState({
@@ -520,3 +522,6 @@ const styles = StyleSheet.create({
 });
 
 export default NotificationsScreen;
+
+
+

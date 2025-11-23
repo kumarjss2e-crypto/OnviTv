@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   StatusBar,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,7 +31,8 @@ const SORT_OPTIONS = [
 
 export default function FavoritesScreen({ navigation }) {
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const [activeTab, setActiveTab] = useState('All');
   const [sortKey, setSortKey] = useState('recent');
   const [favorites, setFavorites] = useState([]);
@@ -538,3 +540,4 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
 });
+

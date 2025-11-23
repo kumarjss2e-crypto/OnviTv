@@ -29,7 +29,8 @@ const SignupScreen = ({ navigation }) => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const { showError, showSuccess } = useToast();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -368,3 +369,4 @@ const styles = StyleSheet.create({
 });
 
 export default SignupScreen;
+

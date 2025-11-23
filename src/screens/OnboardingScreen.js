@@ -9,6 +9,7 @@ import {
   Easing,
   TouchableOpacity,
   Image,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,10 +18,11 @@ import GradientButton from '../components/GradientButton';
 
 const { width, height } = Dimensions.get('window');
 
-// Import local asset images
-const onboardingImage1 = require('../../assets/photo-158490506689-3-7d5c142ba4e1.png');
-const onboardingImage2 = require('../../assets/photo-170230895490-5-341065817003.png');
-const onboardingImage3 = require('../../assets/premium_photo-1710409625244-e9ed7e98f67b.png');
+// Use placeholder images for web compatibility
+// For native apps, these can be replaced with local assets
+const onboardingImage1 = 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=400&h=600&fit=crop';
+const onboardingImage2 = 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=600&fit=crop';
+const onboardingImage3 = 'https://images.unsplash.com/photo-1545599810-dca89378175c?w=400&h=600&fit=crop';
 
 const onboardingData = [
   {
@@ -55,33 +57,35 @@ const onboardingData = [
 ];
 
 const movieGridImages = [
-  // Using local assets for grid images
-  onboardingImage3,
-  onboardingImage1,
-  onboardingImage2,
-  onboardingImage3,
-  onboardingImage1,
-  onboardingImage2,
-  onboardingImage3,
-  onboardingImage1,
-  onboardingImage2,
-  onboardingImage3,
-  onboardingImage1,
-  onboardingImage2,
-  onboardingImage3,
-  onboardingImage1,
-  onboardingImage2,
-  onboardingImage3,
-  onboardingImage1,
-  onboardingImage2,
-  onboardingImage3,
-  onboardingImage1,
-  onboardingImage2,
+  // Using diverse Unsplash images for grid display
+  'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1545599810-dca89378175c?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1489599849228-ed4dc6900f2c?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1512070679280-1a60ec8e5995?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1495250046051-40eb3605a856?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1474386058712-7bab60b8b944?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1517604931442-7e0c6c2f3500?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1494256997604-dd1eba8e13dc?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1470114716159-e389f8712fda?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1478720568477-152d9e3fb27d?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1573865526014-f3550d2957c0?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1460684132e79-ca0f612f1c24?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1518602471f8d5d1cb4c6d36357cd2547?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=300&h=420&fit=crop',
+  'https://images.unsplash.com/photo-1468276311594-df7cb65d8c75?w=300&h=420&fit=crop',
 ];
 
 const OnboardingScreen = ({ navigation }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const insets = useSafeAreaInsets();
+  // Use safe area insets on native, fallback to empty object on web
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const scrollX = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef(null);
   const gridFloatAnim = useRef(new Animated.Value(0)).current;
@@ -376,7 +380,7 @@ const OnboardingScreen = ({ navigation }) => {
       <Paginator />
 
       {/* Next/Get Started Button */}
-      <View style={styles.buttonContainer}>
+      <View style={[styles.buttonContainer, { paddingBottom: 48 + insets.bottom }]}>
         <GradientButton
           title={currentIndex === onboardingData.length - 1 ? 'Get Started' : 'Continue'}
           onPress={scrollToNext}
@@ -443,6 +447,7 @@ const styles = StyleSheet.create({
   },
   moviePosterContainer: {
     marginBottom: 50,
+    marginTop: 80,
   },
   moviePoster: {
     width: width * 0.65,
@@ -523,7 +528,7 @@ const styles = StyleSheet.create({
   },
   gridTextTop: {
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 80,
     marginBottom: 24,
     paddingHorizontal: 24,
   },
@@ -638,7 +643,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     paddingHorizontal: 24,
-    paddingBottom: 48 + insets.bottom,
+    paddingBottom: 48,
   },
   button: {
     width: '100%',

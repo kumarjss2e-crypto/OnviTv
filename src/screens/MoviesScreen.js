@@ -10,6 +10,7 @@ import {
   ScrollView,
   Dimensions,
   Image,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,7 +41,8 @@ const getCategory = (item) => item.category || item.metadata?.genre || 'Uncatego
 
 const MoviesScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const [tab, setTab] = useState('Movies');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -516,3 +518,6 @@ const styles = StyleSheet.create({
 });
 
 export default MoviesScreen;
+
+
+

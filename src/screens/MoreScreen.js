@@ -8,7 +8,8 @@ import { signOut } from '../services/authService';
 
 const MoreScreen = ({ navigation }) => {
   const { user, userProfile } = useAuth();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
 
   const handleLogout = async () => {
     const result = await signOut();
@@ -233,3 +234,4 @@ const styles = StyleSheet.create({
 });
 
 export default MoreScreen;
+

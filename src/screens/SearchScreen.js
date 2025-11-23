@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +19,8 @@ import { searchContent } from '../services/searchService';
 
 export default function SearchScreen({ navigation }) {
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState({
     channels: [],
@@ -492,3 +494,6 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
 });
+
+
+

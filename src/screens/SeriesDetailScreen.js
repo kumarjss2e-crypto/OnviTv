@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   StatusBar,
   FlatList,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,7 +28,8 @@ const { width, height } = Dimensions.get('window');
 const SeriesDetailScreen = ({ route, navigation }) => {
   const { series: initialSeries } = route.params;
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const [series, setSeries] = useState(initialSeries);
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -824,3 +826,5 @@ const styles = StyleSheet.create({
 });
 
 export default SeriesDetailScreen;
+
+

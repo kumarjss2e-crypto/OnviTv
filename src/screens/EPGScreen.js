@@ -48,7 +48,8 @@ const minutesBetween = (a, b) => Math.max(0, Math.round((b.getTime() - a.getTime
 
 const EPGScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const { start, slots } = useMemo(() => generateTimeSlots(), []);
   const [channels, setChannels] = useState([]);
   const [programsByChannel, setProgramsByChannel] = useState({});
@@ -537,4 +538,5 @@ const styles = StyleSheet.create({
 });
 
 export default EPGScreen;
+
 

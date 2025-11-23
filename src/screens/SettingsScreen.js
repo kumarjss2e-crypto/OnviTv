@@ -16,7 +16,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
 
 const SettingsScreen = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const [settings, setSettings] = useState({
     autoPlay: true,
     autoPlayNextEpisode: true,
@@ -372,3 +373,4 @@ const styles = StyleSheet.create({
 });
 
 export default SettingsScreen;
+

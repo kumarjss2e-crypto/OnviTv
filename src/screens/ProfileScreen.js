@@ -22,7 +22,8 @@ import { firestore } from '../config/firebase';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, userProfile, signOut } = useAuth();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -472,3 +473,4 @@ const styles = StyleSheet.create({
 });
 
 export default ProfileScreen;
+

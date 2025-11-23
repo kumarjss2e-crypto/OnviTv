@@ -68,6 +68,10 @@
       ],
       "googleServicesFile": "./google-services.json"
     },
+    "react-native-google-mobile-ads": {
+      "android_app_id": "ca-app-pub-8363023387578083~2084137233",
+      "ios_app_id": "ca-app-pub-8363023387578083~4485394709"
+    },
     "web": {
       "bundler": "metro",
       "favicon": "./assets/favicon.ico"
@@ -85,8 +89,8 @@
           },
           "android": {
             "minSdkVersion": 21,
-            "compileSdkVersion": 33,
-            "targetSdkVersion": 33
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34
           }
         }
       ]

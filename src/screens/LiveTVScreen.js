@@ -23,7 +23,8 @@ import { asyncLog } from '../utils/asyncLogger';
 
 const LiveTVScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
+  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  const insets = safeAreaInsets;
   const [channels, setChannels] = useState([]);
   const [filteredChannels, setFilteredChannels] = useState([]);
   const [categories, setCategories] = useState(['All']);
@@ -418,3 +419,4 @@ const styles = StyleSheet.create({
 });
 
 export default LiveTVScreen;
+
