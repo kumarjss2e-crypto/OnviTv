@@ -61,10 +61,10 @@
       "package": "com.onvitv.com",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/AppIcon@3x.png",
         "backgroundColor": "#1e1b4b"
       },
-      "icon": "./assets/logo.png",
+      "icon": "./assets/AppIcon@3x.png",
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
