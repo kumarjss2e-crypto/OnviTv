@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth';
 import { createUserProfile, updateLastLogin } from './userService';
 import { Platform } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 /**
  * Authentication Service - Handles user authentication
@@ -88,16 +89,16 @@ export const signInWithApple = async () => {
       return { success: false, error: 'Apple Sign-In is only available on iOS' };
     }
 
-    let AppleAuthentication;
     try {
-      AppleAuthentication = require('expo-apple-authentication').AppleAuthentication;
-      console.log('[authService] Apple Authentication module loaded');
-    } catch (e) {
-      console.error('[authService] Apple Authentication module not available:', e);
-      return { success: false, error: 'Apple Sign-In not available' };
-    }
-
-    try {
+      // Check if Apple Authentication is available
+      console.log('[authService] Checking Apple Authentication availability...');
+      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      console.log('[authService] Apple Authentication available:', isAvailable);
+      
+      if (!isAvailable) {
+        return { success: false, error: 'Apple Sign-In not available on this device' };
+      }
+      
       // Request Apple Sign-In
       console.log('[authService] Requesting Apple Sign-In...');
       const credential = await AppleAuthentication.signInAsync({
