@@ -23,6 +23,7 @@
       "buildNumber": "1.0.0",
       "requireFullScreen": false,
       "googleServicesFile": "./GoogleService-Info.plist",
+      "icon": "./assets/logo.png",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
@@ -51,7 +52,10 @@
         "com.apple.developer.applesignin": [
           "Default"
         ]
-      }
+      },
+      "associatedDomains": [
+        "webcredentials:firebase.google.com"
+      ]
     },
     "android": {
       "package": "com.onvitv.com",

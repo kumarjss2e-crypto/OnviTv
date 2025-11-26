@@ -74,26 +74,32 @@ export const signUpWithEmail = async (email, password, displayName) => {
 // Sign in with Apple
 export const signInWithApple = async () => {
   try {
+    console.log('[authService] Starting Apple Sign-In...');
+    
     // Check if auth is properly initialized
     if (!auth) {
-      throw new Error('Firebase Auth is not initialized');
+      console.error('[authService] Firebase Auth is not initialized');
+      return { success: false, error: 'Firebase Auth is not initialized' };
     }
 
     // Only available on iOS
     if (Platform.OS !== 'ios') {
+      console.log('[authService] Apple Sign-In not available on', Platform.OS);
       return { success: false, error: 'Apple Sign-In is only available on iOS' };
     }
 
     let AppleAuthentication;
     try {
       AppleAuthentication = require('expo-apple-authentication').AppleAuthentication;
+      console.log('[authService] Apple Authentication module loaded');
     } catch (e) {
-      console.warn('Apple Authentication module not available.');
+      console.error('[authService] Apple Authentication module not available:', e);
       return { success: false, error: 'Apple Sign-In not available' };
     }
 
     try {
       // Request Apple Sign-In
+      console.log('[authService] Requesting Apple Sign-In...');
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.Scope.FULL_NAME,
@@ -101,7 +107,14 @@ export const signInWithApple = async () => {
         ],
       });
 
+      console.log('[authService] Apple credential received:', {
+        hasIdentityToken: !!credential.identityToken,
+        hasAuthCode: !!credential.authorizationCode,
+        email: credential.email,
+      });
+
       if (!credential) {
+        console.error('[authService] No credential returned from Apple');
         return { success: false, error: 'No credential returned from Apple' };
       }
 
@@ -109,29 +122,37 @@ export const signInWithApple = async () => {
       const { identityToken, authorizationCode } = credential;
 
       if (!identityToken) {
+        console.error('[authService] No identity token from Apple');
         return { success: false, error: 'No identity token returned from Apple' };
       }
 
+      console.log('[authService] Creating Firebase OAuth credential...');
+      
       // Create a Firebase credential with the Apple token
       const provider = new OAuthProvider('apple.com');
       const appleCredential = provider.credential({
         idToken: identityToken,
-        rawNonce: authorizationCode, // optional, but recommended for security
+        rawNonce: authorizationCode,
       });
 
       // Sign in to Firebase with the Apple credential
+      console.log('[authService] Signing in to Firebase with Apple credential...');
       const result = await signInWithCredential(auth, appleCredential);
+      
       if (!result || !result.user) {
+        console.error('[authService] No user data received from Firebase');
         return { success: false, error: 'No user data received' };
       }
 
       const user = result.user;
+      console.log('[authService] Firebase sign-in successful, user:', user.uid);
 
       // Extract full name if available
       const fullName = credential.fullName;
       let displayName = user.displayName || '';
       if (fullName && (fullName.givenName || fullName.familyName)) {
         displayName = `${fullName.givenName || ''} ${fullName.familyName || ''}`.trim();
+        console.log('[authService] Updating user profile with name:', displayName);
         // Update Firebase user profile with the full name
         if (displayName) {
           await updateProfile(user, { displayName });
@@ -140,7 +161,7 @@ export const signInWithApple = async () => {
 
       // Create or update user profile in Firestore
       await createUserProfile(user.uid, {
-        email: user.email,
+        email: credential.email || user.email,
         displayName: displayName || '',
         photoURL: user.photoURL || '',
       });
@@ -148,16 +169,20 @@ export const signInWithApple = async () => {
       // Update last login
       await updateLastLogin(user.uid);
 
+      console.log('[authService] Apple sign-in completed successfully');
       return { success: true, user: user };
     } catch (error) {
-      console.log('Apple sign-in error:', error);
+      console.error('[authService] Apple sign-in error:', error.code, error.message);
+      
       if (error.code === 'ERR_CANCELED' || error.message?.includes('canceled')) {
+        console.log('[authService] Apple sign-in was cancelled by user');
         return { success: false, error: 'Sign in cancelled' };
       }
+      
       return { success: false, error: error.message || 'Failed to sign in with Apple' };
     }
   } catch (error) {
-    console.error('Error signing in with Apple:', error);
+    console.error('[authService] Exception in Apple sign-in:', error);
     return { success: false, error: error.message || 'Failed to sign in with Apple' };
   }
 };

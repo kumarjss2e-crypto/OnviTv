@@ -8,6 +8,7 @@ import { View } from 'react-native';
 import { AuthProvider } from './src/context/AuthContext';
 import { SubscriptionProvider } from './src/context/SubscriptionContext';
 import { ToastProvider } from './src/context/ToastContext';
+import { AdProvider } from './src/context/AdContext';
 import { AlertProvider } from './src/components/CustomAlert';
 import { colors } from './src/theme/colors';
 import mobileAds from 'react-native-google-mobile-ads';
@@ -69,12 +70,13 @@ export default function App() {
   return (
     <AuthProvider>
       <SubscriptionProvider>
-        <ToastProvider>
-          <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.neutral.slate900 }}>
-            <NavigationContainer 
-              theme={CustomDarkTheme}
-              fallback={<View style={{ flex: 1, backgroundColor: colors.neutral.slate900 }} />}
-            >
+        <AdProvider>
+          <ToastProvider>
+            <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.neutral.slate900 }}>
+              <NavigationContainer 
+                theme={CustomDarkTheme}
+                fallback={<View style={{ flex: 1, backgroundColor: colors.neutral.slate900 }} />}
+              >
               <StatusBar style="light" />
             <Stack.Navigator
               screenOptions={{
@@ -243,9 +245,10 @@ export default function App() {
           </NavigationContainer>
           <AlertProvider />
         </GestureHandlerRootView>
-      </ToastProvider>
-    </SubscriptionProvider>
-  </AuthProvider>
+        </ToastProvider>
+        </AdProvider>
+      </SubscriptionProvider>
+    </AuthProvider>
   );
 }
 

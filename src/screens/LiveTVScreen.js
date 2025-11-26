@@ -15,14 +15,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
+import { useAds } from '../context/AdContext';
 import { getUserChannels } from '../services/channelService';
 import { getEPGForChannel, getEPGByEpgChannelId } from '../services/epgService';
 import { Timestamp } from 'firebase/firestore';
 import ChannelCard from '../components/ChannelCard';
+import WatchAdModal from '../components/WatchAdModal';
 import { asyncLog } from '../utils/asyncLogger';
 
 const LiveTVScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const { isFreeTier } = useSubscription();
+  const { showRewardedAdAndWait, adLoading } = useAds();
   const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
   const insets = safeAreaInsets;
   const [channels, setChannels] = useState([]);
@@ -34,6 +39,8 @@ const LiveTVScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
   const [epgByChannel, setEpgByChannel] = useState({});
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [pendingPlayRequest, setPendingPlayRequest] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -138,13 +145,57 @@ const LiveTVScreen = ({ navigation }) => {
   };
 
   const handleChannelPress = (channel) => {
-    navigation.navigate('VideoPlayer', {
-      streamUrl: channel.streamUrl,
-      title: channel.name,
-      contentType: 'channel',
-      contentId: channel.id,
-      thumbnail: channel.logo,
-    });
+    console.log('[LiveTVScreen] handleChannelPress called. isFreeTier:', isFreeTier);
+    if (isFreeTier) {
+      console.log('[LiveTVScreen] Free tier user, showing ad modal for channel');
+      setPendingPlayRequest({
+        streamUrl: channel.streamUrl,
+        title: channel.name,
+        contentType: 'channel',
+        contentId: channel.id,
+        thumbnail: channel.logo,
+      });
+      setShowAdModal(true);
+    } else {
+      console.log('[LiveTVScreen] Premium user, playing directly');
+      navigation.navigate('VideoPlayer', {
+        streamUrl: channel.streamUrl,
+        title: channel.name,
+        contentType: 'channel',
+        contentId: channel.id,
+        thumbnail: channel.logo,
+      });
+    }
+  };
+
+  const handleAdWatched = async () => {
+    console.log('[LiveTVScreen] handleAdWatched called');
+    const rewarded = await showRewardedAdAndWait();
+    console.log('[LiveTVScreen] Rewarded ad result:', rewarded);
+    if (rewarded && pendingPlayRequest) {
+      // Close modal and navigate to video player
+      setShowAdModal(false);
+      setTimeout(() => {
+        navigation.navigate('VideoPlayer', pendingPlayRequest);
+      }, 300);
+    }
+  };
+
+  const handleSkipAd = () => {
+    console.log('[LiveTVScreen] handleSkipAd called');
+    setShowAdModal(false);
+    setPendingPlayRequest(null);
+  };
+
+  const handleCountdownComplete = () => {
+    // Countdown finished, navigate to video player
+    console.log('[LiveTVScreen] Countdown complete, navigating to video player');
+    if (pendingPlayRequest) {
+      setShowAdModal(false);
+      setTimeout(() => {
+        navigation.navigate('VideoPlayer', pendingPlayRequest);
+      }, 300);
+    }
   };
 
   const handleFavorite = (channel) => {
@@ -279,6 +330,17 @@ const LiveTVScreen = ({ navigation }) => {
         contentContainerStyle={[styles.listContent, { paddingBottom: 20 + insets.bottom }]}
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
+      />
+      
+      {/* Watch Ad Modal for Free Tier Users */}
+      <WatchAdModal
+        visible={showAdModal}
+        onClose={() => setShowAdModal(false)}
+        onAdWatched={handleAdWatched}
+        onSkip={handleSkipAd}
+        onCountdownComplete={handleCountdownComplete}
+        contentTitle={pendingPlayRequest?.title}
+        isLoadingAd={adLoading}
       />
     </View>
   );

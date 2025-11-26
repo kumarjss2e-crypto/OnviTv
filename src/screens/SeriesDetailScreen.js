@@ -17,17 +17,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
+import { useAds } from '../context/AdContext';
 import { firestore } from '../config/firebase';
 import { getSeriesEpisodes } from '../services/seriesService';
 import { addToFavorites, isFavorited as checkFavorited, removeFavoriteByContentId } from '../services/favoritesService';
 import { getSeriesInfo } from '../services/xtreamAPI';
 import { enrichContentWithMetadata, getSeasonEpisodes } from '../services/metadataService';
+import WatchAdModal from '../components/WatchAdModal';
 
 const { width, height } = Dimensions.get('window');
 
 const SeriesDetailScreen = ({ route, navigation }) => {
   const { series: initialSeries } = route.params;
   const { user } = useAuth();
+  const { isFreeTier } = useSubscription();
+  const { showRewardedAdAndWait, adLoading } = useAds();
   const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
   const insets = safeAreaInsets;
   const [series, setSeries] = useState(initialSeries);
@@ -37,6 +42,8 @@ const SeriesDetailScreen = ({ route, navigation }) => {
   const [episodes, setEpisodes] = useState([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
   const [showSeasonDropdown, setShowSeasonDropdown] = useState(false);
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [pendingPlayRequest, setPendingPlayRequest] = useState(null);
 
   useEffect(() => {
     enrichSeriesMetadata();
@@ -255,17 +262,67 @@ const SeriesDetailScreen = ({ route, navigation }) => {
   };
 
   const handlePlayEpisode = (episode) => {
-    navigation.navigate('VideoPlayer', {
-      streamUrl: episode.streamUrl || episode.stream_url,
-      title: `${series.title || series.name} - S${episode.seasonNumber}E${episode.episodeNumber}`,
-      contentType: 'episode',
-      contentId: episode.id,
-      seriesId: series.id,
-      seasonNumber: episode.seasonNumber,
-      episodeNumber: episode.episodeNumber,
-      thumbnail: episode.thumbnail || series.poster || series.cover,
-      nextEpisode: getNextEpisode(episode),
-    });
+    // If user is free tier, show ad modal first
+    console.log('[SeriesDetailScreen] handlePlayEpisode called. isFreeTier:', isFreeTier);
+    if (isFreeTier) {
+      console.log('[SeriesDetailScreen] Free tier user, showing ad modal for episode');
+      setPendingPlayRequest({
+        streamUrl: episode.streamUrl || episode.stream_url,
+        title: `${series.title || series.name} - S${episode.seasonNumber}E${episode.episodeNumber}`,
+        contentType: 'episode',
+        contentId: episode.id,
+        seriesId: series.id,
+        seasonNumber: episode.seasonNumber,
+        episodeNumber: episode.episodeNumber,
+        thumbnail: episode.thumbnail || series.poster || series.cover,
+        nextEpisode: getNextEpisode(episode),
+      });
+      setShowAdModal(true);
+    } else {
+      // Premium user, play directly
+      console.log('[SeriesDetailScreen] Premium user, playing episode directly');
+      navigation.navigate('VideoPlayer', {
+        streamUrl: episode.streamUrl || episode.stream_url,
+        title: `${series.title || series.name} - S${episode.seasonNumber}E${episode.episodeNumber}`,
+        contentType: 'episode',
+        contentId: episode.id,
+        seriesId: series.id,
+        seasonNumber: episode.seasonNumber,
+        episodeNumber: episode.episodeNumber,
+        thumbnail: episode.thumbnail || series.poster || series.cover,
+        nextEpisode: getNextEpisode(episode),
+      });
+    }
+  };
+
+  const handleAdWatched = async () => {
+    console.log('[SeriesDetailScreen] handleAdWatched called');
+    const rewarded = await showRewardedAdAndWait();
+    console.log('[SeriesDetailScreen] Rewarded ad result:', rewarded);
+    if (rewarded && pendingPlayRequest) {
+      // Close modal and navigate to video player
+      setShowAdModal(false);
+      setTimeout(() => {
+        navigation.navigate('VideoPlayer', pendingPlayRequest);
+      }, 300);
+    }
+  };
+
+  const handleSkipAd = () => {
+    // User clicked skip, just close the modal without playing
+    setShowAdModal(false);
+    setPendingPlayRequest(null);
+  };
+
+  const handleCountdownComplete = () => {
+    // Countdown finished, navigate to video player
+    console.log('[SeriesDetailScreen] Countdown complete, navigating to video player');
+    if (pendingPlayRequest) {
+      setShowAdModal(false);
+      setTimeout(() => {
+        navigation.navigate('VideoPlayer', pendingPlayRequest);
+      }, 300);
+    }
   };
 
   const getNextEpisode = (currentEpisode) => {
@@ -522,6 +579,17 @@ const SeriesDetailScreen = ({ route, navigation }) => {
           )}
         </View>
       </ScrollView>
+
+      {/* Watch Ad Modal for Free Tier Users */}
+      <WatchAdModal
+        visible={showAdModal}
+        onClose={() => setShowAdModal(false)}
+        onAdWatched={handleAdWatched}
+        onSkip={handleSkipAd}
+        onCountdownComplete={handleCountdownComplete}
+        contentTitle={series.title || series.name}
+        isLoadingAd={adLoading}
+      />
     </View>
   );
 };

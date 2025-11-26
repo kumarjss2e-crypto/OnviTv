@@ -16,15 +16,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
+import { useAds } from '../context/AdContext';
 import { firestore } from '../config/firebase';
 import { startDownload, isDownloaded, getDownloadByContentId } from '../services/downloadService';
 import { addToFavorites, isFavorited as checkFavorited, removeFavoriteByContentId } from '../services/favoritesService';
+import WatchAdModal from '../components/WatchAdModal';
 
 const { width, height } = Dimensions.get('window');
 
 const MovieDetailScreen = ({ route, navigation }) => {
   const { movie } = route.params;
   const { user } = useAuth();
+  const { isFreeTier } = useSubscription();
+  const { showRewardedAdAndWait, adLoading } = useAds();
   const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
   const insets = safeAreaInsets;
   const [isFavorited, setIsFavorited] = useState(false);
@@ -32,6 +37,8 @@ const MovieDetailScreen = ({ route, navigation }) => {
   const [isDownloadedState, setIsDownloadedState] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showAdModal, setShowAdModal] = useState(false);
+  const [pendingPlayRequest, setPendingPlayRequest] = useState(null);
 
   useEffect(() => {
     checkIfFavorited();
@@ -164,13 +171,59 @@ const MovieDetailScreen = ({ route, navigation }) => {
   };
 
   const handlePlay = () => {
-    navigation.navigate('VideoPlayer', {
-      streamUrl: movie.streamUrl || movie.stream_url,
-      title: movie.title || movie.name,
-      contentType: movie.type || 'movie',
-      contentId: movie.id,
-      thumbnail: movie.poster || movie.cover,
-    });
+    // If user is free tier, show ad modal first
+    console.log('[MovieDetailScreen] handlePlay called. isFreeTier:', isFreeTier);
+    if (isFreeTier) {
+      console.log('[MovieDetailScreen] Free tier user, showing ad modal');
+      setPendingPlayRequest({
+        streamUrl: movie.streamUrl || movie.stream_url,
+        title: movie.title || movie.name,
+        contentType: movie.type || 'movie',
+        contentId: movie.id,
+        thumbnail: movie.poster || movie.cover,
+      });
+      setShowAdModal(true);
+    } else {
+      // Premium user, play directly
+      console.log('[MovieDetailScreen] Premium user, playing directly');
+      navigation.navigate('VideoPlayer', {
+        streamUrl: movie.streamUrl || movie.stream_url,
+        title: movie.title || movie.name,
+        contentType: movie.type || 'movie',
+        contentId: movie.id,
+        thumbnail: movie.poster || movie.cover,
+      });
+    }
+  };
+
+  const handleAdWatched = async () => {
+    console.log('[MovieDetailScreen] handleAdWatched called');
+    const rewarded = await showRewardedAdAndWait();
+    console.log('[MovieDetailScreen] Rewarded ad result:', rewarded);
+    if (rewarded && pendingPlayRequest) {
+      // Close modal and navigate to video player
+      setShowAdModal(false);
+      setTimeout(() => {
+        navigation.navigate('VideoPlayer', pendingPlayRequest);
+      }, 300);
+    }
+  };
+
+  const handleSkipAd = () => {
+    // User clicked skip, just close the modal without playing
+    setShowAdModal(false);
+    setPendingPlayRequest(null);
+  };
+
+  const handleCountdownComplete = () => {
+    // Countdown finished, navigate to video player
+    console.log('[MovieDetailScreen] Countdown complete, navigating to video player');
+    if (pendingPlayRequest) {
+      setShowAdModal(false);
+      setTimeout(() => {
+        navigation.navigate('VideoPlayer', pendingPlayRequest);
+      }, 300);
+    }
   };
 
   const backdropUri = movie.backdrop || movie.poster || movie.cover;
@@ -325,6 +378,17 @@ const MovieDetailScreen = ({ route, navigation }) => {
           )}
         </View>
       </ScrollView>
+
+      {/* Watch Ad Modal for Free Tier Users */}
+      <WatchAdModal
+        visible={showAdModal}
+        onClose={() => setShowAdModal(false)}
+        onAdWatched={handleAdWatched}
+        onSkip={handleSkipAd}
+        onCountdownComplete={handleCountdownComplete}
+        contentTitle={movie.title || movie.name}
+        isLoadingAd={adLoading}
+      />
     </View>
   );
 };
