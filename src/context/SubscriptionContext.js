@@ -34,18 +34,30 @@ export const SubscriptionProvider = ({ children }) => {
         try {
           let result = await getUserSubscription(user.uid);
           
+          console.log('[SubscriptionContext] Subscription fetched:', {
+            userId: user.uid,
+            subscriptionData: result.data,
+            success: result.success
+          });
+          
           // If no subscription exists, create a free one
           if (!result.data) {
+            console.log('[SubscriptionContext] No subscription found, creating free tier');
             result = await createFreeSubscription(user.uid);
           }
 
           if (result.success) {
             setSubscription(result.data);
             const premium = await isPremiumUser(user.uid);
+            console.log('[SubscriptionContext] Premium status:', {
+              isPremium: premium,
+              planId: result.data?.planId,
+              plan: result.data?.plan
+            });
             setIsPremium(premium);
           }
         } catch (error) {
-          console.error('Error fetching subscription:', error);
+          console.error('[SubscriptionContext] Error fetching subscription:', error);
         } finally {
           setLoading(false);
         }

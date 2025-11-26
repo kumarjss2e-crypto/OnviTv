@@ -11,7 +11,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';

@@ -17,7 +17,7 @@ import { PLAN_DETAILS, SUBSCRIPTION_PLANS } from '../services/subscriptionServic
 
 const { width, height } = Dimensions.get('window');
 
-const PremiumUpgradeScreen = ({ navigation, onSkip, onUpgrade }) => {
+const PremiumUpgradeScreen = ({ navigation, onSkip, onUpgrade, isModal = true }) => {
   const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS.PREMIUM_MONTHLY);
 
   const handleUpgrade = () => {
@@ -111,11 +111,12 @@ const PremiumUpgradeScreen = ({ navigation, onSkip, onUpgrade }) => {
   return (
     <LinearGradient
       colors={[colors.neutral.slate900, colors.primary.purple900, colors.neutral.slate900]}
-      style={styles.container}
+      style={[styles.container, isModal && styles.containerModal]}
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        nestedScrollEnabled={true}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -224,6 +225,10 @@ const PremiumUpgradeScreen = ({ navigation, onSkip, onUpgrade }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  containerModal: {
+    flex: 1,
+    minHeight: '100%',
   },
   scrollContent: {
     paddingHorizontal: 16,

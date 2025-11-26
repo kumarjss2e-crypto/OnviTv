@@ -11,7 +11,7 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import GradientButton from '../components/GradientButton';

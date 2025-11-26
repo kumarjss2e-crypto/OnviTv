@@ -10,7 +10,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';

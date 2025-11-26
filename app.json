@@ -19,7 +19,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.onvitv.com",
+      "bundleIdentifier": "com.onvitv",
       "buildNumber": "1.0.0",
       "requireFullScreen": false,
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -60,6 +60,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1e1b4b"
       },
+      "icon": "./assets/logo.png",
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
@@ -67,10 +68,6 @@
         "FOREGROUND_SERVICE"
       ],
       "googleServicesFile": "./google-services.json"
-    },
-    "react-native-google-mobile-ads": {
-      "android_app_id": "ca-app-pub-8363023387578083~2084137233",
-      "ios_app_id": "ca-app-pub-8363023387578083~4485394709"
     },
     "web": {
       "bundler": "metro",
@@ -90,7 +87,9 @@
           "android": {
             "minSdkVersion": 21,
             "compileSdkVersion": 34,
-            "targetSdkVersion": 34
+            "targetSdkVersion": 34,
+            "enableProguardInReleaseBuilds": false,
+            "enableShrinkResourcesInReleaseBuilds": false
           }
         }
       ]
@@ -106,5 +105,9 @@
       }
     },
     "owner": "webdevs72"
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-8363023387578083~2084137233",
+    "ios_app_id": "ca-app-pub-8363023387578083~4485394709"
   }
 }

@@ -3,7 +3,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
-  sendPasswordResetEmail,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   updateProfile,
   deleteUser,
   onAuthStateChanged as firebaseOnAuthStateChanged,
@@ -18,6 +18,34 @@ import { Platform } from 'react-native';
 /**
  * Authentication Service - Handles user authentication
  */
+
+// Initialize Google Sign-In on mobile platforms
+let googleSignInInitialized = false;
+
+const initializeGoogleSignIn = async () => {
+  if (googleSignInInitialized || Platform.OS === 'web') return;
+  
+  if (Platform.OS !== 'web') {
+    try {
+      const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+      console.log('[authService] Configuring Google Sign-In...');
+      
+      await GoogleSignin.configure({
+        webClientId: '1035586796015-3e7fqts0ftqo7uppq4nchpu7vfl8pasp.apps.googleusercontent.com',
+        offlineAccess: true,
+        forceCodeForRefreshToken: true,
+      });
+      
+      googleSignInInitialized = true;
+      console.log('[authService] Google Sign-In configured successfully');
+    } catch (error) {
+      console.error('[authService] Error configuring Google Sign-In:', error);
+    }
+  }
+};
+
+// Call initialization when service loads
+initializeGoogleSignIn();
 
 // Sign up with email and password
 export const signUpWithEmail = async (email, password, displayName) => {
@@ -310,5 +338,39 @@ export const signInWithGoogle = async () => {
     }
     
     return { success: false, error: error.message || 'Failed to sign in with Google' };
+  }
+};
+
+// Send password reset email
+export const sendPasswordResetEmail = async (email) => {
+  try {
+    if (!auth) {
+      throw new Error('Firebase Auth is not initialized');
+    }
+
+    console.log('[authService] Sending password reset email to:', email);
+    
+    // Call the Firebase sendPasswordResetEmail function (aliased as firebaseSendPasswordResetEmail)
+    await firebaseSendPasswordResetEmail(auth, email);
+    
+    console.log('[authService] Password reset email sent successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('[authService] Error sending password reset email:', error);
+    
+    // Handle specific error codes
+    if (error.code === 'auth/user-not-found') {
+      return { success: false, error: 'No account found with this email address.' };
+    }
+    
+    if (error.code === 'auth/invalid-email') {
+      return { success: false, error: 'Please enter a valid email address.' };
+    }
+    
+    if (error.code === 'auth/too-many-requests') {
+      return { success: false, error: 'Too many reset attempts. Please try again later.' };
+    }
+    
+    return { success: false, error: error.message || 'Failed to send reset email' };
   }
 };

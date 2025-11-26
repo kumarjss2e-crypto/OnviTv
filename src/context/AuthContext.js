@@ -27,26 +27,69 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        
-        // Fetch user profile from Firestore with a small delay
-        // to ensure the profile has been created
-        setTimeout(async () => {
-          const result = await getUserProfile(firebaseUser.uid);
-          if (result.success) {
-            setUserProfile(result.data);
-          }
-        }, 500);
-      } else {
-        setUser(null);
-        setUserProfile(null);
-      }
-      setLoading(false);
-    });
+    let mounted = true;
+    let timeoutId = null;
 
-    return unsubscribe;
+    const handleAuthStateChange = async (firebaseUser) => {
+      try {
+        if (!mounted) return;
+
+        if (firebaseUser) {
+          setUser(firebaseUser);
+          
+          // Fetch user profile from Firestore with a small delay
+          // to ensure the profile has been created
+          timeoutId = setTimeout(async () => {
+            if (!mounted) return;
+            try {
+              const result = await getUserProfile(firebaseUser.uid);
+              if (result && result.success && mounted) {
+                setUserProfile(result.data);
+              }
+            } catch (error) {
+              console.error('Error fetching user profile:', error);
+            }
+          }, 500);
+        } else {
+          setUser(null);
+          setUserProfile(null);
+        }
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error in auth state change:', error);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    try {
+      console.log('onAuthStateChanged function:', typeof onAuthStateChanged);
+      const unsubscribe = onAuthStateChanged(handleAuthStateChange);
+      console.log('Auth listener setup successful, unsubscribe type:', typeof unsubscribe);
+      
+      return () => {
+        mounted = false;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        if (typeof unsubscribe === 'function') {
+          unsubscribe();
+        }
+      };
+    } catch (error) {
+      console.error('Error setting up auth listener:', error);
+      console.error('onAuthStateChanged type:', typeof onAuthStateChanged);
+      setLoading(false);
+      return () => {
+        mounted = false;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+      };
+    }
   }, []);
 
   const value = {

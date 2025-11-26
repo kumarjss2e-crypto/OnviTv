@@ -11,7 +11,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { useSafeAreaInsets } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import GradientButton from '../components/GradientButton';
@@ -52,76 +52,110 @@ const SignupScreen = ({ navigation }) => {
   }, []);
 
   const handleSignup = async () => {
+    console.log('[SignupScreen] Signup button pressed');
+    
     if (!fullName || !email || !password || !confirmPassword) {
+      console.log('[SignupScreen] Missing fields');
       showError('Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
+      console.log('[SignupScreen] Passwords do not match');
       showError('Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
+      console.log('[SignupScreen] Password too short');
       showError('Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
     
-    const result = await signUpWithEmail(email, password, fullName);
-    
-    if (result.success) {
-      showSuccess('Account created successfully! You can now login.');
-      // Navigate after a short delay to show the toast
-      setTimeout(() => {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Login' }],
-        });
-      }, 2000);
-    } else {
-      showError(result.error || 'Could not create account');
+    try {
+      console.log('[SignupScreen] Calling signUpWithEmail...');
+      const result = await signUpWithEmail(email, password, fullName);
+      console.log('[SignupScreen] signUpWithEmail result:', result);
+      
+      if (result.success) {
+        console.log('[SignupScreen] Signup successful');
+        showSuccess('Account created successfully! You can now login.');
+        // Navigate after a short delay to show the toast
+        setTimeout(() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
+        }, 2000);
+      } else {
+        console.log('[SignupScreen] Signup failed:', result.error);
+        showError(result.error || 'Could not create account');
+      }
+    } catch (error) {
+      console.error('[SignupScreen] Exception in handleSignup:', error);
+      showError('Error during signup: ' + error.message);
     }
     
     setLoading(false);
   };
 
   const handleGoogleSignIn = async () => {
+    console.log('[SignupScreen] Google Sign-in button pressed');
     setGoogleLoading(true);
     
-    const result = await signInWithGoogle();
-    
-    if (result.success) {
-      // Navigate to main app
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
-      });
-    } else {
-      if (result.error !== 'Sign in cancelled') {
-        showError(result.error || 'Could not sign in with Google');
+    try {
+      console.log('[SignupScreen] Calling signInWithGoogle...');
+      const result = await signInWithGoogle();
+      console.log('[SignupScreen] signInWithGoogle result:', result);
+      
+      if (result.success) {
+        console.log('[SignupScreen] Google sign-in successful, navigating to Main');
+        // Navigate to main app
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } else {
+        console.log('[SignupScreen] Google sign-in failed:', result.error);
+        if (result.error !== 'Sign in cancelled') {
+          showError(result.error || 'Could not sign in with Google');
+        }
       }
+    } catch (error) {
+      console.error('[SignupScreen] Exception in handleGoogleSignIn:', error);
+      showError('Exception during Google sign-in: ' + error.message);
     }
     
     setGoogleLoading(false);
   };
 
   const handleAppleSignIn = async () => {
+    console.log('[SignupScreen] Apple Sign-in button pressed');
     setAppleLoading(true);
     
-    const result = await signInWithApple();
-    
-    if (result.success) {
-      // Navigate to main app
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
-      });
-    } else {
-      if (result.error !== 'Sign in cancelled') {
-        showError(result.error || 'Could not sign in with Apple');
+    try {
+      console.log('[SignupScreen] Calling signInWithApple...');
+      const result = await signInWithApple();
+      console.log('[SignupScreen] signInWithApple result:', result);
+      
+      if (result.success) {
+        console.log('[SignupScreen] Apple sign-in successful, navigating to Main');
+        // Navigate to main app
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } else {
+        console.log('[SignupScreen] Apple sign-in failed:', result.error);
+        if (result.error !== 'Sign in cancelled') {
+          showError(result.error || 'Could not sign in with Apple');
+        }
       }
+    } catch (error) {
+      console.error('[SignupScreen] Exception in handleAppleSignIn:', error);
+      showError('Exception during Apple sign-in: ' + error.message);
     }
     
     setAppleLoading(false);

@@ -11,7 +11,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { useSafeAreaInsets } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import GradientButton from '../components/GradientButton';
@@ -26,29 +26,28 @@ const LoginScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
-  const { showError } = useToast();
-  const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  
+  let toastContext;
+  let showError;
+  try {
+    toastContext = useToast();
+    showError = toastContext?.showError;
+  } catch (error) {
+    console.error('Error getting toast context:', error.message);
+    showError = (msg) => console.warn('Toast Error:', msg);
+  }
+  
+  let safeAreaInsets;
+  try {
+    safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
+  } catch (error) {
+    console.error('Error getting safe area insets:', error.message);
+    safeAreaInsets = { bottom: 0, top: 0, left: 0, right: 0 };
+  }
   const insets = safeAreaInsets;
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-
-  // Animations disabled to fix crash
-  // useEffect(() => {
-  //   Animated.parallel([
-  //     Animated.timing(fadeAnim, {
-  //       toValue: 1,
-  //       duration: 800,
-  //       useNativeDriver: true,
-  //     }),
-  //     Animated.spring(slideAnim, {
-  //       toValue: 0,
-  //       tension: 20,
-  //       friction: 7,
-  //       useNativeDriver: true,
-  //     }),
-  //   ]).start();
-  // }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -74,40 +73,60 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const handleGoogleSignIn = async () => {
+    console.log('[LoginScreen] Google Sign-in button pressed');
     setGoogleLoading(true);
     
-    const result = await signInWithGoogle();
-    
-    if (result.success) {
-      // Navigate to main app
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
-      });
-    } else {
-      if (result.error !== 'Sign in cancelled') {
-        showError(result.error || 'Could not sign in with Google');
+    try {
+      console.log('[LoginScreen] Calling signInWithGoogle...');
+      const result = await signInWithGoogle();
+      console.log('[LoginScreen] signInWithGoogle result:', result);
+      
+      if (result.success) {
+        console.log('[LoginScreen] Google sign-in successful, navigating to Main');
+        // Navigate to main app
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } else {
+        console.log('[LoginScreen] Google sign-in failed:', result.error);
+        if (result.error !== 'Sign in cancelled') {
+          showError(result.error || 'Could not sign in with Google');
+        }
       }
+    } catch (error) {
+      console.error('[LoginScreen] Exception in handleGoogleSignIn:', error);
+      showError('Exception during Google sign-in: ' + error.message);
     }
     
     setGoogleLoading(false);
   };
 
   const handleAppleSignIn = async () => {
+    console.log('[LoginScreen] Apple Sign-in button pressed');
     setAppleLoading(true);
     
-    const result = await signInWithApple();
-    
-    if (result.success) {
-      // Navigate to main app
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
-      });
-    } else {
-      if (result.error !== 'Sign in cancelled') {
-        showError(result.error || 'Could not sign in with Apple');
+    try {
+      console.log('[LoginScreen] Calling signInWithApple...');
+      const result = await signInWithApple();
+      console.log('[LoginScreen] signInWithApple result:', result);
+      
+      if (result.success) {
+        console.log('[LoginScreen] Apple sign-in successful, navigating to Main');
+        // Navigate to main app
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } else {
+        console.log('[LoginScreen] Apple sign-in failed:', result.error);
+        if (result.error !== 'Sign in cancelled') {
+          showError(result.error || 'Could not sign in with Apple');
+        }
       }
+    } catch (error) {
+      console.error('[LoginScreen] Exception in handleAppleSignIn:', error);
+      showError('Exception during Apple sign-in: ' + error.message);
     }
     
     setAppleLoading(false);
@@ -170,7 +189,13 @@ const LoginScreen = ({ navigation }) => {
                 style={styles.loginButton}
               />
 
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity 
+                style={styles.forgotPassword}
+                onPress={() => {
+                  console.log('[LoginScreen] Navigating to PasswordReset screen');
+                  navigation.navigate('PasswordReset');
+                }}
+              >
                 <Text style={styles.forgotPasswordText}>Forgot password?</Text>
               </TouchableOpacity>
             </View>

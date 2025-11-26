@@ -1,14 +1,16 @@
 import 'react-native-gesture-handler';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View } from 'react-native';
 import { AuthProvider } from './src/context/AuthContext';
 import { SubscriptionProvider } from './src/context/SubscriptionContext';
 import { ToastProvider } from './src/context/ToastContext';
 import { AlertProvider } from './src/components/CustomAlert';
 import { colors } from './src/theme/colors';
+import mobileAds from 'react-native-google-mobile-ads';
 
 // Custom dark theme to prevent white flash
 const CustomDarkTheme = {
@@ -29,6 +31,7 @@ import SplashScreen from './src/screens/SplashScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignupScreen from './src/screens/SignupScreen';
+import PasswordResetScreen from './src/screens/PasswordResetScreen';
 import MainTabs from './src/navigation/MainTabs';
 import PremiumUpgradeScreen from './src/screens/PremiumUpgradeScreen';
 import RewardAdScreen from './src/screens/RewardAdScreen';
@@ -55,12 +58,23 @@ import AboutScreen from './src/screens/AboutScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  useEffect(() => {
+    try {
+      mobileAds().initialize();
+    } catch (e) {
+      // ignore initialization errors for now
+    }
+  }, []);
+  
   return (
     <AuthProvider>
       <SubscriptionProvider>
         <ToastProvider>
           <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.neutral.slate900 }}>
-            <NavigationContainer theme={CustomDarkTheme}>
+            <NavigationContainer 
+              theme={CustomDarkTheme}
+              fallback={<View style={{ flex: 1, backgroundColor: colors.neutral.slate900 }} />}
+            >
               <StatusBar style="light" />
             <Stack.Navigator
               screenOptions={{
@@ -73,6 +87,14 @@ export default function App() {
               <Stack.Screen name="Onboarding" component={OnboardingScreen} />
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="Signup" component={SignupScreen} />
+              <Stack.Screen 
+                name="PasswordReset" 
+                component={PasswordResetScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_bottom',
+                }}
+              />
               <Stack.Screen 
                 name="Main" 
                 component={MainTabs}

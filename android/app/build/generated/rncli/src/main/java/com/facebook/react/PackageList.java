@@ -21,8 +21,6 @@ import expo.modules.ExpoModulesPackage;
 import com.swmansion.gesturehandler.RNGestureHandlerPackage;
 // react-native-google-mobile-ads
 import io.invertase.googlemobileads.ReactNativeGoogleMobileAdsPackage;
-// react-native-reanimated
-import com.swmansion.reanimated.ReanimatedPackage;
 // react-native-safe-area-context
 import com.th3rdwave.safeareacontext.SafeAreaContextPackage;
 // react-native-screens
@@ -81,7 +79,6 @@ public class PackageList {
       new ExpoModulesPackage(),
       new RNGestureHandlerPackage(),
       new ReactNativeGoogleMobileAdsPackage(),
-      new ReanimatedPackage(),
       new SafeAreaContextPackage(),
       new RNScreensPackage(),
       new VectorIconsPackage(),

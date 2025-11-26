@@ -9,26 +9,26 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  */
 export const usePremiumUpgradePrompt = () => {
   const { user } = useAuth();
-  const { isFreeTier, hasSeenUpgradePrompt, setHasSeenUpgradePrompt } = useSubscription();
+  const { isFreeTier } = useSubscription();
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
   useEffect(() => {
     const checkAndShowPrompt = async () => {
-      if (user && isFreeTier && !hasSeenUpgradePrompt) {
-        // Check if we've already shown it in this session
-        const sessionKey = `premium_prompt_shown_${user.uid}`;
-        const alreadyShown = await AsyncStorage.getItem(sessionKey);
+      console.log('[usePremiumUpgradePrompt] Checking upgrade prompt conditions:', {
+        user: !!user,
+        isFreeTier,
+        userId: user?.uid
+      });
 
-        if (!alreadyShown) {
-          setShowUpgradePrompt(true);
-          await AsyncStorage.setItem(sessionKey, 'true');
-          setHasSeenUpgradePrompt(true);
-        }
+      // Show modal every time for free tier users (no session/daily tracking)
+      if (user && isFreeTier) {
+        console.log('[usePremiumUpgradePrompt] Showing upgrade prompt for free tier user');
+        setShowUpgradePrompt(true);
       }
     };
 
     checkAndShowPrompt();
-  }, [user, isFreeTier, hasSeenUpgradePrompt]);
+  }, [user, isFreeTier]);
 
   return {
     showUpgradePrompt,

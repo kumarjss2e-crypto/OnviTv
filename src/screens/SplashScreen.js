@@ -4,16 +4,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
-import { useSubscription } from '../context/SubscriptionContext';
 import GradientButton from '../components/GradientButton';
 
 const { width, height } = Dimensions.get('window');
 
 const SplashScreen = ({ navigation }) => {
   const { user, loading: authLoading } = useAuth();
-  const { isFreeTier, loading: subscriptionLoading } = useSubscription();
   const [isChecking, setIsChecking] = useState(true);
-  const [hasNavigated, setHasNavigated] = useState(false); // Track navigation in state
+  const [hasNavigated, setHasNavigated] = useState(false);
   const logoScale = useRef(new Animated.Value(0.5)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
@@ -21,15 +19,14 @@ const SplashScreen = ({ navigation }) => {
   const floatAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Wait for both auth and subscription to load
-    if (!authLoading && !subscriptionLoading && !hasNavigated) {
-      checkAuthAndOnboarding();
-    }
-  }, [user, authLoading, subscriptionLoading, hasNavigated]);
-
-  const checkAuthAndOnboarding = async () => {
     // Wait for auth to load
-    if (authLoading || subscriptionLoading) return;
+    if (!authLoading && !hasNavigated) {
+      checkAuthAndNavigation();
+    }
+  }, [user, authLoading, hasNavigated]);
+
+  const checkAuthAndNavigation = async () => {
+    if (authLoading) return;
 
     try {
       // Check if user has seen onboarding
@@ -39,30 +36,20 @@ const SplashScreen = ({ navigation }) => {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       if (user) {
-        // Use state to track if we've already navigated
-        const shouldShowUpgrade = isFreeTier && !hasNavigated;
-        
-        // Show upgrade prompt for free users (only once)
-        if (shouldShowUpgrade) {
-          setHasNavigated(true);
-          // Navigate to upgrade screen after a brief delay
-          setTimeout(() => {
-            navigation.replace('PremiumUpgrade');
-          }, 500);
-        } else if (!hasNavigated) {
-          setHasNavigated(true);
-          // User is logged in, go to main app
-          navigation.replace('Main');
-        }
+        // User is logged in, go to main app
+        setHasNavigated(true);
+        setIsChecking(false);
+        navigation.replace('Main');
       } else if (hasSeenOnboarding === 'true') {
         // User has seen onboarding, go to login
+        setIsChecking(false);
         navigation.replace('Login');
       } else {
-        // First time user, show button to continue to onboarding
+        // First time user, show onboarding button
         setIsChecking(false);
       }
     } catch (error) {
-      console.error('Error checking auth state:', error);
+      console.error('Error in splash screen navigation:', error);
       setIsChecking(false);
     }
   };

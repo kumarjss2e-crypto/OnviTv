@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform } from 'react-native';
+import { Platform, Modal, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '../theme/colors';
+import { usePremiumUpgradePrompt } from '../hooks/subscriptionHooks';
+import PremiumUpgradeScreen from '../screens/PremiumUpgradeScreen';
 
 // Screens
 import HomeScreen from '../screens/HomeScreen';
@@ -13,7 +15,7 @@ import MoreScreen from '../screens/MoreScreen';
 
 const Tab = createBottomTabNavigator();
 
-const MainTabs = () => {
+const MainTabsContent = () => {
   const insets = Platform.OS === 'web' ? { bottom: 0 } : useSafeAreaInsets();
 
   return (
@@ -75,6 +77,55 @@ const MainTabs = () => {
     </Tab.Navigator>
   );
 };
+
+const MainTabs = ({ navigation }) => {
+  const { showUpgradePrompt, setShowUpgradePrompt } = usePremiumUpgradePrompt();
+
+  return (
+    <View style={{ flex: 1 }}>
+      <MainTabsContent />
+      
+      {/* Premium Upgrade Modal */}
+      <Modal
+        visible={showUpgradePrompt}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={() => setShowUpgradePrompt(false)}
+      >
+        <View style={styles.premiumModalContainer}>
+          <TouchableOpacity
+            style={styles.closeButtonTop}
+            onPress={() => setShowUpgradePrompt(false)}
+          >
+            <Ionicons name="close" size={28} color={colors.text.primary} />
+          </TouchableOpacity>
+          <PremiumUpgradeScreen
+            navigation={navigation}
+            onSkip={() => setShowUpgradePrompt(false)}
+            onUpgrade={() => setShowUpgradePrompt(false)}
+            isModal={true}
+          />
+        </View>
+      </Modal>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  premiumModalContainer: {
+    flex: 1,
+    backgroundColor: colors.neutral.slate900,
+  },
+  closeButtonTop: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 20,
+  },
+});
 
 
 export default MainTabs;
