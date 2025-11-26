@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/AppIcon@3x.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -23,7 +23,7 @@
       "buildNumber": "1.0.0",
       "requireFullScreen": false,
       "googleServicesFile": "./GoogleService-Info.plist",
-      "icon": "./assets/logo.png",
+      "icon": "./assets/AppIcon@3x.png",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
