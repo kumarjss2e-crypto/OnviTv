@@ -1,0 +1,82 @@
+
+
+{
+  "cli": {
+    "version": ">= 5.9.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Debug"
+      },
+      "env": {
+        "EXPO_IOS_SKIP_PODS_UPDATE": "0"
+      },
+      "resourceClass": "default"
+    },
+    "dev-client": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Debug"
+      },
+      "env": {
+        "EAS_BUILD_PLATFORM": "ios"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Debug",
+        "image": "latest"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EAS_BUILD_PLATFORM": "ios"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "ios": {
+        "simulator": false,
+        "image": "latest"
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EX_DEV_MENU_DISABLED": "1"
+      }
+    },
+    "appetize": {
+      "distribution": "internal",
+      "developmentClient": false,
+      "ios": {
+        "simulator": true,
+        "image": "latest",
+        "buildConfiguration": "Release"
+      },
+      "env": {
+        "EAS_BUILD_PLATFORM": "ios",
+        "EX_DEV_MENU_DISABLED": "1"
+      }
+    }
+  },
+    "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6755377309",
+        "ascApiKeyPath": "C:\\Users\\work4\\Desktop\\Onvitv\\OnviTV-ReactNative\\AuthKey_69ARWQKHPA.p8",
+        "ascApiKeyId": "69ARWQKHPA",
+        "ascApiKeyIssuerId": "054a5e3b-4fbc-4457-80be-b5e9c1c68fdd"
+      }
+    }
+  }
+}

@@ -1,0 +1,418 @@
+import { auth } from '../config/firebase';
+import { 
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  updateProfile,
+  deleteUser,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
+  GoogleAuthProvider,
+  OAuthProvider,
+  signInWithPopup,
+  signInWithCredential
+} from 'firebase/auth';
+import { createUserProfile, updateLastLogin } from './userService';
+import { Platform } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
+
+/**
+ * Authentication Service - Handles user authentication
+ */
+
+// Helper function to generate a nonce using Math.random() for mobile compatibility
+const generateNonce = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let nonce = '';
+  for (let i = 0; i < 32; i++) {
+    nonce += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return nonce;
+};
+
+// Initialize Google Sign-In on mobile platforms
+let googleSignInInitialized = false;
+
+const initializeGoogleSignIn = async () => {
+  if (googleSignInInitialized || Platform.OS === 'web') return;
+  
+  if (Platform.OS !== 'web') {
+    try {
+      const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+      console.log('[authService] Configuring Google Sign-In...');
+      
+      await GoogleSignin.configure({
+        webClientId: '1035586796015-3e7fqts0ftqo7uppq4nchpu7vfl8pasp.apps.googleusercontent.com',
+        offlineAccess: true,
+        forceCodeForRefreshToken: true,
+      });
+      
+      googleSignInInitialized = true;
+      console.log('[authService] Google Sign-In configured successfully');
+    } catch (error) {
+      console.error('[authService] Error configuring Google Sign-In:', error);
+    }
+  }
+};
+
+// Call initialization when service loads
+initializeGoogleSignIn();
+
+// Sign up with email and password
+export const signUpWithEmail = async (email, password, displayName) => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Update display name
+    await updateProfile(user, {
+      displayName: displayName,
+    });
+
+    // Create user profile in Firestore
+    await createUserProfile(user.uid, {
+      email: user.email,
+      displayName: displayName,
+    });
+
+    return { success: true, user: user };
+  } catch (error) {
+    console.error('Error signing up:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Sign in with Apple
+export const signInWithApple = async () => {
+  try {
+    console.log('[authService] Starting Apple Sign-In...');
+    
+    // Check if auth is properly initialized
+    if (!auth) {
+      console.error('[authService] Firebase Auth is not initialized');
+      return { success: false, error: 'Firebase Auth is not initialized' };
+    }
+
+    // Only available on iOS
+    if (Platform.OS !== 'ios') {
+      console.log('[authService] Apple Sign-In not available on', Platform.OS);
+      return { success: false, error: 'Apple Sign-In is only available on iOS' };
+    }
+
+    try {
+      // Check if Apple Authentication is available
+      console.log('[authService] Checking Apple Authentication availability...');
+      const isAvailable = await AppleAuthentication.isAvailableAsync();
+      console.log('[authService] Apple Authentication available:', isAvailable);
+      
+      if (!isAvailable) {
+        return { success: false, error: 'Apple Sign-In not available on this device' };
+      }
+      
+      // Generate a nonce for security
+      console.log('[authService] Generating nonce for Apple Sign-In...');
+      const nonce = generateNonce();
+      console.log('[authService] Nonce generated successfully');
+
+      // Request Apple Sign-In
+      console.log('[authService] Requesting Apple Sign-In with scopes...');
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.Scope.FULL_NAME,
+          AppleAuthentication.Scope.EMAIL,
+        ],
+      });
+
+      console.log('[authService] Apple credential received:', {
+        hasIdentityToken: !!credential.identityToken,
+        hasAuthCode: !!credential.authorizationCode,
+        email: credential.email,
+      });
+
+      if (!credential) {
+        console.error('[authService] No credential returned from Apple');
+        return { success: false, error: 'No credential returned from Apple' };
+      }
+
+      // Create an OAuth credential for Firebase
+      const { identityToken, authorizationCode } = credential;
+
+      if (!identityToken) {
+        console.error('[authService] No identity token from Apple');
+        return { success: false, error: 'No identity token returned from Apple' };
+      }
+
+      console.log('[authService] Creating Firebase OAuth credential with nonce...');
+      
+      // Create a Firebase credential with the Apple token
+      // Using the generated nonce as the rawNonce parameter
+      const provider = new OAuthProvider('apple.com');
+      const appleCredential = provider.credential({
+        idToken: identityToken,
+        rawNonce: nonce,
+      });
+
+      // Sign in to Firebase with the Apple credential
+      console.log('[authService] Signing in to Firebase with Apple credential...');
+      const result = await signInWithCredential(auth, appleCredential);
+      
+      if (!result || !result.user) {
+        console.error('[authService] No user data received from Firebase');
+        return { success: false, error: 'No user data received' };
+      }
+
+      const user = result.user;
+      console.log('[authService] Firebase sign-in successful, user:', user.uid);
+
+      // Extract full name if available
+      const fullName = credential.fullName;
+      let displayName = user.displayName || '';
+      if (fullName && (fullName.givenName || fullName.familyName)) {
+        displayName = `${fullName.givenName || ''} ${fullName.familyName || ''}`.trim();
+        console.log('[authService] Updating user profile with name:', displayName);
+        // Update Firebase user profile with the full name
+        if (displayName) {
+          await updateProfile(user, { displayName });
+        }
+      }
+
+      // Create or update user profile in Firestore
+      await createUserProfile(user.uid, {
+        email: credential.email || user.email,
+        displayName: displayName || '',
+        photoURL: user.photoURL || '',
+      });
+
+      // Update last login
+      await updateLastLogin(user.uid);
+
+      console.log('[authService] Apple sign-in completed successfully');
+      return { success: true, user: user };
+    } catch (error) {
+      console.error('[authService] Apple sign-in error:', error.code, error.message);
+      
+      if (error.code === 'ERR_CANCELED' || error.message?.includes('canceled')) {
+        console.log('[authService] Apple sign-in was cancelled by user');
+        return { success: false, error: 'Sign in cancelled' };
+      }
+      
+      return { success: false, error: error.message || 'Failed to sign in with Apple' };
+    }
+  } catch (error) {
+    console.error('[authService] Exception in Apple sign-in:', error);
+    return { success: false, error: error.message || 'Failed to sign in with Apple' };
+  }
+};
+
+// Sign in with email and password
+export const signInWithEmail = async (email, password) => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Update last login
+    await updateLastLogin(user.uid);
+
+    return { success: true, user: user };
+  } catch (error) {
+    console.error('Error signing in:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Sign out
+export const signOut = async () => {
+  try {
+    await firebaseSignOut(auth);
+    return { success: true };
+  } catch (error) {
+    console.error('Error signing out:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Reset password
+export const resetPassword = async (email) => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { success: true };
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Get current user
+export const getCurrentUser = () => {
+  return auth.currentUser;
+};
+
+// Listen to auth state changes
+export const onAuthStateChanged = (callback) => {
+  return firebaseOnAuthStateChanged(auth, callback);
+};
+
+// Update user profile
+export const updateUserProfile = async (updates) => {
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      await updateProfile(user, updates);
+      return { success: true };
+    } else {
+      return { success: false, error: 'No user logged in' };
+    }
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Delete user account
+export const deleteUserAccount = async () => {
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      // TODO: Delete user data from Firestore (use Cloud Function)
+      await deleteUser(user);
+      return { success: true };
+    } else {
+      return { success: false, error: 'No user logged in' };
+    }
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Sign in with Google
+export const signInWithGoogle = async () => {
+  try {
+    // Check if auth is properly initialized
+    if (!auth) {
+      throw new Error('Firebase Auth is not initialized');
+    }
+
+    let user;
+    
+    if (Platform.OS === 'web') {
+      // Web: Use Firebase popup
+      const provider = new GoogleAuthProvider();
+      provider.addScope('profile');
+      provider.addScope('email');
+      
+      try {
+        const result = await signInWithPopup(auth, provider);
+        if (!result || !result.user) {
+          return { success: false, error: 'No user data received' };
+        }
+        user = result.user;
+      } catch (popupError) {
+        console.log('Google sign-in error:', popupError);
+        return { success: false, error: popupError.message || 'Failed to sign in with Google' };
+      }
+    } else {
+      // Mobile: Use Google Sign-In SDK via dynamic require to avoid web bundling
+      let GoogleSignin;
+      try {
+        GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+      } catch (e) {
+        console.warn('Google Sign-In module not available on this platform.');
+        return { success: false, error: 'Google Sign-In not available' };
+      }
+
+      try {
+        // On Android, ensure Google Play Services are available
+        if (Platform.OS === 'android') {
+          await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        }
+        
+        // Get user info from Google
+        const { idToken } = await GoogleSignin.signIn();
+        
+        if (!idToken) {
+          return { success: false, error: 'No ID token returned from Google' };
+        }
+        
+        // Create a Google credential with the token
+        const googleCredential = GoogleAuthProvider.credential(idToken);
+        
+        // Sign in to Firebase with the Google credential
+        const result = await signInWithCredential(auth, googleCredential);
+        if (!result || !result.user) {
+          return { success: false, error: 'No user data received' };
+        }
+        user = result.user;
+      } catch (error) {
+        console.log('Google sign-in error:', error);
+        if (error.code === 'SIGN_IN_CANCELLED' || error.message?.includes('canceled')) {
+          return { success: false, error: 'Sign in cancelled' };
+        }
+        return { success: false, error: error.message || 'Failed to sign in with Google' };
+      }
+    }
+    
+    // Create or update user profile in Firestore
+    await createUserProfile(user.uid, {
+      email: user.email,
+      displayName: user.displayName || '',
+      photoURL: user.photoURL || '',
+    });
+    
+    // Update last login
+    await updateLastLogin(user.uid);
+    
+    return { success: true, user: user };
+  } catch (error) {
+    console.error('Error signing in with Google:', error);
+    
+    // Handle specific error codes
+    if (error.code === 'auth/popup-closed-by-user') {
+      return { success: false, error: 'Sign in cancelled' };
+    }
+    
+    if (error.code === 'auth/popup-blocked') {
+      return { success: false, error: 'Popup was blocked. Please allow popups for this site.' };
+    }
+    
+    if (error.code === 'auth/argument-error') {
+      return { success: false, error: 'Google Sign-In is not properly configured. Please use email/password instead.' };
+    }
+    
+    return { success: false, error: error.message || 'Failed to sign in with Google' };
+  }
+};
+
+// Send password reset email
+export const sendPasswordResetEmail = async (email) => {
+  try {
+    if (!auth) {
+      throw new Error('Firebase Auth is not initialized');
+    }
+
+    console.log('[authService] Sending password reset email to:', email);
+    
+    // Call the Firebase sendPasswordResetEmail function (aliased as firebaseSendPasswordResetEmail)
+    await firebaseSendPasswordResetEmail(auth, email);
+    
+    console.log('[authService] Password reset email sent successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('[authService] Error sending password reset email:', error);
+    
+    // Handle specific error codes
+    if (error.code === 'auth/user-not-found') {
+      return { success: false, error: 'No account found with this email address.' };
+    }
+    
+    if (error.code === 'auth/invalid-email') {
+      return { success: false, error: 'Please enter a valid email address.' };
+    }
+    
+    if (error.code === 'auth/too-many-requests') {
+      return { success: false, error: 'Too many reset attempts. Please try again later.' };
+    }
+    
+    return { success: false, error: error.message || 'Failed to send reset email' };
+  }
+};

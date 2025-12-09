@@ -1,0 +1,116 @@
+{
+  "expo": {
+    "name": "OnviTV",
+    "slug": "onvitv-reactnative",
+    "version": "1.0.2",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/AppIcon@3x.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1e1b4b"
+    },
+    "updates": {
+      "enabled": false
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.onvitv.com",
+      "buildNumber": "1.0.2",
+      "requireFullScreen": false,
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "icon": "./assets/AppIcon@3x.png",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio",
+          "fetch",
+          "remote-notification"
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsArbitraryLoadsInWebContent": true
+        },
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for playlist import.",
+        "NSMicrophoneUsageDescription": "This app requires microphone access for video playback.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library for saving and loading playlists.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.1035586796015-3e7fqts0ftqo7uppq4nchpu7vfl8pasp"
+            ]
+          }
+        ]
+      },
+      "usesIcloudStorage": false,
+      "bitcode": false,
+      "entitlements": {
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
+      },
+      "associatedDomains": [
+        "webcredentials:firebase.google.com"
+      ]
+    },
+    "android": {
+      "package": "com.onvitv.com",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/AppIcon@3x.png",
+        "backgroundColor": "#1e1b4b"
+      },
+      "icon": "./assets/AppIcon@3x.png",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE"
+      ],
+      "googleServicesFile": "./google-services.json"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.ico"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "13.4",
+            "useFrameworks": "static"
+          },
+          "android": {
+            "minSdkVersion": 21,
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34
+          }
+        }
+      ],
+      "expo-font"
+    ],
+    "notification": {
+      "color": "#7C3AED",
+      "androidMode": "default",
+      "androidCollapsedTitle": "OnviTV"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5c94c869-d230-49cc-98a1-e1a14d648faf"
+      }
+    },
+    "owner": "org3",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-8363023387578083~2084137233",
+    "ios_app_id": "ca-app-pub-8363023387578083~4485394709"
+  }
+}
