@@ -1,13 +1,70 @@
 /**
  * TMDB API Service
  * Fetches movie and series details from The Movie Database API
+ * Includes caching to reduce API calls
  */
+
+import { db } from '../config/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // TMDB API Configuration
 const TMDB_API_KEY = '0c452ba6c287e703a3de560ffd040d9f';
 const TMDB_ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYzQ1MmJhNmMyODdlNzAzYTNkZTU2MGZmZDA0MGQ5ZiIsIm5iZiI6MTc2ODg1OTc3MS43OTgsInN1YiI6IjY5NmVhODdiNjg5N2ZkNmMxYjIwZGEwNiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.OLYidiFkCEoZhTinYdxlCDqdnVtg9xiMjerBQAnmnDg';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
+const CACHE_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days cache
+
+/**
+ * Get cached TMDB data from Firestore
+ * @param {string} cacheKey - Unique cache key (e.g., "movie_the-matrix")
+ * @returns {Promise<Object|null>} - Cached data or null if expired/not found
+ */
+const getCachedData = async (cacheKey) => {
+  try {
+    const cacheRef = doc(db, 'tmdb_cache', cacheKey);
+    const cacheSnap = await getDoc(cacheRef);
+    
+    if (!cacheSnap.exists()) {
+      return null;
+    }
+    
+    const cacheData = cacheSnap.data();
+    const cacheTime = cacheData.cachedAt?.toMillis?.() || 0;
+    const now = Date.now();
+    
+    // Check if cache is still valid (within 30 days)
+    if (now - cacheTime > CACHE_DURATION_MS) {
+      console.log('[TMDB Cache] Cache expired for:', cacheKey);
+      return null;
+    }
+    
+    console.log('[TMDB Cache] Cache hit for:', cacheKey);
+    return cacheData.data;
+  } catch (error) {
+    console.error('[TMDB Cache] Error retrieving cache:', error);
+    return null;
+  }
+};
+
+/**
+ * Save data to TMDB cache in Firestore
+ * @param {string} cacheKey - Unique cache key
+ * @param {Object} data - Data to cache
+ * @returns {Promise<void>}
+ */
+const setCachedData = async (cacheKey, data) => {
+  try {
+    const cacheRef = doc(db, 'tmdb_cache', cacheKey);
+    await setDoc(cacheRef, {
+      data,
+      cachedAt: serverTimestamp(),
+    });
+    console.log('[TMDB Cache] Cached:', cacheKey);
+  } catch (error) {
+    console.error('[TMDB Cache] Error saving cache:', error);
+    // Don't throw - caching failure shouldn't break the app
+  }
+};
 
 /**
  * Search for a movie by title
@@ -84,12 +141,22 @@ export const getMovieDetails = async (movieId) => {
 
 /**
  * Search and get full details for a movie by title
+ * Uses cache to avoid repeated API calls
  * @param {string} title - Movie title
  * @returns {Promise<Object>} - Full movie details from TMDB
  */
 export const searchAndGetMovieDetails = async (title) => {
   try {
-    // First, search for the movie
+    // Create cache key from title (normalize it)
+    const cacheKey = `movie_${title.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 50)}`;
+    
+    // Check cache first
+    const cachedData = await getCachedData(cacheKey);
+    if (cachedData) {
+      return { success: true, data: cachedData, fromCache: true };
+    }
+
+    // Not in cache, search for the movie
     const searchResult = await searchMovie(title);
     
     if (!searchResult.success || !searchResult.data) {
@@ -99,6 +166,11 @@ export const searchAndGetMovieDetails = async (title) => {
     // Then get full details
     const detailsResult = await getMovieDetails(searchResult.data.id);
     
+    if (detailsResult.success && detailsResult.data) {
+      // Cache the result for future use
+      await setCachedData(cacheKey, detailsResult.data);
+    }
+    
     return detailsResult;
   } catch (error) {
     console.error('[TMDB] Error in searchAndGetMovieDetails:', error);
@@ -107,12 +179,20 @@ export const searchAndGetMovieDetails = async (title) => {
 };
 
 /**
- * Get TV series details by TMDB ID
+ * Get TV series details by TMDB ID with caching
  * @param {number} seriesId - TMDB series ID
+ * @param {string} seriesName - Series name for cache key
  * @returns {Promise<Object>} - Series details
  */
-export const getSeriesDetails = async (seriesId) => {
+export const getSeriesDetails = async (seriesId, seriesName = '') => {
   try {
+    // Check cache first
+    const cacheKey = `series_${seriesId}_${seriesName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30)}`;
+    const cachedData = await getCachedData(cacheKey);
+    if (cachedData) {
+      return { success: true, data: cachedData, fromCache: true };
+    }
+
     const url = `${TMDB_BASE_URL}/tv/${seriesId}?append_to_response=credits,videos,images`;
 
     const response = await fetch(url, {
@@ -128,10 +208,14 @@ export const getSeriesDetails = async (seriesId) => {
     }
 
     const data = await response.json();
+    const formattedData = formatSeriesDetails(data);
+    
+    // Cache the result
+    await setCachedData(cacheKey, formattedData);
     
     return {
       success: true,
-      data: formatSeriesDetails(data),
+      data: formattedData,
     };
   } catch (error) {
     console.error('[TMDB] Error fetching series details:', error);
