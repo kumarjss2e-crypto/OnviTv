@@ -178,15 +178,9 @@ const PlaylistManagementScreen = ({ navigation }) => {
                 <Text style={styles.playlistName} numberOfLines={1}>
                   {item.name}
                 </Text>
-                {item.isParsing && (
-                  <ActivityIndicator size="small" color={colors.primary.purple} style={styles.parsingIndicator} />
-                )}
               </View>
               <Text style={styles.playlistType}>
-                {item.isParsing 
-                  ? `Parsing: ${item.parseProgress?.step || 'Processing'}... ${item.parseProgress?.progress || 0}%`
-                  : item.type === 'm3u' ? 'M3U Playlist' : 'Xtream Codes'
-                }
+                {item.type === 'm3u' ? 'M3U Playlist' : 'Xtream Codes'}
               </Text>
             </View>
           </View>

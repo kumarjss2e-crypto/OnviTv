@@ -52,22 +52,17 @@ const SignupScreen = ({ navigation }) => {
   }, []);
 
   const handleSignup = async () => {
-    console.log('[SignupScreen] Signup button pressed');
-    
     if (!fullName || !email || !password || !confirmPassword) {
-      console.log('[SignupScreen] Missing fields');
       showError('Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      console.log('[SignupScreen] Passwords do not match');
       showError('Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      console.log('[SignupScreen] Password too short');
       showError('Password must be at least 6 characters');
       return;
     }
@@ -75,12 +70,9 @@ const SignupScreen = ({ navigation }) => {
     setLoading(true);
     
     try {
-      console.log('[SignupScreen] Calling signUpWithEmail...');
       const result = await signUpWithEmail(email, password, fullName);
-      console.log('[SignupScreen] signUpWithEmail result:', result);
       
       if (result.success) {
-        console.log('[SignupScreen] Signup successful');
         showSuccess('Account created successfully! You can now login.');
         // Navigate after a short delay to show the toast
         setTimeout(() => {
@@ -90,7 +82,6 @@ const SignupScreen = ({ navigation }) => {
           });
         }, 2000);
       } else {
-        console.log('[SignupScreen] Signup failed:', result.error);
         showError(result.error || 'Could not create account');
       }
     } catch (error) {
@@ -102,23 +93,18 @@ const SignupScreen = ({ navigation }) => {
   };
 
   const handleGoogleSignIn = async () => {
-    console.log('[SignupScreen] Google Sign-in button pressed');
     setGoogleLoading(true);
     
     try {
-      console.log('[SignupScreen] Calling signInWithGoogle...');
       const result = await signInWithGoogle();
-      console.log('[SignupScreen] signInWithGoogle result:', result);
       
       if (result.success) {
-        console.log('[SignupScreen] Google sign-in successful, navigating to Main');
         // Navigate to main app
         navigation.reset({
           index: 0,
           routes: [{ name: 'Main' }],
         });
       } else {
-        console.log('[SignupScreen] Google sign-in failed:', result.error);
         if (result.error !== 'Sign in cancelled') {
           showError(result.error || 'Could not sign in with Google');
         }
@@ -132,23 +118,18 @@ const SignupScreen = ({ navigation }) => {
   };
 
   const handleAppleSignIn = async () => {
-    console.log('[SignupScreen] Apple Sign-in button pressed');
     setAppleLoading(true);
     
     try {
-      console.log('[SignupScreen] Calling signInWithApple...');
       const result = await signInWithApple();
-      console.log('[SignupScreen] signInWithApple result:', result);
       
       if (result.success) {
-        console.log('[SignupScreen] Apple sign-in successful, navigating to Main');
         // Navigate to main app
         navigation.reset({
           index: 0,
           routes: [{ name: 'Main' }],
         });
       } else {
-        console.log('[SignupScreen] Apple sign-in failed:', result.error);
         if (result.error !== 'Sign in cancelled') {
           showError(result.error || 'Could not sign in with Apple');
         }

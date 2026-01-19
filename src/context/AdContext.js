@@ -1,19 +1,33 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { initializeAds, createRewardedAd, loadRewardedAd, showRewardedAd, isRewardedAdLoaded } from '../services/adService';
+
+console.log('[AdContext:INIT] Platform.OS =', Platform.OS);
 
 const AdContext = createContext();
 
 export const AdProvider = ({ children }) => {
+  console.log('[AdProvider] Rendering, Platform.OS =', Platform.OS);
   const [adsInitialized, setAdsInitialized] = useState(false);
   const [adLoading, setAdLoading] = useState(false);
   const rewardedAdRef = useRef(null);
   const loadingAttemptRef = useRef(0);
 
-  // Initialize ads when app starts
+  // Initialize ads when app starts (skip on web)
   useEffect(() => {
+    console.log('[AdProvider:useEffect] Started, Platform.OS =', Platform.OS);
+    // Skip ads initialization on web platform
+    if (Platform.OS === 'web') {
+      console.log('[AdProvider:useEffect] Skipping ads initialization on web platform');
+      setAdsInitialized(false);
+      return;
+    }
+
     const initAds = async () => {
       try {
+        console.log('[AdProvider:initAds] Starting ads initialization');
         const initialized = await initializeAds();
+        console.log('[AdProvider:initAds] initializeAds returned:', initialized);
         setAdsInitialized(initialized);
         
         if (initialized) {

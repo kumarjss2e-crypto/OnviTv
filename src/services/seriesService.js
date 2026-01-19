@@ -38,17 +38,34 @@ export const getSeriesByPlaylist = async (playlistId, limitCount = 20) => {
   }
 };
 
-// Get all series for a user
+// Get all series for a user (from all their playlists - nested subcollections)
 export const getUserSeries = async (userId) => {
   try {
-    const seriesRef = collection(firestore, 'series');
-    const q = query(seriesRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
+    // Query all playlists for this user
+    const playlistsRef = collection(firestore, 'playlists');
+    const playlistsQ = query(playlistsRef, where('userId', '==', userId));
+    const playlistsSnapshot = await getDocs(playlistsQ);
 
     const series = [];
-    snapshot.forEach(docSnap => {
-      series.push({ id: docSnap.id, ...docSnap.data() });
-    });
+    
+    // For each playlist, get series from nested subcollection
+    for (const playlistDoc of playlistsSnapshot.docs) {
+      const playlistId = playlistDoc.id;
+      const seriesRef = collection(firestore, `playlists/${playlistId}/series`);
+      const seriesSnapshot = await getDocs(seriesRef);
+      
+      console.log(`[seriesService] Playlist ${playlistId}: Found ${seriesSnapshot.size} series`);
+      
+      seriesSnapshot.forEach(docSnap => {
+        series.push({ 
+          id: docSnap.id, 
+          playlistId,
+          ...docSnap.data() 
+        });
+      });
+    }
+
+    console.log(`[seriesService] Total series across all playlists: ${series.length}`);
 
     return { success: true, data: series };
   } catch (error) {

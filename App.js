@@ -5,15 +5,25 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { AuthProvider } from './src/context/AuthContext';
 import { SubscriptionProvider } from './src/context/SubscriptionContext';
 import { ToastProvider } from './src/context/ToastContext';
 import { AdProvider } from './src/context/AdContext';
+import { ParseLoadingProvider } from './src/context/ParseLoadingContext';
 import { AlertProvider } from './src/components/CustomAlert';
 import { PremiumUpgradeModalProvider } from './src/context/PremiumUpgradeModalContext';
 import { colors } from './src/theme/colors';
-import mobileAds from 'react-native-google-mobile-ads';
+import { backgroundParsingService } from './src/services/backgroundParsingService';
+
+// Only import Google Mobile Ads on native platforms
+let mobileAds;
+if (Platform.OS !== 'web') {
+  mobileAds = require('react-native-google-mobile-ads').default;
+} else {
+  // Platform is web, skipping Google Mobile Ads
+}
 
 // Custom dark theme to prevent white flash
 const CustomDarkTheme = {
@@ -61,15 +71,28 @@ import AboutScreen from './src/screens/AboutScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  console.log('[App] ========================================');
-  console.log('[App] ✅ VERSION: NEW - App-Level Modal Provider');
-  console.log('[App] ========================================');
   useEffect(() => {
-    try {
-      mobileAds().initialize();
-    } catch (e) {
-      // ignore initialization errors for now
+    // Initialize ads on native platforms
+    if (Platform.OS !== 'web') {
+      try {
+        if (mobileAds) {
+          mobileAds().initialize();
+        }
+      } catch (e) {
+        console.error('[App] Error initializing ads:', e.message);
+      }
     }
+
+    // Resume incomplete parsing jobs on app startup
+    console.log('[App] Resuming incomplete parsing jobs...');
+    backgroundParsingService.resumeIncompleteParses()
+      .then(results => {
+        console.log('[App] Resume complete. Started parsing for', results.length, 'playlists');
+      })
+      .catch(error => {
+        console.error('[App] Error resuming incomplete parses:', error);
+      });
+
   }, []);
   
   return (
@@ -79,7 +102,8 @@ export default function App() {
           <PremiumUpgradeModalProvider>
             <AdProvider>
               <ToastProvider>
-                <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.neutral.slate900 }}>
+                <ParseLoadingProvider>
+                  <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.neutral.slate900 }}>
                   <NavigationContainer 
                     theme={CustomDarkTheme}
                     fallback={<View style={{ flex: 1, backgroundColor: colors.neutral.slate900 }} />}
@@ -152,7 +176,7 @@ export default function App() {
                 component={VideoPlayerScreen}
                 options={{
                   headerShown: false,
-                  orientation: 'landscape',
+                  // Note: Orientation is handled in VideoPlayerScreen via useFocusEffect
                 }}
               />
               <Stack.Screen 
@@ -252,6 +276,7 @@ export default function App() {
             </NavigationContainer>
             <AlertProvider />
           </GestureHandlerRootView>
+                </ParseLoadingProvider>
           </ToastProvider>
           </AdProvider>
           </PremiumUpgradeModalProvider>

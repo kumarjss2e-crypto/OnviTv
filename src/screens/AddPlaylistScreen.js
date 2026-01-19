@@ -13,13 +13,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { useParseLoading } from '../context/ParseLoadingContext';
 import { addPlaylist } from '../services/playlistService';
+import { backgroundParsingService } from '../services/backgroundParsingService';
+import { db } from '../config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import CustomAlert from '../components/CustomAlert';
-import { parseM3UPlaylist } from '../utils/m3uParser';
-import { fetchXtreamPlaylist } from '../services/xtreamAPI';
 
 const AddPlaylistScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const { startParsing } = useParseLoading();
   const [selectedType, setSelectedType] = useState('m3u'); // 'm3u' or 'xtream'
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -156,57 +159,64 @@ const AddPlaylistScreen = ({ navigation }) => {
       const result = await addPlaylist(user.uid, playlistData);
 
       if (result.success) {
-        // If M3U playlist, parse it immediately
-        if (selectedType === 'm3u') {
-          CustomAlert.alert(
-            'Success',
-            'Playlist added! Parsing content now... This may take a few moments.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  navigation.replace('PlaylistManagement');
-                  // Parse in background
-                  parseM3UPlaylist(result.playlistId, user.uid, playlistData.url)
-                    .then(parseResult => {
-                      if (parseResult.success) {
-                        console.log('M3U parsed successfully:', parseResult.stats);
-                      } else {
-                        console.error('M3U parsing failed:', parseResult.error);
-                      }
-                    });
-                },
+        // Show success dialog
+        CustomAlert.alert(
+          'Success',
+          `Playlist "${playlistData.name}" added! ✓`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate home
+                navigation.navigate('Home');
               },
-            ]
-          );
-        } else {
-          // Xtream - parse immediately
-          CustomAlert.alert(
-            'Success',
-            'Playlist added! Fetching content from Xtream server... This may take a few moments.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  navigation.goBack();
-                  // Fetch Xtream content in background
-                  fetchXtreamPlaylist(result.playlistId, user.uid, {
-                    serverUrl: playlistData.serverUrl,
-                    username: playlistData.username,
-                    password: playlistData.password,
-                  })
-                    .then(parseResult => {
-                      if (parseResult.success) {
-                        console.log('Xtream fetched successfully:', parseResult.stats);
-                      } else {
-                        console.error('Xtream fetch failed:', parseResult.error);
-                      }
-                    });
-                },
-              },
-            ]
-          );
-        }
+            },
+          ]
+        );
+
+        // Start parsing in background after dialog
+        setTimeout(async () => {
+          try {
+            console.log(`[AddPlaylistScreen] Starting background parsing for playlist ${result.playlistId}`);
+            
+            // Notify context that parsing is starting
+            startParsing(result.playlistId);
+            
+            // Fetch full playlist data from Firestore to ensure we have all fields
+            const playlistRef = doc(db, 'playlists', result.playlistId);
+            const playlistSnap = await getDoc(playlistRef);
+            
+            if (!playlistSnap.exists()) {
+              console.error('[AddPlaylistScreen] Playlist not found in Firestore');
+              return;
+            }
+            
+            const fullPlaylistData = playlistSnap.data();
+            console.log('[AddPlaylistScreen] Fetched full playlist data:', {
+              name: fullPlaylistData.name,
+              type: fullPlaylistData.type,
+              m3uConfigUrl: fullPlaylistData.m3uConfig?.url,
+              xtreamServerUrl: fullPlaylistData.xtreamConfig?.serverUrl,
+            });
+            
+            // Normalize the data for backgroundParsingService
+            // Extract URLs from config objects
+            const normalizedData = {
+              ...fullPlaylistData,
+              m3uUrl: fullPlaylistData.m3uConfig?.url,
+              serverUrl: fullPlaylistData.xtreamConfig?.serverUrl,
+              username: fullPlaylistData.xtreamConfig?.username,
+              password: fullPlaylistData.xtreamConfig?.password,
+            };
+            
+            // Start parsing with normalized data
+            await backgroundParsingService.startParsing(result.playlistId, normalizedData);
+            console.log(`[AddPlaylistScreen] Parsing initiated for playlist ${result.playlistId}`);
+          } catch (error) {
+            console.error('[AddPlaylistScreen] Error starting background parsing:', error);
+          }
+        }, 500);
+
       } else {
         CustomAlert.alert('Error', result.error || 'Failed to add playlist');
       }

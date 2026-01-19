@@ -66,17 +66,34 @@ export const getChannelsByPlaylist = async (playlistId, categoryName = null) => 
   }
 };
 
-// Get all user channels
+// Get all user channels (from nested subcollections under playlists)
 export const getUserChannels = async (userId) => {
   try {
-    const channelsRef = collection(firestore, 'channels');
-    const q = query(channelsRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
+    // Query all playlists for this user
+    const playlistsRef = collection(firestore, 'playlists');
+    const playlistsQ = query(playlistsRef, where('userId', '==', userId));
+    const playlistsSnapshot = await getDocs(playlistsQ);
 
     const channels = [];
-    snapshot.forEach(docSnap => {
-      channels.push({ id: docSnap.id, ...docSnap.data() });
-    });
+    
+    // For each playlist, get channels from nested subcollection
+    for (const playlistDoc of playlistsSnapshot.docs) {
+      const playlistId = playlistDoc.id;
+      const channelsRef = collection(firestore, `playlists/${playlistId}/channels`);
+      const channelsSnapshot = await getDocs(channelsRef);
+      
+      console.log(`[channelService] Playlist ${playlistId}: Found ${channelsSnapshot.size} channels`);
+      
+      channelsSnapshot.forEach(docSnap => {
+        channels.push({ 
+          id: docSnap.id, 
+          playlistId,
+          ...docSnap.data() 
+        });
+      });
+    }
+
+    console.log(`[channelService] Total channels across all playlists: ${channels.length}`);
 
     return { success: true, data: channels };
   } catch (error) {
@@ -85,20 +102,33 @@ export const getUserChannels = async (userId) => {
   }
 };
 
-// Search channels
+// Search channels (from nested subcollections)
 export const searchChannels = async (userId, searchTerm) => {
   try {
-    const channelsRef = collection(firestore, 'channels');
-    const q = query(channelsRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
+    // Query all playlists for this user
+    const playlistsRef = collection(firestore, 'playlists');
+    const playlistsQ = query(playlistsRef, where('userId', '==', userId));
+    const playlistsSnapshot = await getDocs(playlistsQ);
 
     const channels = [];
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      if (data.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-        channels.push({ id: docSnap.id, ...data });
-      }
-    });
+    
+    // For each playlist, search in nested channels subcollection
+    for (const playlistDoc of playlistsSnapshot.docs) {
+      const playlistId = playlistDoc.id;
+      const channelsRef = collection(firestore, `playlists/${playlistId}/channels`);
+      const channelsSnapshot = await getDocs(channelsRef);
+      
+      channelsSnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.name?.toLowerCase().includes(searchTerm.toLowerCase())) {
+          channels.push({ 
+            id: docSnap.id, 
+            playlistId,
+            ...data 
+          });
+        }
+      });
+    }
 
     return { success: true, data: channels };
   } catch (error) {

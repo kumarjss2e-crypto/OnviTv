@@ -10,6 +10,7 @@ import {
   Platform,
   BackHandler,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
 // Conditionally import ScreenOrientation only for mobile
 let ScreenOrientation;
@@ -111,6 +112,28 @@ export default function VideoPlayerScreen({ route, navigation }) {
   const progressSaveInterval = useRef(null);
   const lastSavedPosition = useRef(0);
 
+  // Allow landscape on VideoPlayer when screen is focused (iOS)
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS === 'ios' && ScreenOrientation?.unlockAsync) {
+        // On iOS, unlock orientation when entering VideoPlayer to allow landscape
+        ScreenOrientation.unlockAsync().catch(() => {
+          // Ignore errors
+        });
+      }
+
+      // Return cleanup function to lock back to portrait when leaving
+      return () => {
+        if (Platform.OS === 'ios' && ScreenOrientation?.lockAsync) {
+          // Lock back to portrait when leaving VideoPlayer on iOS
+          ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch(() => {
+            // Ignore errors
+          });
+        }
+      };
+    }, [])
+  );
+
   useEffect(() => {
     // Respect app default orientation (portrait). Do not force landscape on mount.
     StatusBar.setHidden(false);
@@ -127,11 +150,6 @@ export default function VideoPlayerScreen({ route, navigation }) {
       backHandler.remove();
       if (controlsTimeout.current) {
         clearTimeout(controlsTimeout.current);
-      }
-
-      // Unlock orientation on unmount (no-op if not locked)
-      if (Platform.OS !== 'web' && ScreenOrientation?.unlockAsync) {
-        ScreenOrientation.unlockAsync();
       }
 
       subscription?.remove();

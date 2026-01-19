@@ -73,23 +73,18 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const handleGoogleSignIn = async () => {
-    console.log('[LoginScreen] Google Sign-in button pressed');
     setGoogleLoading(true);
     
     try {
-      console.log('[LoginScreen] Calling signInWithGoogle...');
       const result = await signInWithGoogle();
-      console.log('[LoginScreen] signInWithGoogle result:', result);
       
       if (result.success) {
-        console.log('[LoginScreen] Google sign-in successful, navigating to Main');
         // Navigate to main app
         navigation.reset({
           index: 0,
           routes: [{ name: 'Main' }],
         });
       } else {
-        console.log('[LoginScreen] Google sign-in failed:', result.error);
         if (result.error !== 'Sign in cancelled') {
           showError(result.error || 'Could not sign in with Google');
         }
@@ -103,23 +98,18 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const handleAppleSignIn = async () => {
-    console.log('[LoginScreen] Apple Sign-in button pressed');
     setAppleLoading(true);
     
     try {
-      console.log('[LoginScreen] Calling signInWithApple...');
       const result = await signInWithApple();
-      console.log('[LoginScreen] signInWithApple result:', result);
       
       if (result.success) {
-        console.log('[LoginScreen] Apple sign-in successful, navigating to Main');
         // Navigate to main app
         navigation.reset({
           index: 0,
           routes: [{ name: 'Main' }],
         });
       } else {
-        console.log('[LoginScreen] Apple sign-in failed:', result.error);
         if (result.error !== 'Sign in cancelled') {
           showError(result.error || 'Could not sign in with Apple');
         }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,12 +14,16 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { useParseLoading } from '../context/ParseLoadingContext';
 import { getUserChannels } from '../services/channelService';
 import { getUserMovies } from '../services/movieService';
 import { getUserSeries } from '../services/seriesService';
+import { firestore } from '../config/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { 
   spacing, 
   fontSizes, 
@@ -28,6 +32,10 @@ import {
   isShortScreen,
   getResponsiveValue 
 } from '../utils/responsive';
+
+// Pagination config
+const ITEMS_PER_PAGE = 500; // Load 500 items per page for smooth scrolling with large playlists
+const SCROLL_THRESHOLD = 0.7; // Load more at 70% scroll
 
 const CONTENT_TYPES = [
   { id: 'all', label: 'All', icon: 'grid-outline' },
@@ -40,49 +48,178 @@ const CONTENT_TYPES = [
 
 const HomeScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const { hasAnyParsing, averageProgress } = useParseLoading();
   const safeAreaInsets = Platform.OS === 'web' ? { bottom: 0, top: 0, left: 0, right: 0 } : useSafeAreaInsets();
   const insets = safeAreaInsets;
   const [selectedType, setSelectedType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const unsubscribesRef = useRef([]);
+  const debounceTimerRef = useRef(null);
   
-  // Data states
+  // Data states - store full content
   const [allContent, setAllContent] = useState({});
   const [filteredCategories, setFilteredCategories] = useState([]);
+  
+  // Pagination state - track items loaded per category
+  const [categoryPages, setCategoryPages] = useState({});
+  const [loadingMoreMap, setLoadingMoreMap] = useState({});
 
-  useEffect(() => {
-    if (user) {
-      loadAllContent();
+  // Debounced content loader to prevent excessive queries
+  const loadContentDataDebounced = useCallback((userId) => {
+    // Clear any pending debounce
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
     }
-  }, [user]);
+
+    // Set new debounce timer
+    debounceTimerRef.current = setTimeout(async () => {
+      try {
+        console.log('[HomeScreen] Loading content data (debounced)...');
+        const playlistsResult = await getUserChannels(userId);
+        const moviesResult = await getUserMovies(userId);
+        const seriesResult = await getUserSeries(userId);
+
+        const content = {
+          channels: playlistsResult.success ? playlistsResult.data : [],
+          movies: moviesResult.success ? moviesResult.data : [],
+          series: seriesResult.success ? seriesResult.data : [],
+        };
+
+        console.log('[HomeScreen] Content updated (real-time):', {
+          channels: content.channels.length,
+          movies: content.movies.length,
+          series: content.series.length,
+          total: content.channels.length + content.movies.length + content.series.length,
+        });
+
+        setAllContent(content);
+        // Reset pagination when content changes
+        setCategoryPages({});
+        setLoading(false);
+      } catch (error) {
+        console.error('[HomeScreen] Error loading content:', error);
+        setLoading(false);
+      }
+    }, 500); // Wait 500ms after listener fires before querying
+  }, []);
+
+  // Slice content for a category based on pagination state
+  const getSlicedCategoryData = useCallback((fullData, categoryKey) => {
+    const currentPage = categoryPages[categoryKey] || 1;
+    const startIndex = 0;
+    const endIndex = currentPage * ITEMS_PER_PAGE;
+    return fullData.slice(startIndex, endIndex);
+  }, [categoryPages]);
+
+  // Load more items for a specific category
+  const loadMoreForCategory = useCallback((categoryKey, totalItems) => {
+    const currentPage = categoryPages[categoryKey] || 1;
+    const itemsLoaded = currentPage * ITEMS_PER_PAGE;
+    
+    // Only load more if there are more items available and not already loading
+    if (itemsLoaded < totalItems && !loadingMoreMap[categoryKey]) {
+      setLoadingMoreMap(prev => ({ ...prev, [categoryKey]: true }));
+      
+      // Simulate loading with small delay for smoothness
+      setTimeout(() => {
+        setCategoryPages(prev => ({
+          ...prev,
+          [categoryKey]: currentPage + 1
+        }));
+        setLoadingMoreMap(prev => ({ ...prev, [categoryKey]: false }));
+      }, 100);
+    }
+  }, [categoryPages, loadingMoreMap]);
+
+  // Set up real-time listeners for content
+  useEffect(() => {
+    if (!user) {
+      setAllContent({});
+      return;
+    }
+
+    // Cleanup previous listeners
+    unsubscribesRef.current.forEach(unsub => unsub());
+    unsubscribesRef.current = [];
+    
+    // Clear any pending debounce
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    setLoading(true);
+
+    const playlistsRef = collection(firestore, 'playlists');
+    const playlistsQuery = query(playlistsRef, where('userId', '==', user.uid));
+
+    // Listen to playlist changes
+    const playlistsUnsub = onSnapshot(playlistsQuery, (playlistsSnapshot) => {
+      console.log('[HomeScreen] Playlists changed, re-attaching subcollection listeners...');
+      
+      // Clean up old subcollection listeners (keep playlists listener)
+      unsubscribesRef.current.slice(1).forEach(unsub => unsub());
+      unsubscribesRef.current = [playlistsUnsub];
+
+      // For each playlist, set up fresh listeners
+      playlistsSnapshot.docs.forEach((playlistDoc) => {
+        const playlistId = playlistDoc.id;
+        console.log('[HomeScreen] Setting up listeners for playlist:', playlistId);
+
+        // Listen to channels
+        const channelsRef = collection(firestore, `playlists/${playlistId}/channels`);
+        const channelsUnsub = onSnapshot(channelsRef, (snapshot) => {
+          console.log('[HomeScreen] Channels changed for', playlistId, '- count:', snapshot.docs.length);
+          loadContentDataDebounced(user.uid);
+        });
+        unsubscribesRef.current.push(channelsUnsub);
+
+        // Listen to movies
+        const moviesRef = collection(firestore, `playlists/${playlistId}/movies`);
+        const moviesUnsub = onSnapshot(moviesRef, (snapshot) => {
+          console.log('[HomeScreen] Movies changed for', playlistId, '- count:', snapshot.docs.length);
+          loadContentDataDebounced(user.uid);
+        });
+        unsubscribesRef.current.push(moviesUnsub);
+
+        // Listen to series
+        const seriesRef = collection(firestore, `playlists/${playlistId}/series`);
+        const seriesUnsub = onSnapshot(seriesRef, (snapshot) => {
+          console.log('[HomeScreen] Series changed for', playlistId, '- count:', snapshot.docs.length);
+          loadContentDataDebounced(user.uid);
+        });
+        unsubscribesRef.current.push(seriesUnsub);
+      });
+
+      // Trigger initial load
+      loadContentDataDebounced(user.uid);
+    });
+
+    unsubscribesRef.current.push(playlistsUnsub);
+
+    // Cleanup on unmount
+    return () => {
+      unsubscribesRef.current.forEach(unsub => unsub());
+      unsubscribesRef.current = [];
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [user, loadContentDataDebounced]);
+
+  // Refresh on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[HomeScreen] Screen focused, refreshing content...');
+      if (user) {
+        loadContentDataDebounced(user.uid);
+      }
+    }, [user, loadContentDataDebounced])
+  );
 
   useEffect(() => {
     filterContentByType();
-  }, [selectedType, allContent, searchQuery]);
-
-  const loadAllContent = async () => {
-    try {
-      setLoading(true);
-      
-      const [channelsResult, moviesResult, seriesResult] = await Promise.all([
-        getUserChannels(user.uid),
-        getUserMovies(user.uid),
-        getUserSeries(user.uid),
-      ]);
-
-      const content = {
-        channels: channelsResult.success ? channelsResult.data : [],
-        movies: moviesResult.success ? moviesResult.data : [],
-        series: seriesResult.success ? seriesResult.data : [],
-      };
-
-      setAllContent(content);
-    } catch (error) {
-      console.error('Error loading content:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [selectedType, allContent, searchQuery, categoryPages]);
 
   const filterContentByType = () => {
     let categories = [];
@@ -98,24 +235,36 @@ const HomeScreen = ({ navigation }) => {
     switch (selectedType) {
       case 'all':
         if (allContent.movies?.length > 0) {
+          const filteredMovies = filterBySearch(allContent.movies);
+          const slicedMovies = getSlicedCategoryData(filteredMovies, 'all-movies');
           categories.push({
             title: 'Movies',
-            data: filterBySearch(allContent.movies.slice(0, 20)),
-            type: 'movie'
+            data: slicedMovies,
+            fullData: filteredMovies,
+            type: 'movie',
+            categoryKey: 'all-movies'
           });
         }
         if (allContent.series?.length > 0) {
+          const filteredSeries = filterBySearch(allContent.series);
+          const slicedSeries = getSlicedCategoryData(filteredSeries, 'all-series');
           categories.push({
             title: 'Series',
-            data: filterBySearch(allContent.series.slice(0, 20)),
-            type: 'series'
+            data: slicedSeries,
+            fullData: filteredSeries,
+            type: 'series',
+            categoryKey: 'all-series'
           });
         }
         if (allContent.channels?.length > 0) {
+          const filteredChannels = filterBySearch(allContent.channels);
+          const slicedChannels = getSlicedCategoryData(filteredChannels, 'all-channels');
           categories.push({
             title: 'Live TV',
-            data: filterBySearch(allContent.channels.slice(0, 20)),
-            type: 'channel'
+            data: slicedChannels,
+            fullData: filteredChannels,
+            type: 'channel',
+            categoryKey: 'all-channels'
           });
         }
         break;
@@ -124,42 +273,60 @@ const HomeScreen = ({ navigation }) => {
         const movies = allContent.movies || [];
         const filteredMovies = filterBySearch(movies);
         
-        // Group movies by genre/category
+        // Group movies by category name
         const moviesByGenre = {};
         filteredMovies.forEach(movie => {
-          const genre = movie.genre || movie.category || 'Other';
+          const genre = movie.categoryName || movie.genre || movie.category || 'Other';
           if (!moviesByGenre[genre]) {
             moviesByGenre[genre] = [];
           }
           moviesByGenre[genre].push(movie);
         });
 
-        categories = Object.keys(moviesByGenre).map(genre => ({
-          title: genre,
-          data: moviesByGenre[genre],
-          type: 'movie'
-        }));
+        console.log('[HomeScreen] Movies grouped by category:', Object.keys(moviesByGenre).map(g => ({ category: g, count: moviesByGenre[g].length })));
+
+        categories = Object.keys(moviesByGenre)
+          .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : 0))
+          .map(genre => {
+            const sliced = getSlicedCategoryData(moviesByGenre[genre], `movie-${genre}`);
+            return {
+              title: genre,
+              data: sliced,
+              fullData: moviesByGenre[genre],
+              type: 'movie',
+              categoryKey: `movie-${genre}`
+            };
+          });
         break;
 
       case 'series':
         const series = allContent.series || [];
         const filteredSeries = filterBySearch(series);
         
-        // Group series by genre/category
+        // Group series by category name
         const seriesByGenre = {};
         filteredSeries.forEach(show => {
-          const genre = show.genre || show.category || 'Other';
+          const genre = show.categoryName || show.genre || show.category || 'Other';
           if (!seriesByGenre[genre]) {
             seriesByGenre[genre] = [];
           }
           seriesByGenre[genre].push(show);
         });
 
-        categories = Object.keys(seriesByGenre).map(genre => ({
-          title: genre,
-          data: seriesByGenre[genre],
-          type: 'series'
-        }));
+        console.log('[HomeScreen] Series grouped by category:', Object.keys(seriesByGenre).map(g => ({ category: g, count: seriesByGenre[g].length })));
+
+        categories = Object.keys(seriesByGenre)
+          .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : 0))
+          .map(genre => {
+            const sliced = getSlicedCategoryData(seriesByGenre[genre], `series-${genre}`);
+            return {
+              title: genre,
+              data: sliced,
+              fullData: seriesByGenre[genre],
+              type: 'series',
+              categoryKey: `series-${genre}`
+            };
+          });
         break;
 
       case 'livetv':
@@ -167,35 +334,57 @@ const HomeScreen = ({ navigation }) => {
         const channels = allContent.channels || [];
         const filteredChannels = filterBySearch(channels);
         
-        // Group channels by category
+        // Group channels by category name
         const channelsByCategory = {};
         filteredChannels.forEach(channel => {
-          const category = channel.category || 'Other';
+          const category = channel.categoryName || channel.category || 'Other';
           if (!channelsByCategory[category]) {
             channelsByCategory[category] = [];
           }
           channelsByCategory[category].push(channel);
         });
 
-        categories = Object.keys(channelsByCategory).map(category => ({
-          title: category,
-          data: channelsByCategory[category],
-          type: 'channel'
-        }));
+        console.log('[HomeScreen] Channels grouped by category:', Object.keys(channelsByCategory).map(c => ({ category: c, count: channelsByCategory[c].length })));
+
+        categories = Object.keys(channelsByCategory)
+          .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : 0))
+          .map(category => {
+            const sliced = getSlicedCategoryData(channelsByCategory[category], `channel-${category}`);
+            return {
+              title: category,
+              data: sliced,
+              fullData: channelsByCategory[category],
+              type: 'channel',
+              categoryKey: `channel-${category}`
+            };
+          });
         break;
 
       case 'sports':
-        const sportsChannels = (allContent.channels || []).filter(ch => 
-          (ch.category || '').toLowerCase().includes('sport') ||
-          (ch.name || '').toLowerCase().includes('sport')
-        );
+        // Get sports channels from all channels using categoryName
+        const sportsChannels = (allContent.channels || []).filter(ch => {
+          const category = (ch.categoryName || ch.category || '').toLowerCase();
+          const name = (ch.name || '').toLowerCase();
+          return category.includes('sport') || name.includes('sport');
+        });
         const filteredSports = filterBySearch(sportsChannels);
         
         if (filteredSports.length > 0) {
+          const sliced = getSlicedCategoryData(filteredSports, 'sports');
           categories.push({
             title: 'Sports Channels',
-            data: filteredSports,
-            type: 'channel'
+            data: sliced,
+            fullData: filteredSports,
+            type: 'channel',
+            categoryKey: 'sports'
+          });
+        } else {
+          categories.push({
+            title: 'No Sports Content',
+            data: [],
+            fullData: [],
+            type: 'empty',
+            categoryKey: 'sports'
           });
         }
         break;
@@ -265,11 +454,14 @@ const HomeScreen = ({ navigation }) => {
   const renderCategory = ({ item }) => {
     if (!item.data || item.data.length === 0) return null;
 
+    const hasMoreItems = item.data.length < item.fullData.length;
+    const isLoadingMore = loadingMoreMap[item.categoryKey] || false;
+
     return (
       <View style={styles.categorySection}>
         <View style={styles.categoryHeader}>
           <Text style={styles.categoryTitle}>{item.title}</Text>
-          <Text style={styles.categoryCount}>{item.data.length} items</Text>
+          <Text style={styles.categoryCount}>{item.data.length}/{item.fullData.length} items</Text>
         </View>
         <FlatList
           data={item.data}
@@ -278,7 +470,26 @@ const HomeScreen = ({ navigation }) => {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.contentList}
+          onScroll={(event) => {
+            const contentOffset = event.nativeEvent.contentOffset.x;
+            const contentSize = event.nativeEvent.contentSize.width;
+            const layoutWidth = event.nativeEvent.layoutMeasurement.width;
+            const scrollPercentage = (contentOffset + layoutWidth) / contentSize;
+            
+            if (scrollPercentage > SCROLL_THRESHOLD && hasMoreItems && !isLoadingMore) {
+              loadMoreForCategory(item.categoryKey, item.fullData.length);
+            }
+          }}
         />
+        {/* Load More Indicator for Horizontal Scroll */}
+        {hasMoreItems && (
+          <View style={styles.loadMoreIndicator}>
+            <Text style={styles.loadMoreText}>
+              {isLoadingMore ? 'Loading...' : `Scroll right to load more (${item.fullData.length - item.data.length} remaining)`}
+            </Text>
+            {isLoadingMore && <ActivityIndicator size="small" color={colors.primary.purple} />}
+          </View>
+        )}
       </View>
     );
   };
@@ -295,6 +506,16 @@ const HomeScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
+      
+      {/* Parsing Loading Indicator - Linear Progress Bar */}
+      {hasAnyParsing && (
+        <View style={styles.parsingIndicator}>
+          <View style={styles.parsingBarContainer}>
+            <View style={[styles.parsingBar, { width: `${averageProgress}%` }]} />
+          </View>
+          <Text style={styles.parsingText}>Loading content... {averageProgress}%</Text>
+        </View>
+      )}
       
       {/* Header */}
       <View style={styles.header}>
@@ -367,6 +588,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.neutral.slate900,
+  },
+  parsingIndicator: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: 'rgba(147, 51, 234, 0.1)',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.primary.purple,
+    gap: spacing.md,
+  },
+  parsingBarContainer: {
+    height: 3,
+    backgroundColor: 'rgba(147, 51, 234, 0.3)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  parsingBar: {
+    height: '100%',
+    backgroundColor: colors.primary.purple,
+    borderRadius: 2,
+  },
+  parsingText: {
+    fontSize: fontSizes.sm,
+    color: colors.primary.purple,
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
@@ -499,6 +744,19 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.xs,
     color: colors.text.secondary,
     fontWeight: '500',
+  },
+  loadMoreIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  loadMoreText: {
+    flex: 1,
+    fontSize: fontSizes.xs,
+    color: colors.text.muted,
+    fontStyle: 'italic',
   },
   emptyState: {
     flex: 1,

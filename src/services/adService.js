@@ -1,5 +1,24 @@
-import { RewardedAd, RewardedAdEventType, TestIds, AdEventType } from 'react-native-google-mobile-ads';
 import { Platform } from 'react-native';
+
+console.log('[adService:INIT] Platform.OS =', Platform.OS);
+
+// Only import mobile ads on native platforms
+let RewardedAd, RewardedAdEventType, TestIds, AdEventType;
+if (Platform.OS !== 'web') {
+  console.log('[adService:INIT] Attempting to require Google Mobile Ads');
+  try {
+    const ads = require('react-native-google-mobile-ads');
+    RewardedAd = ads.RewardedAd;
+    RewardedAdEventType = ads.RewardedAdEventType;
+    TestIds = ads.TestIds;
+    AdEventType = ads.AdEventType;
+    console.log('[adService:INIT] Google Mobile Ads loaded successfully');
+  } catch (e) {
+    console.error('[adService:INIT] Failed to load Google Mobile Ads:', e.message);
+  }
+} else {
+  console.log('[adService:INIT] Platform is web, skipping Google Mobile Ads import');
+}
 
 // Ad Unit IDs - Using your actual AdMob Unit IDs
 const AD_UNIT_IDS = {
@@ -10,13 +29,23 @@ const AD_UNIT_IDS = {
 
 // Initialize ads service
 export const initializeAds = async () => {
+  console.log('[initializeAds] Starting, Platform.OS =', Platform.OS);
   try {
+    // Skip ads initialization on web platform
+    if (Platform.OS === 'web') {
+      console.log('[initializeAds] Skipping on web platform');
+      return true;
+    }
+    
+    console.log('[initializeAds] Attempting to initialize Google Mobile Ads');
     // Initialize Google Mobile Ads SDK
-    await require('react-native-google-mobile-ads').default().initialize();
-    console.log('[AdsService] Google Mobile Ads initialized');
+    const mobileAds = require('react-native-google-mobile-ads').default;
+    console.log('[initializeAds] mobileAds type:', typeof mobileAds);
+    await mobileAds().initialize();
+    console.log('[initializeAds] Google Mobile Ads initialized successfully');
     return true;
   } catch (error) {
-    console.error('[AdsService] Failed to initialize ads:', error);
+    console.error('[initializeAds] Failed to initialize ads:', error.message);
     return false;
   }
 };

@@ -3,10 +3,17 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { useSubscription } from '../context/SubscriptionContext';
 import { useAuth } from '../context/AuthContext';
 import { usePremiumUpgradeModal } from '../context/PremiumUpgradeModalContext';
+
+// Conditionally import ScreenOrientation only for mobile
+let ScreenOrientation;
+if (Platform.OS !== 'web') {
+  ScreenOrientation = require('expo-screen-orientation');
+}
 
 // Screens
 import HomeScreen from '../screens/HomeScreen';
@@ -17,9 +24,20 @@ import MoreScreen from '../screens/MoreScreen';
 const Tab = createBottomTabNavigator();
 
 const MainTabsContent = () => {
-  console.log('[MainTabs] ✅ MAINTABS INITIALIZED - NEW SIMPLIFIED VERSION');
-  
   const insets = Platform.OS === 'web' ? { bottom: 0 } : useSafeAreaInsets();
+
+  // Lock orientation to portrait when MainTabs is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      if (Platform.OS === 'ios' && ScreenOrientation?.lockAsync) {
+        // Lock to portrait when entering MainTabs
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch(() => {
+          // Ignore errors
+        });
+      }
+      return undefined;
+    }, [])
+  );
 
   return (
     <Tab.Navigator

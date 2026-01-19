@@ -10,6 +10,7 @@ import {
   query, 
   where, 
   orderBy,
+  limit,
   serverTimestamp,
   writeBatch
 } from 'firebase/firestore';
@@ -120,117 +121,118 @@ export const updatePlaylist = async (playlistId, updates) => {
   }
 };
 
-// Delete playlist with progress tracking
+// Delete playlist with progress tracking (optimized for large playlists)
 export const deletePlaylist = async (playlistId, onProgress = null) => {
   try {
-    console.log('Deleting playlist and associated content:', playlistId);
+    console.log('[playlistService] Deleting playlist and associated content:', playlistId);
     
-    // Delete associated content first
-    const collections = ['channels', 'movies', 'series'];
+    const subCollections = ['channels', 'movies', 'series'];
     let deletedCount = { channels: 0, movies: 0, series: 0 };
-    let totalToDelete = 0;
     let totalDeleted = 0;
     
-    // First, count total items to delete
-    for (const collectionName of collections) {
-      const q = query(
-        collection(firestore, collectionName),
-        where('playlistId', '==', playlistId)
-      );
-      const snapshot = await getDocs(q);
-      totalToDelete += snapshot.size;
-    }
-    
-    console.log(`Total items to delete: ${totalToDelete}`);
-    
-    // Report initial progress
+    // Report starting
     if (onProgress) {
       onProgress({
-        phase: 'counting',
-        total: totalToDelete,
+        phase: 'starting',
+        total: 0,
         deleted: 0,
         percentage: 0,
-        message: `Found ${totalToDelete} items to delete...`
+        message: 'Starting deletion...'
       });
     }
-    
-    // Delete in batches of 500 (Firebase limit)
+
     const BATCH_SIZE = 500;
-    
-    for (const collectionName of collections) {
-      const q = query(
-        collection(firestore, collectionName),
-        where('playlistId', '==', playlistId)
-      );
+    const DELETION_TIMEOUT = 60000; // 60 seconds per batch
+
+    // Process all subcollections in PARALLEL (not sequential)
+    const deletionPromises = subCollections.map(async (subCollectionName) => {
+      let collectionDeleted = 0;
+      let hasMore = true;
       
-      const snapshot = await getDocs(q);
-      const docs = snapshot.docs;
-      console.log(`Deleting ${docs.length} ${collectionName}...`);
-      
-      // Process in batches
-      for (let i = 0; i < docs.length; i += BATCH_SIZE) {
-        const batch = writeBatch(firestore);
-        const batchDocs = docs.slice(i, i + BATCH_SIZE);
-        
-        batchDocs.forEach(docSnap => {
-          batch.delete(docSnap.ref);
-        });
-        
-        await batch.commit();
-        
-        const batchDeleted = batchDocs.length;
-        deletedCount[collectionName] += batchDeleted;
-        totalDeleted += batchDeleted;
-        
-        // Report progress
-        if (onProgress) {
-          const percentage = Math.round((totalDeleted / totalToDelete) * 100);
-          onProgress({
-            phase: 'deleting',
-            total: totalToDelete,
-            deleted: totalDeleted,
-            percentage,
-            currentCollection: collectionName,
-            message: `Deleting ${collectionName}... ${totalDeleted}/${totalToDelete}`
+      // Keep deleting in batches until no more documents
+      while (hasMore) {
+        try {
+          const subCollectionRef = collection(firestore, `playlists/${playlistId}/${subCollectionName}`);
+          
+          // Get only what we need for deletion (1 batch size)
+          const snapshot = await getDocs(query(subCollectionRef, limit(BATCH_SIZE)));
+          const docs = snapshot.docs;
+          
+          if (docs.length === 0) {
+            hasMore = false;
+            console.log(`[playlistService] No more documents in ${subCollectionName}`);
+            break;
+          }
+          
+          // Delete this batch
+          const batch = writeBatch(firestore);
+          docs.forEach(docSnap => {
+            batch.delete(docSnap.ref);
           });
+          
+          await batch.commit();
+          collectionDeleted += docs.length;
+          
+          console.log(`[playlistService] Deleted batch of ${docs.length} from ${subCollectionName} (total: ${collectionDeleted})`);
+          
+          // Check if more documents exist
+          if (docs.length < BATCH_SIZE) {
+            hasMore = false;
+          }
+          
+          // Add small delay between batches to prevent rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+          console.error(`[playlistService] Error deleting ${subCollectionName}:`, error);
+          throw error;
         }
-        
-        console.log(`Deleted batch: ${i + batchDeleted}/${docs.length} ${collectionName}`);
       }
-    }
+      
+      console.log(`[playlistService] Total deleted from ${subCollectionName}: ${collectionDeleted}`);
+      return { subCollectionName, deleted: collectionDeleted };
+    });
+
+    // Wait for all subcollections to finish deleting in parallel
+    const results = await Promise.all(deletionPromises);
     
-    console.log('Deleted content:', deletedCount);
+    // Aggregate results
+    results.forEach(result => {
+      deletedCount[result.subCollectionName] = result.deleted;
+      totalDeleted += result.deleted;
+    });
+
+    console.log('[playlistService] Deleted content summary:', deletedCount);
     
-    // Report final phase
+    // Report before final deletion
     if (onProgress) {
       onProgress({
         phase: 'finalizing',
-        total: totalToDelete,
+        total: totalDeleted,
         deleted: totalDeleted,
-        percentage: 100,
+        percentage: 99,
         message: 'Finalizing deletion...'
       });
     }
-    
+
     // Finally, delete the playlist document
     const docRef = doc(firestore, 'playlists', playlistId);
     await deleteDoc(docRef);
-    
-    console.log('Playlist deleted successfully');
-    
+
+    console.log('[playlistService] Playlist document deleted successfully');
+
     // Report completion
     if (onProgress) {
       onProgress({
         phase: 'complete',
-        total: totalToDelete,
+        total: totalDeleted,
         deleted: totalDeleted,
         percentage: 100,
         message: `Successfully deleted ${totalDeleted} items`
       });
     }
-    
-    return { 
-      success: true, 
+
+    return {
+      success: true,
       deletedCount,
       totalDeleted,
       message: `Deleted playlist and ${deletedCount.channels} channels, ${deletedCount.movies} movies, ${deletedCount.series} series`

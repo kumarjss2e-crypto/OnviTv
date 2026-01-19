@@ -279,31 +279,34 @@ const detectContentType = (item) => {
   const category = item.category.toLowerCase();
   const url = item.streamUrl.toLowerCase();
 
-  // Check for movie indicators
-  const movieKeywords = ['movie', 'film', 'cinema', 'vod', 'peliculas', 'filmes'];
-  const isMovie = movieKeywords.some(keyword => 
-    category.includes(keyword) || name.includes(keyword) || url.includes('/movie/')
-  );
-
-  if (isMovie) {
-    return 'movie';
-  }
-
-  // Check for series/episode indicators (S01E01, 1x01, etc.)
+  // Check for series/episode indicators FIRST (higher priority)
   const episodePattern = /s\d+e\d+|season\s*\d+|episode\s*\d+|\d+x\d+/i;
   const hasEpisodeInfo = episodePattern.test(name) || episodePattern.test(url);
   
-  // Check for series keywords
-  const seriesKeywords = ['series', 'show', 'tv show', 'serie'];
+  // Check for series keywords in URL and category (not name to avoid false positives)
+  const seriesKeywords = ['series', 'show', 'tv show', 'serie', 'tvshow'];
   const hasSeriesKeyword = seriesKeywords.some(keyword => 
-    category.includes(keyword) || url.includes('/series/')
+    category.includes(keyword) || url.includes('/series/') || url.includes('/tvshow/')
   );
 
   if (hasEpisodeInfo || hasSeriesKeyword) {
     return 'series';
   }
 
+  // Check for movie indicators - ONLY in URL path, not in category
+  // This prevents "Movie Channels" category from being classified as movies
+  const movieUrlPatterns = ['/movie', '/movies', '/vod/'];
+  const isMovieUrl = movieUrlPatterns.some(pattern => url.includes(pattern));
+  
+  // Check for explicit movie name patterns (e.g., "Movie: Avatar")
+  const isExplicitMovie = /^\s*movie:\s+|^\s*film:\s+/i.test(name);
+  
+  if (isMovieUrl || isExplicitMovie) {
+    return 'movie';
+  }
+
   // Default to channel (live TV)
+  // This is safest for IPTV M3U files where majority are live channels
   return 'channel';
 };
 

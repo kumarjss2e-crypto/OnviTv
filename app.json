@@ -2,7 +2,7 @@
   "expo": {
     "name": "OnviTV",
     "slug": "onvitv-reactnative",
-    "version": "1.0.2",
+    "version": "1.5.9",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./assets/AppIcon@3x.png",
@@ -20,7 +20,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.onvitv.com",
-      "buildNumber": "1.0.2",
+      "buildNumber": "1.5.9",
       "requireFullScreen": false,
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/AppIcon@3x.png",
@@ -75,9 +75,15 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.ico"
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT"
+        }
+      ],
       [
         "expo-build-properties",
         {
@@ -101,10 +107,10 @@
     },
     "extra": {
       "eas": {
-        "projectId": "5c94c869-d230-49cc-98a1-e1a14d648faf"
+        "projectId": "8ed57928-eb04-4371-8089-80437af6f5d4"
       }
     },
-    "owner": "org3",
+    "owner": "org8",
     "runtimeVersion": {
       "policy": "appVersion"
     }

@@ -100,17 +100,34 @@ export const getMoviesByPlaylist = async (playlistId, limitCount = 20) => {
   }
 };
 
-// Get all movies for a user (from all their playlists)
+// Get all movies for a user (from all their playlists - nested subcollections)
 export const getUserMovies = async (userId) => {
   try {
-    const moviesRef = collection(firestore, 'movies');
-    const q = query(moviesRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
+    // Query all playlists for this user
+    const playlistsRef = collection(firestore, 'playlists');
+    const playlistsQ = query(playlistsRef, where('userId', '==', userId));
+    const playlistsSnapshot = await getDocs(playlistsQ);
 
     const movies = [];
-    snapshot.forEach(docSnap => {
-      movies.push({ id: docSnap.id, ...docSnap.data() });
-    });
+    
+    // For each playlist, get movies from nested subcollection
+    for (const playlistDoc of playlistsSnapshot.docs) {
+      const playlistId = playlistDoc.id;
+      const moviesRef = collection(firestore, `playlists/${playlistId}/movies`);
+      const moviesSnapshot = await getDocs(moviesRef);
+      
+      console.log(`[movieService] Playlist ${playlistId}: Found ${moviesSnapshot.size} movies`);
+      
+      moviesSnapshot.forEach(docSnap => {
+        movies.push({ 
+          id: docSnap.id, 
+          playlistId,
+          ...docSnap.data() 
+        });
+      });
+    }
+
+    console.log(`[movieService] Total movies across all playlists: ${movies.length}`);
 
     return { success: true, data: movies };
   } catch (error) {
@@ -136,20 +153,33 @@ export const getMovie = async (movieId) => {
   }
 };
 
-// Search movies
+// Search movies (from nested subcollections)
 export const searchMovies = async (userId, searchTerm) => {
   try {
-    const moviesRef = collection(firestore, 'movies');
-    const q = query(moviesRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
+    // Query all playlists for this user
+    const playlistsRef = collection(firestore, 'playlists');
+    const playlistsQ = query(playlistsRef, where('userId', '==', userId));
+    const playlistsSnapshot = await getDocs(playlistsQ);
 
     const movies = [];
-    snapshot.forEach(docSnap => {
-      const data = docSnap.data();
-      if (data.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-        movies.push({ id: docSnap.id, ...data });
-      }
-    });
+    
+    // For each playlist, search in nested movies subcollection
+    for (const playlistDoc of playlistsSnapshot.docs) {
+      const playlistId = playlistDoc.id;
+      const moviesRef = collection(firestore, `playlists/${playlistId}/movies`);
+      const moviesSnapshot = await getDocs(moviesRef);
+      
+      moviesSnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (data.name?.toLowerCase().includes(searchTerm.toLowerCase())) {
+          movies.push({ 
+            id: docSnap.id, 
+            playlistId,
+            ...data 
+          });
+        }
+      });
+    }
 
     return { success: true, data: movies };
   } catch (error) {

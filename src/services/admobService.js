@@ -1,5 +1,30 @@
 import { Platform } from 'react-native';
-import { RewardedAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
+
+console.log('[admobService:INIT] Platform.OS =', Platform.OS);
+
+// Only import Google Mobile Ads on native platforms
+let RewardedAd, RewardedAdEventType, TestIds;
+if (Platform.OS !== 'web') {
+  console.log('[admobService:INIT] Importing Google Mobile Ads for native platform');
+  const gma = require('react-native-google-mobile-ads');
+  RewardedAd = gma.RewardedAd;
+  RewardedAdEventType = gma.RewardedAdEventType;
+  TestIds = gma.TestIds;
+} else {
+  console.log('[admobService:INIT] Platform is web, creating mock Google Mobile Ads');
+  // Create mock objects for web
+  RewardedAd = {
+    createForAdRequest: (adUnitId) => ({
+      adUnitId,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      load: async () => {},
+      show: async () => {},
+    }),
+  };
+  RewardedAdEventType = { EARNED_REWARD: 'earned_reward' };
+  TestIds = { REWARDED: 'ca-app-pub-3940256099942544/5224354917' };
+}
 
 // AdMob App IDs
 export const ADMOB_APP_IDS = {
@@ -26,6 +51,11 @@ export const getRewardAdUnitId = () => {
 
 // Create a rewarded ad instance
 export const createRewardedAd = () => {
+  console.log('[createRewardedAd] Platform.OS =', Platform.OS);
+  if (Platform.OS === 'web') {
+    console.log('[createRewardedAd] Returning mock ad for web');
+    return RewardedAd.createForAdRequest('mock-ad-unit');
+  }
   const adUnitId = getRewardAdUnitId();
   
   const rewardedAd = RewardedAd.createForAdRequest(adUnitId, {
