@@ -63,23 +63,46 @@ const parseExtinfLine = (line, streamUrl) => {
 
 /**
  * Detect content type based on metadata
- * Uses a multi-layered approach to handle different M3U formats:
- * 1. URL structure (most reliable)
- * 2. Episode patterns in name
- * 3. Explicit series/movie markers in name & group
- * 4. Smart group-title analysis with context
+ * Uses a 6-layer approach to differentiate between live channels, movies, and series:
+ * 1. LIVE CHANNEL DETECTION - EPG info + group patterns
+ * 2. URL STRUCTURE - Most reliable for VOD
+ * 3. EPISODE PATTERNS - S01E01 format
+ * 4. EXPLICIT KEYWORDS - Multi-language series/movie markers
+ * 5. GROUP-TITLE ANALYSIS - Category-based classification
+ * 6. SMART CONTEXT - Provider and mixed content analysis
  * 
  * @param {Object} metadata
  * @returns {string} - 'channel' | 'movie' | 'series'
  */
 const detectContentType = (metadata) => {
-  const { streamUrl, groupTitle, name } = metadata;
+  const { streamUrl, groupTitle, name, tvgId, tvgLogo } = metadata;
   
   const streamLower = streamUrl?.toLowerCase() || '';
   const groupLower = groupTitle?.toLowerCase() || '';
   const nameLower = name?.toLowerCase() || '';
 
-  // ========== LEVEL 1: URL STRUCTURE (Most Reliable) ==========
+  // ========== LEVEL 0: LIVE CHANNEL DETECTION ==========
+  // EPG indicator: tvg-id and tvg-logo are strong signals of live channels
+  // These attributes are almost never used for VOD content
+  const hasEPGIndicators = (tvgId && tvgId.trim() !== '') || (tvgLogo && tvgLogo.trim() !== '');
+  
+  if (hasEPGIndicators) {
+    // But verify it's not a movie/series by checking for VOD keywords
+    const hasVODKeywords = hasSeriesKeyword(groupLower) || 
+                          hasMovieKeyword(groupLower) ||
+                          /\bs\d{1,2}e\d{1,2}\b|\bseason\s+\d+|\bepisode\s+\d+/i.test(nameLower);
+    
+    if (!hasVODKeywords) {
+      // Verify group-title looks like a TV channel category (country code, TV provider)
+      const isChannelGroup = /^[A-Z]{2}\s*\||\bde\s*\||\bit\s*\||\bfr\s*\||\bes\s*\||\bpl\s*\||live\s*tv|tv\s*guide|epg|iptv/i.test(groupTitle || '');
+      if (isChannelGroup || !groupTitle) {
+        // No VOD keywords and EPG info present = likely a live channel
+        return 'channel';
+      }
+    }
+  }
+
+  // ========== LEVEL 1: URL STRUCTURE (Most Reliable for VOD) ==========
   // Series-specific URLs
   if (streamLower.includes('/series/') || 
       streamLower.includes('/tvshow/') || 

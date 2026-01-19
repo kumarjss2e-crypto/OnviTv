@@ -5,7 +5,7 @@
  */
 
 import { db } from '../config/firebase';
-import { collection, writeBatch, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, writeBatch, doc, updateDoc, setDoc, getDocs, query } from 'firebase/firestore';
 
 const BATCH_SIZE = 50; // Write to Firestore every 50 items
 
@@ -127,14 +127,21 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
         series: accumulator.series.length,
       }, { merge: true });
 
-      // Update playlist stats in real-time (using set with merge instead of update)
+      // Count ACTUAL items in database to get accurate stats (not accumulated counters)
+      const channelsSnap = await getDocs(query(collection(db, `playlists/${playlistId}/channels`)));
+      const moviesSnap = await getDocs(query(collection(db, `playlists/${playlistId}/movies`)));
+      const seriesSnap = await getDocs(query(collection(db, `playlists/${playlistId}/series`)));
+      
+      const actualStats = {
+        totalChannels: channelsSnap.size,
+        totalMovies: moviesSnap.size,
+        totalSeries: seriesSnap.size,
+      };
+
+      // Update playlist stats with ACTUAL counts from database
       const playlistStatsRef = doc(db, `playlists/${playlistId}`);
       batch.set(playlistStatsRef, {
-        stats: {
-          totalChannels: stats.channels,
-          totalMovies: stats.movies,
-          totalSeries: stats.series,
-        },
+        stats: actualStats,
         lastUpdated: new Date().toISOString(),
       }, { merge: true });
 
@@ -220,7 +227,18 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
       await flushQueue;
       console.log(`[streamingParserEngine] All flushes complete, total written: ${writeCount}`);
 
-      // Update progress to completed (but don't update playlist stats here - let caller handle that)
+      // Get actual counts from database
+      const channelsSnap = await getDocs(query(collection(db, `playlists/${playlistId}/channels`)));
+      const moviesSnap = await getDocs(query(collection(db, `playlists/${playlistId}/movies`)));
+      const seriesSnap = await getDocs(query(collection(db, `playlists/${playlistId}/series`)));
+      
+      const actualStats = {
+        channels: channelsSnap.size,
+        movies: moviesSnap.size,
+        series: seriesSnap.size,
+      };
+
+      // Update progress to completed with actual stats
       const progressRef = doc(db, `playlists/${playlistId}/meta/progress`);
       await updateDoc(progressRef, {
         status: 'completed',
@@ -228,14 +246,21 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
         totalItemsWritten: writeCount,
       });
 
+      // Update playlist document with final accurate stats
+      const playlistStatsRef = doc(db, `playlists/${playlistId}`);
+      await setDoc(playlistStatsRef, {
+        stats: {
+          totalChannels: actualStats.channels,
+          totalMovies: actualStats.movies,
+          totalSeries: actualStats.series,
+        },
+        lastUpdated: new Date().toISOString(),
+      }, { merge: true });
+
       return {
         success: true,
         totalItemsWritten: writeCount,
-        stats: {
-          channels: stats.channels,
-          movies: stats.movies,
-          series: stats.series,
-        },
+        stats: actualStats,
         timestamp: new Date().toISOString(),
       };
 
@@ -267,19 +292,26 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
       // Wait for any in-flight flushes to complete
       await flushQueue;
       
+      // Get actual counts from database
+      const channelsSnap = await getDocs(query(collection(db, `playlists/${playlistId}/channels`)));
+      const moviesSnap = await getDocs(query(collection(db, `playlists/${playlistId}/movies`)));
+      const seriesSnap = await getDocs(query(collection(db, `playlists/${playlistId}/series`)));
+      
+      const actualStats = {
+        totalChannels: channelsSnap.size,
+        totalMovies: moviesSnap.size,
+        totalSeries: seriesSnap.size,
+      };
+
       const playlistRef = doc(db, `playlists/${playlistId}`);
       
-      // Save final stats before cancellation so we don't lose count of what was parsed
-      await updateDoc(playlistRef, {
+      // Save actual stats before cancellation
+      await setDoc(playlistRef, {
         isParsing: false,
         parseStatus: 'cancelled',
-        stats: {
-          totalChannels: stats.channels,
-          totalMovies: stats.movies,
-          totalSeries: stats.series,
-        },
+        stats: actualStats,
         lastUpdated: new Date().toISOString(),
-      });
+      }, { merge: true });
 
       accumulator.channels = [];
       accumulator.movies = [];
