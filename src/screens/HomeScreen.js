@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   TextInput,
   Platform,
+  Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -56,6 +57,12 @@ const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const unsubscribesRef = useRef([]);
   const debounceTimerRef = useRef(null);
+  
+  // Scroll animation state
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const headerAnimatedValue = useRef(new Animated.Value(1)).current;
+  const lastScrollYRef = useRef(0);
+  const scrollThrottleRef = useRef(null);
   
   // Data states - store full content
   const [allContent, setAllContent] = useState({});
@@ -131,6 +138,34 @@ const HomeScreen = ({ navigation }) => {
       }, 100);
     }
   }, [categoryPages, loadingMoreMap]);
+
+  // Handle scroll to show/hide header (chips + search)
+  const handleScroll = useCallback((event) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    const threshold = 30; // Show/hide after scrolling 30px
+    
+    // Throttle scroll handling
+    if (scrollThrottleRef.current) return;
+    scrollThrottleRef.current = true;
+    setTimeout(() => { scrollThrottleRef.current = null; }, 100);
+    
+    // Detect scroll direction
+    const scrollingDown = currentY > lastScrollYRef.current;
+    const shouldShowHeader = !scrollingDown || currentY < threshold;
+    
+    if (shouldShowHeader !== headerVisible) {
+      setHeaderVisible(shouldShowHeader);
+      
+      // Animate the header (maxHeight can't use native driver)
+      Animated.timing(headerAnimatedValue, {
+        toValue: shouldShowHeader ? 1 : 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    }
+    
+    lastScrollYRef.current = currentY;
+  }, [headerVisible, headerAnimatedValue]);
 
   // Set up real-time listeners for content
   useEffect(() => {
@@ -534,8 +569,20 @@ const HomeScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Choice Chips */}
-      <View style={styles.chipsContainer}>
+      {/* Choice Chips - Animated Collapsible */}
+      <Animated.View 
+        style={[
+          styles.chipsContainer,
+          {
+            opacity: headerAnimatedValue,
+            maxHeight: headerAnimatedValue.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 90],
+            }),
+            overflow: 'hidden',
+          }
+        ]}
+      >
         <FlatList
           data={CONTENT_TYPES}
           renderItem={renderChoiceChip}
@@ -543,11 +590,24 @@ const HomeScreen = ({ navigation }) => {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipsList}
+          scrollEnabled={false}
         />
-      </View>
+      </Animated.View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
+      {/* Search Bar - Animated Collapsible */}
+      <Animated.View 
+        style={[
+          styles.searchContainer,
+          {
+            opacity: headerAnimatedValue,
+            maxHeight: headerAnimatedValue.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 70],
+            }),
+            overflow: 'hidden',
+          }
+        ]}
+      >
         <Ionicons name="search-outline" size={20} color={colors.text.muted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
@@ -561,7 +621,7 @@ const HomeScreen = ({ navigation }) => {
             <Ionicons name="close-circle" size={20} color={colors.text.muted} />
           </TouchableOpacity>
         )}
-      </View>
+      </Animated.View>
 
       {/* Content Categories */}
       <FlatList
@@ -570,6 +630,8 @@ const HomeScreen = ({ navigation }) => {
         keyExtractor={(item, index) => `${item.title}-${index}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.contentContainer, { paddingTop: insets.top, paddingBottom: spacing['2xl'] + 20 + insets.bottom }]}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="film-outline" size={64} color={colors.text.muted} />
@@ -652,6 +714,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral.slate900,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(148, 163, 184, 0.1)',
+    overflow: 'hidden',
   },
   chipsList: {
     paddingHorizontal: spacing.lg,
@@ -691,6 +754,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(148, 163, 184, 0.2)',
+    overflow: 'hidden',
   },
   searchIcon: {
     marginRight: spacing.sm,
