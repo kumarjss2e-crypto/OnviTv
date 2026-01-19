@@ -22,6 +22,7 @@ import { firestore } from '../config/firebase';
 import { startDownload, isDownloaded, getDownloadByContentId } from '../services/downloadService';
 import { addToFavorites, isFavorited as checkFavorited, removeFavoriteByContentId } from '../services/favoritesService';
 import { searchAndGetMovieDetails } from '../services/tmdbService';
+import { cleanTitleForTmdb } from '../utils/titleCleaner';
 import WatchAdModal from '../components/WatchAdModal';
 
 const { width, height } = Dimensions.get('window');
@@ -61,7 +62,7 @@ const MovieDetailScreen = ({ route, navigation }) => {
   const fetchTmdbData = async () => {
     try {
       setTmdbLoading(true);
-      const movieTitle = movie.title || movie.name || '';
+      let movieTitle = movie.title || movie.name || '';
       
       if (!movieTitle) {
         console.log('[MovieDetailScreen] No movie title available for TMDB search');
@@ -69,7 +70,17 @@ const MovieDetailScreen = ({ route, navigation }) => {
         return;
       }
 
-      console.log('[MovieDetailScreen] Fetching TMDB data for:', movieTitle);
+      // Clean the title for TMDB search
+      movieTitle = cleanTitleForTmdb(movieTitle);
+      
+      // If title is too short after cleaning, skip TMDB search
+      if (movieTitle.length < 2) {
+        console.log('[MovieDetailScreen] Title too short after cleaning');
+        setTmdbLoading(false);
+        return;
+      }
+
+      console.log('[MovieDetailScreen] Searching TMDB for cleaned title:', movieTitle);
       const result = await searchAndGetMovieDetails(movieTitle);
       
       if (result.success && result.data) {
