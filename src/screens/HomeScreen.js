@@ -63,6 +63,10 @@ const HomeScreen = ({ navigation }) => {
   const headerAnimatedValue = useRef(new Animated.Value(1)).current;
   const lastScrollYRef = useRef(0);
   const scrollThrottleRef = useRef(null);
+  const headerToggleLockRef = useRef(false); // Prevent rapid toggling
+  const lastToggleTimeRef = useRef(0); // Track time of last toggle
+  const chipsMarginAnim = useRef(new Animated.Value(spacing.md)).current;
+  const searchMarginAnim = useRef(new Animated.Value(spacing.md)).current;
   
   // Data states - store full content
   const [allContent, setAllContent] = useState({});
@@ -73,16 +77,15 @@ const HomeScreen = ({ navigation }) => {
   const [loadingMoreMap, setLoadingMoreMap] = useState({});
 
   // Debounced content loader to prevent excessive queries
-  const loadContentDataDebounced = useCallback((userId) => {
+  const loadContentDataDebounced = useCallback((userId, skipDebounce = false) => {
     // Clear any pending debounce
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
 
-    // Set new debounce timer
-    debounceTimerRef.current = setTimeout(async () => {
+    const loadData = async () => {
       try {
-        console.log('[HomeScreen] Loading content data (debounced)...');
+        console.log('[HomeScreen] Loading content data...');
         const playlistsResult = await getUserChannels(userId);
         const moviesResult = await getUserMovies(userId);
         const seriesResult = await getUserSeries(userId);
@@ -93,7 +96,7 @@ const HomeScreen = ({ navigation }) => {
           series: seriesResult.success ? seriesResult.data : [],
         };
 
-        console.log('[HomeScreen] Content updated (real-time):', {
+        console.log('[HomeScreen] Content updated:', {
           channels: content.channels.length,
           movies: content.movies.length,
           series: content.series.length,
@@ -108,7 +111,15 @@ const HomeScreen = ({ navigation }) => {
         console.error('[HomeScreen] Error loading content:', error);
         setLoading(false);
       }
-    }, 500); // Wait 500ms after listener fires before querying
+    };
+
+    // For initial load, skip the debounce and load immediately
+    if (skipDebounce) {
+      loadData();
+    } else {
+      // For subsequent updates, use debounce (wait 500ms after listener fires)
+      debounceTimerRef.current = setTimeout(loadData, 500);
+    }
   }, []);
 
   // Slice content for a category based on pagination state
@@ -143,6 +154,7 @@ const HomeScreen = ({ navigation }) => {
   const handleScroll = useCallback((event) => {
     const currentY = event.nativeEvent.contentOffset.y;
     const threshold = 30; // Show/hide after scrolling 30px
+    const minToggleInterval = 300; // Wait at least 300ms between toggles to prevent bounce loops
     
     // Throttle scroll handling
     if (scrollThrottleRef.current) return;
@@ -153,19 +165,36 @@ const HomeScreen = ({ navigation }) => {
     const scrollingDown = currentY > lastScrollYRef.current;
     const shouldShowHeader = !scrollingDown || currentY < threshold;
     
-    if (shouldShowHeader !== headerVisible) {
+    // Prevent rapid toggling (bounce at bottom causes false triggers)
+    const now = Date.now();
+    const timeSinceLastToggle = now - lastToggleTimeRef.current;
+    
+    if (shouldShowHeader !== headerVisible && timeSinceLastToggle > minToggleInterval) {
       setHeaderVisible(shouldShowHeader);
+      lastToggleTimeRef.current = now;
       
-      // Animate the header (maxHeight can't use native driver)
-      Animated.timing(headerAnimatedValue, {
-        toValue: shouldShowHeader ? 1 : 0,
-        duration: 200,
-        useNativeDriver: false,
-      }).start();
+      // Animate the header AND margins (maxHeight/margins can't use native driver)
+      Animated.parallel([
+        Animated.timing(headerAnimatedValue, {
+          toValue: shouldShowHeader ? 1 : 0,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+        Animated.timing(chipsMarginAnim, {
+          toValue: shouldShowHeader ? spacing.md : 0,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+        Animated.timing(searchMarginAnim, {
+          toValue: shouldShowHeader ? spacing.md : 0,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+      ]).start();
     }
     
     lastScrollYRef.current = currentY;
-  }, [headerVisible, headerAnimatedValue]);
+  }, [headerVisible, headerAnimatedValue, chipsMarginAnim, searchMarginAnim]);
 
   // Set up real-time listeners for content
   useEffect(() => {
@@ -226,8 +255,8 @@ const HomeScreen = ({ navigation }) => {
         unsubscribesRef.current.push(seriesUnsub);
       });
 
-      // Trigger initial load
-      loadContentDataDebounced(user.uid);
+      // Trigger initial load immediately (skip debounce)
+      loadContentDataDebounced(user.uid, true);
     });
 
     unsubscribesRef.current.push(playlistsUnsub);
@@ -247,7 +276,8 @@ const HomeScreen = ({ navigation }) => {
     React.useCallback(() => {
       console.log('[HomeScreen] Screen focused, refreshing content...');
       if (user) {
-        loadContentDataDebounced(user.uid);
+        // Skip debounce when screen is focused for faster refresh
+        loadContentDataDebounced(user.uid, true);
       }
     }, [user, loadContentDataDebounced])
   );
@@ -579,6 +609,7 @@ const HomeScreen = ({ navigation }) => {
               inputRange: [0, 1],
               outputRange: [0, 90],
             }),
+            marginVertical: chipsMarginAnim,
             overflow: 'hidden',
           }
         ]}
@@ -604,6 +635,8 @@ const HomeScreen = ({ navigation }) => {
               inputRange: [0, 1],
               outputRange: [0, 70],
             }),
+            marginVertical: searchMarginAnim,
+            marginHorizontal: searchMarginAnim,
             overflow: 'hidden',
           }
         ]}
@@ -710,7 +743,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chipsContainer: {
-    paddingVertical: spacing.md,
     backgroundColor: colors.neutral.slate900,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(148, 163, 184, 0.1)',
@@ -746,8 +778,6 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: spacing.lg,
-    marginVertical: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     backgroundColor: 'rgba(30, 41, 59, 0.6)',

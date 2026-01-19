@@ -21,6 +21,7 @@ import { useAds } from '../context/AdContext';
 import { firestore } from '../config/firebase';
 import { startDownload, isDownloaded, getDownloadByContentId } from '../services/downloadService';
 import { addToFavorites, isFavorited as checkFavorited, removeFavoriteByContentId } from '../services/favoritesService';
+import { searchAndGetMovieDetails } from '../services/tmdbService';
 import WatchAdModal from '../components/WatchAdModal';
 
 const { width, height } = Dimensions.get('window');
@@ -39,10 +40,13 @@ const MovieDetailScreen = ({ route, navigation }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [showAdModal, setShowAdModal] = useState(false);
   const [pendingPlayRequest, setPendingPlayRequest] = useState(null);
+  const [tmdbData, setTmdbData] = useState(null);
+  const [tmdbLoading, setTmdbLoading] = useState(false);
 
   useEffect(() => {
     checkIfFavorited();
     checkIfDownloaded();
+    fetchTmdbData();
     
     // Set up listener for download status changes
     const interval = setInterval(() => {
@@ -53,6 +57,33 @@ const MovieDetailScreen = ({ route, navigation }) => {
     
     return () => clearInterval(interval);
   }, [isDownloading]);
+
+  const fetchTmdbData = async () => {
+    try {
+      setTmdbLoading(true);
+      const movieTitle = movie.title || movie.name || '';
+      
+      if (!movieTitle) {
+        console.log('[MovieDetailScreen] No movie title available for TMDB search');
+        setTmdbLoading(false);
+        return;
+      }
+
+      console.log('[MovieDetailScreen] Fetching TMDB data for:', movieTitle);
+      const result = await searchAndGetMovieDetails(movieTitle);
+      
+      if (result.success && result.data) {
+        console.log('[MovieDetailScreen] TMDB data fetched successfully');
+        setTmdbData(result.data);
+      } else {
+        console.log('[MovieDetailScreen] Failed to fetch TMDB data:', result.error);
+      }
+    } catch (error) {
+      console.error('[MovieDetailScreen] Error fetching TMDB data:', error);
+    } finally {
+      setTmdbLoading(false);
+    }
+  };
   
   const checkDownloadStatus = async () => {
     try {
@@ -226,14 +257,14 @@ const MovieDetailScreen = ({ route, navigation }) => {
     }
   };
 
-  const backdropUri = movie.backdrop || movie.poster || movie.cover;
-  const posterUri = movie.poster || movie.cover;
-  const title = movie.title || movie.name || 'Untitled';
-  const year = movie.year || movie.releaseDate?.split('-')[0] || '';
-  const rating = movie.rating || movie.vote_average || '';
-  const duration = movie.duration || movie.runtime || '';
-  const description = movie.description || movie.plot || movie.overview || 'No description available.';
-  const genres = movie.genre ? (Array.isArray(movie.genre) ? movie.genre : movie.genre.split(',').map(g => g.trim())) : [];
+  const backdropUri = tmdbData?.backdropPath || movie.backdrop || movie.poster || movie.cover;
+  const posterUri = tmdbData?.posterPath || movie.poster || movie.cover;
+  const title = tmdbData?.title || movie.title || movie.name || 'Untitled';
+  const year = tmdbData?.releaseDate?.split('-')[0] || movie.year || movie.releaseDate?.split('-')[0] || '';
+  const rating = tmdbData?.voteAverage || movie.rating || movie.vote_average || '';
+  const duration = tmdbData?.runtime || movie.duration || movie.runtime || '';
+  const description = tmdbData?.overview || movie.description || movie.plot || movie.overview || 'No description available.';
+  const genres = tmdbData?.genres?.map(g => g.name) || movie.genre ? (Array.isArray(movie.genre) ? movie.genre : movie.genre.split(',').map(g => g.trim())) : [];
 
   return (
     <View style={styles.container}>
