@@ -146,34 +146,53 @@ export const getMovieDetails = async (movieId) => {
  * @returns {Promise<Object>} - Full movie details from TMDB
  */
 export const searchAndGetMovieDetails = async (title) => {
+  const startTime = Date.now();
   try {
+    console.log(`[TMDB] Starting searchAndGetMovieDetails for: "${title}"`);
+    
     // Create cache key from title (normalize it)
     const cacheKey = `movie_${title.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 50)}`;
     
     // Check cache first
+    console.log('[TMDB] Checking cache for key:', cacheKey);
     const cachedData = await getCachedData(cacheKey);
     if (cachedData) {
+      console.log('[TMDB] Cache hit! Returning cached data');
       return { success: true, data: cachedData, fromCache: true };
     }
 
     // Not in cache, search for the movie
+    console.log('[TMDB] Cache miss, searching for movie:', title);
     const searchResult = await searchMovie(title);
     
     if (!searchResult.success || !searchResult.data) {
+      console.warn('[TMDB] Search failed or no results found:', searchResult.error);
       return { success: false, error: 'Movie not found', data: null };
     }
 
+    console.log('[TMDB] Found movie with ID:', searchResult.data.id, 'Title:', searchResult.data.title);
+    
     // Then get full details
+    console.log('[TMDB] Fetching full details for ID:', searchResult.data.id);
     const detailsResult = await getMovieDetails(searchResult.data.id);
     
     if (detailsResult.success && detailsResult.data) {
-      // Cache the result for future use
-      await setCachedData(cacheKey, detailsResult.data);
+      // Cache the result for future use (but don't wait for it to complete)
+      console.log('[TMDB] Details fetched successfully, caching data');
+      setCachedData(cacheKey, detailsResult.data).catch(err => 
+        console.error('[TMDB] Failed to cache data (non-critical):', err)
+      );
+    } else {
+      console.error('[TMDB] Failed to fetch details:', detailsResult.error);
     }
     
+    const elapsed = Date.now() - startTime;
+    console.log(`[TMDB] searchAndGetMovieDetails completed in ${elapsed}ms`);
     return detailsResult;
   } catch (error) {
-    console.error('[TMDB] Error in searchAndGetMovieDetails:', error);
+    const elapsed = Date.now() - startTime;
+    console.error(`[TMDB] Error in searchAndGetMovieDetails (${elapsed}ms):`, error.message);
+    console.error('[TMDB] Full error object:', error);
     return { success: false, error: error.message, data: null };
   }
 };

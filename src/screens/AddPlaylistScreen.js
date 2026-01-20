@@ -192,12 +192,13 @@ const AddPlaylistScreen = ({ navigation }) => {
             }
             
             const fullPlaylistData = playlistSnap.data();
-            console.log('[AddPlaylistScreen] Fetched full playlist data:', {
+            console.log('[AddPlaylistScreen] Fetched full playlist data:', JSON.stringify({
               name: fullPlaylistData.name,
               type: fullPlaylistData.type,
-              m3uConfigUrl: fullPlaylistData.m3uConfig?.url,
-              xtreamServerUrl: fullPlaylistData.xtreamConfig?.serverUrl,
-            });
+              m3uConfig: fullPlaylistData.m3uConfig,
+              xtreamConfig: fullPlaylistData.xtreamConfig,
+              keys: Object.keys(fullPlaylistData),
+            }, null, 2));
             
             // Normalize the data for backgroundParsingService
             // Extract URLs from config objects
@@ -208,6 +209,14 @@ const AddPlaylistScreen = ({ navigation }) => {
               username: fullPlaylistData.xtreamConfig?.username,
               password: fullPlaylistData.xtreamConfig?.password,
             };
+            
+            console.log('[AddPlaylistScreen] Normalized data for parsing:', {
+              type: normalizedData.type,
+              m3uUrl: normalizedData.m3uUrl ? 'present' : 'MISSING',
+              serverUrl: normalizedData.serverUrl ? 'present' : 'MISSING',
+              hasM3uConfig: !!normalizedData.m3uConfig,
+              hasXtreamConfig: !!normalizedData.xtreamConfig,
+            });
             
             // Start parsing with normalized data
             await backgroundParsingService.startParsing(result.playlistId, normalizedData);

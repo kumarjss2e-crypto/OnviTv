@@ -227,20 +227,27 @@ const findIncompleteParses = async () => {
 const startParsing = async (playlistId, playlistData) => {
   try {
     console.log(`[backgroundParsingService] Starting parse for playlist: ${playlistId}`);
-    console.log(`[backgroundParsingService] Playlist type: ${playlistData.type}`);
-    console.log(`[backgroundParsingService] Playlist name: ${playlistData.name}`);
-    console.log(`[backgroundParsingService] Playlist data keys:`, Object.keys(playlistData));
+    console.log(`[backgroundParsingService] Playlist type: ${playlistData?.type}`);
+    console.log(`[backgroundParsingService] Playlist name: ${playlistData?.name}`);
+    console.log(`[backgroundParsingService] Playlist data keys:`, Object.keys(playlistData || {}));
+    
+    // Verify we have data
+    if (!playlistData) {
+      throw new Error('Playlist data is null or undefined');
+    }
     
     // Check if we have the required URL/credentials
     if (playlistData.type === 'm3u') {
-      console.log(`[backgroundParsingService] M3U URL: ${playlistData.m3uUrl}`);
+      console.log(`[backgroundParsingService] M3U URL provided: ${playlistData.m3uUrl ? 'YES' : 'NO'}`);
+      console.log(`[backgroundParsingService] Full M3U URL: ${playlistData.m3uUrl}`);
       if (!playlistData.m3uUrl) {
-        throw new Error('M3U URL is missing from playlist data');
+        throw new Error(`M3U URL is missing from playlist data. Available keys: ${Object.keys(playlistData).join(', ')}`);
       }
     } else if (playlistData.type === 'xtream') {
-      console.log(`[backgroundParsingService] Xtream Server URL: ${playlistData.serverUrl}`);
+      console.log(`[backgroundParsingService] Xtream Server URL provided: ${playlistData.serverUrl ? 'YES' : 'NO'}`);
+      console.log(`[backgroundParsingService] Full Xtream Server URL: ${playlistData.serverUrl}`);
       if (!playlistData.serverUrl) {
-        throw new Error('Xtream server URL is missing from playlist data');
+        throw new Error(`Xtream server URL is missing from playlist data. Available keys: ${Object.keys(playlistData).join(', ')}`);
       }
     }
     

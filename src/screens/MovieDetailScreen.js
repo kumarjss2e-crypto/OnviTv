@@ -43,6 +43,7 @@ const MovieDetailScreen = ({ route, navigation }) => {
   const [pendingPlayRequest, setPendingPlayRequest] = useState(null);
   const [tmdbData, setTmdbData] = useState(null);
   const [tmdbLoading, setTmdbLoading] = useState(false);
+  const [tmdbError, setTmdbError] = useState(null);
 
   useEffect(() => {
     checkIfFavorited();
@@ -62,6 +63,7 @@ const MovieDetailScreen = ({ route, navigation }) => {
   const fetchTmdbData = async () => {
     try {
       setTmdbLoading(true);
+      setTmdbError(null);
       let movieTitle = movie.title || movie.name || '';
       
       if (!movieTitle) {
@@ -86,11 +88,15 @@ const MovieDetailScreen = ({ route, navigation }) => {
       if (result.success && result.data) {
         console.log('[MovieDetailScreen] TMDB data fetched successfully');
         setTmdbData(result.data);
+        setTmdbError(null);
       } else {
         console.log('[MovieDetailScreen] Failed to fetch TMDB data:', result.error);
+        setTmdbError(result.error);
+        // Don't set tmdbData to null on error - allow local data to display
       }
     } catch (error) {
-      console.error('[MovieDetailScreen] Error fetching TMDB data:', error);
+      console.error('[MovieDetailScreen] Error fetching TMDB data:', error.message);
+      setTmdbError(error.message);
     } finally {
       setTmdbLoading(false);
     }
@@ -215,10 +221,24 @@ const MovieDetailScreen = ({ route, navigation }) => {
   const handlePlay = () => {
     // If user is free tier, show ad modal first
     console.log('[MovieDetailScreen] handlePlay called. isFreeTier:', isFreeTier);
+    
+    const streamUrl = movie.streamUrl || movie.stream_url;
+    console.log('[MovieDetailScreen] Movie data:', {
+      title: movie.title || movie.name,
+      streamUrl: streamUrl,
+      id: movie.id,
+      type: movie.type,
+    });
+    
+    if (!streamUrl) {
+      console.error('[MovieDetailScreen] ERROR: No stream URL found in movie object!');
+      console.error('[MovieDetailScreen] Movie object keys:', Object.keys(movie));
+    }
+    
     if (isFreeTier) {
       console.log('[MovieDetailScreen] Free tier user, showing ad modal');
       setPendingPlayRequest({
-        streamUrl: movie.streamUrl || movie.stream_url,
+        streamUrl: streamUrl,
         title: movie.title || movie.name,
         contentType: movie.type || 'movie',
         contentId: movie.id,
@@ -229,7 +249,7 @@ const MovieDetailScreen = ({ route, navigation }) => {
       // Premium user, play directly
       console.log('[MovieDetailScreen] Premium user, playing directly');
       navigation.navigate('VideoPlayer', {
-        streamUrl: movie.streamUrl || movie.stream_url,
+        streamUrl: streamUrl,
         title: movie.title || movie.name,
         contentType: movie.type || 'movie',
         contentId: movie.id,
@@ -267,6 +287,20 @@ const MovieDetailScreen = ({ route, navigation }) => {
       }, 300);
     }
   };
+
+  // Safety check - ensure movie data exists
+  if (!movie) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.centerContent}>
+          <Text style={styles.errorText}>No movie data available</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   const backdropUri = tmdbData?.backdropPath || movie.backdrop || movie.poster || movie.cover;
   const posterUri = tmdbData?.posterPath || movie.poster || movie.cover;
@@ -439,6 +473,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.neutral.slate900,
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: colors.text.primary,
+    marginBottom: 16,
+    textAlign: 'center',
   },
   backdropContainer: {
     width: width,

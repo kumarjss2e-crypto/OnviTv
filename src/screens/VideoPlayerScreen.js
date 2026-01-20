@@ -92,8 +92,17 @@ export default function VideoPlayerScreen({ route, navigation }) {
   const testStreamUrl = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
   const actualStreamUrl = streamUrl || testStreamUrl;
   
-  console.log('VideoPlayer - Stream URL:', actualStreamUrl);
-  console.log('VideoPlayer - Title:', title);
+  // Log route params for debugging
+  console.log('[VideoPlayerScreen] Initialized with params:');
+  console.log('[VideoPlayerScreen] - streamUrl:', actualStreamUrl);
+  console.log('[VideoPlayerScreen] - title:', title);
+  console.log('[VideoPlayerScreen] - contentType:', contentType);
+  console.log('[VideoPlayerScreen] - contentId:', contentId);
+  console.log('[VideoPlayerScreen] - Platform:', Platform.OS);
+  
+  if (!actualStreamUrl) {
+    console.error('[VideoPlayerScreen] ERROR: No stream URL provided!');
+  }
   
   const videoRef = useRef(null);
   const [status, setStatus] = useState({});
@@ -520,11 +529,14 @@ export default function VideoPlayerScreen({ route, navigation }) {
             playWhenInactive={false}
             ignoreSilentSwitch="ignore"
             onLoadStart={() => {
-              console.log('Video loading started:', actualStreamUrl);
+              console.log('[VideoPlayerScreen] onLoadStart triggered');
+              console.log('[VideoPlayerScreen] - URL being loaded:', actualStreamUrl);
               setIsLoading(true);
             }}
             onLoad={(data) => {
-              console.log('Video loaded successfully:', data);
+              console.log('[VideoPlayerScreen] onLoad succeeded');
+              console.log('[VideoPlayerScreen] - Duration:', data.duration);
+              console.log('[VideoPlayerScreen] - Width:', data.width, 'Height:', data.height);
               setIsLoading(false);
               handlePlaybackStatusUpdate({
                 isLoaded: true,
@@ -535,6 +547,10 @@ export default function VideoPlayerScreen({ route, navigation }) {
               });
             }}
             onProgress={(data) => {
+              // Only log periodically to avoid spam
+              if (Math.floor(data.currentTime) % 5 === 0) {
+                console.log('[VideoPlayerScreen] onProgress:', data.currentTime + 's / ' + data.seekableDuration + 's');
+              }
               handlePlaybackStatusUpdate({
                 isLoaded: true,
                 isPlaying: !status.paused,
@@ -544,7 +560,7 @@ export default function VideoPlayerScreen({ route, navigation }) {
               });
             }}
             onBuffer={({ isBuffering }) => {
-              console.log('Video buffering:', isBuffering);
+              console.log('[VideoPlayerScreen] onBuffer:', isBuffering);
               setIsBuffering(isBuffering);
             }}
             onEnd={() => {
@@ -585,12 +601,17 @@ export default function VideoPlayerScreen({ route, navigation }) {
               }
             }}
             onError={(error) => {
-              console.error('Video playback error:', error);
+              console.error('[VideoPlayerScreen] Playback error detected:');
+              console.error('[VideoPlayerScreen] - Full error object:', error);
+              console.error('[VideoPlayerScreen] - Error code:', error?.code);
+              console.error('[VideoPlayerScreen] - Error message:', error?.message);
+              
               let errorMsg = 'Failed to load video';
               
               // Parse error details
               if (error.error) {
                 const errStr = error.error.errorString || error.error.localizedDescription || '';
+                console.error('[VideoPlayerScreen] - Error string:', errStr);
                 
                 if (errStr.includes('BAD_HTTP_STATUS') || errStr.includes('403') || errStr.includes('401')) {
                   errorMsg = 'Stream requires authentication or is blocked. This stream may need login credentials.';
@@ -607,6 +628,7 @@ export default function VideoPlayerScreen({ route, navigation }) {
                 }
               }
               
+              console.error('[VideoPlayerScreen] Final error message:', errorMsg);
               setError(errorMsg);
               setIsLoading(false);
             }}

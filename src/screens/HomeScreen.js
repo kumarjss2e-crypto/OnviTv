@@ -86,6 +86,7 @@ const HomeScreen = ({ navigation }) => {
     const loadData = async () => {
       try {
         console.log('[HomeScreen] Loading content data...');
+        const startTime = Date.now();
         const playlistsResult = await getUserChannels(userId);
         const moviesResult = await getUserMovies(userId);
         const seriesResult = await getUserSeries(userId);
@@ -96,7 +97,8 @@ const HomeScreen = ({ navigation }) => {
           series: seriesResult.success ? seriesResult.data : [],
         };
 
-        console.log('[HomeScreen] Content updated:', {
+        const elapsed = Date.now() - startTime;
+        console.log('[HomeScreen] Content loaded in ' + elapsed + 'ms:', {
           channels: content.channels.length,
           movies: content.movies.length,
           series: content.series.length,
@@ -196,7 +198,7 @@ const HomeScreen = ({ navigation }) => {
     lastScrollYRef.current = currentY;
   }, [headerVisible, headerAnimatedValue, chipsMarginAnim, searchMarginAnim]);
 
-  // Set up real-time listeners for content
+  // Set up real-time listeners for content - OPTIMIZED for iOS
   useEffect(() => {
     if (!user) {
       setAllContent({});
@@ -214,55 +216,64 @@ const HomeScreen = ({ navigation }) => {
 
     setLoading(true);
 
-    const playlistsRef = collection(firestore, 'playlists');
-    const playlistsQuery = query(playlistsRef, where('userId', '==', user.uid));
+    // Load initial data immediately (don't wait for real-time listeners)
+    const initialLoad = async () => {
+      console.log('[HomeScreen] Performing initial data load...');
+      const startTime = Date.now();
+      try {
+        const playlistsResult = await getUserChannels(user.uid);
+        const moviesResult = await getUserMovies(user.uid);
+        const seriesResult = await getUserSeries(user.uid);
 
-    // Listen to playlist changes
-    const playlistsUnsub = onSnapshot(playlistsQuery, (playlistsSnapshot) => {
-      console.log('[HomeScreen] Playlists changed, re-attaching subcollection listeners...');
-      
-      // Clean up old subcollection listeners (keep playlists listener)
-      unsubscribesRef.current.slice(1).forEach(unsub => unsub());
-      unsubscribesRef.current = [playlistsUnsub];
+        const content = {
+          channels: playlistsResult.success ? playlistsResult.data : [],
+          movies: moviesResult.success ? moviesResult.data : [],
+          series: seriesResult.success ? seriesResult.data : [],
+        };
 
-      // For each playlist, set up fresh listeners
-      playlistsSnapshot.docs.forEach((playlistDoc) => {
-        const playlistId = playlistDoc.id;
-        console.log('[HomeScreen] Setting up listeners for playlist:', playlistId);
-
-        // Listen to channels
-        const channelsRef = collection(firestore, `playlists/${playlistId}/channels`);
-        const channelsUnsub = onSnapshot(channelsRef, (snapshot) => {
-          console.log('[HomeScreen] Channels changed for', playlistId, '- count:', snapshot.docs.length);
-          loadContentDataDebounced(user.uid);
+        const elapsed = Date.now() - startTime;
+        console.log('[HomeScreen] Initial load complete in ' + elapsed + 'ms:', {
+          channels: content.channels.length,
+          movies: content.movies.length,
+          series: content.series.length,
         });
-        unsubscribesRef.current.push(channelsUnsub);
 
-        // Listen to movies
-        const moviesRef = collection(firestore, `playlists/${playlistId}/movies`);
-        const moviesUnsub = onSnapshot(moviesRef, (snapshot) => {
-          console.log('[HomeScreen] Movies changed for', playlistId, '- count:', snapshot.docs.length);
-          loadContentDataDebounced(user.uid);
-        });
-        unsubscribesRef.current.push(moviesUnsub);
+        setAllContent(content);
+        setLoading(false);
+      } catch (error) {
+        console.error('[HomeScreen] Error in initial load:', error);
+        setLoading(false);
+      }
+    };
 
-        // Listen to series
-        const seriesRef = collection(firestore, `playlists/${playlistId}/series`);
-        const seriesUnsub = onSnapshot(seriesRef, (snapshot) => {
-          console.log('[HomeScreen] Series changed for', playlistId, '- count:', snapshot.docs.length);
-          loadContentDataDebounced(user.uid);
-        });
-        unsubscribesRef.current.push(seriesUnsub);
+    // Run initial load immediately
+    initialLoad();
+
+    // Set up real-time listeners AFTER initial load to avoid blocking
+    const setupRealtimeListeners = async () => {
+      const playlistsRef = collection(firestore, 'playlists');
+      const playlistsQuery = query(playlistsRef, where('userId', '==', user.uid));
+
+      // Listen to playlist changes (simplified - just trigger refresh)
+      const playlistsUnsub = onSnapshot(playlistsQuery, (playlistsSnapshot) => {
+        console.log('[HomeScreen] Playlists changed, triggering refresh...');
+        // Defer reload to next tick to avoid blocking UI
+        setTimeout(() => {
+          loadContentDataDebounced(user.uid, true);
+        }, 500);
       });
 
-      // Trigger initial load immediately (skip debounce)
-      loadContentDataDebounced(user.uid, true);
-    });
+      unsubscribesRef.current.push(playlistsUnsub);
+    };
 
-    unsubscribesRef.current.push(playlistsUnsub);
+    // Delay setup of real-time listeners by 500ms to let UI render first
+    const listenerSetupTimeout = setTimeout(() => {
+      setupRealtimeListeners();
+    }, 500);
 
     // Cleanup on unmount
     return () => {
+      clearTimeout(listenerSetupTimeout);
       unsubscribesRef.current.forEach(unsub => unsub());
       unsubscribesRef.current = [];
       if (debounceTimerRef.current) {
