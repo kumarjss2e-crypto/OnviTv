@@ -528,6 +528,15 @@ export default function VideoPlayerScreen({ route, navigation }) {
             playInBackground={false}
             playWhenInactive={false}
             ignoreSilentSwitch="ignore"
+            progressUpdateInterval={1000}
+            rate={1}
+            volume={1}
+            bufferConfig={{
+              minBufferMs: 2500,
+              maxBufferMs: 30000,
+              bufferForPlaybackMs: 2500,
+              bufferForPlaybackAfterRebufferMs: 5000,
+            }}
             onLoadStart={() => {
               console.log('[VideoPlayerScreen] onLoadStart triggered');
               console.log('[VideoPlayerScreen] - URL being loaded:', actualStreamUrl);
