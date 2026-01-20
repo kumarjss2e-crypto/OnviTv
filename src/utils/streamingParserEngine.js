@@ -2,12 +2,54 @@
  * Streaming Parser Engine
  * Core orchestration for parsing and batching Firestore writes
  * Accumulates items and writes to subcollections every 50 items
+ * Uses unique item IDs as Firestore document IDs to prevent duplicates on resume
  */
 
 import { db } from '../config/firebase';
 import { collection, writeBatch, doc, updateDoc, setDoc, getDocs, query } from 'firebase/firestore';
 
 const BATCH_SIZE = 50; // Write to Firestore every 50 items
+
+/**
+ * Simple hash function for creating consistent IDs
+ * @param {string} str
+ * @returns {string}
+ */
+const simpleHash = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36);
+};
+
+/**
+ * Generate a unique ID for an item based on its content
+ * Uses tvgId if available, otherwise creates a hash from critical fields
+ * @param {Object} item - The item object
+ * @returns {string} - Unique identifier safe for use as Firestore document ID
+ */
+const generateUniqueItemId = (item) => {
+  // Prefer tvgId if available and non-empty
+  if (item.tvgId && typeof item.tvgId === 'string' && item.tvgId.trim()) {
+    // Sanitize tvgId to be safe as Firestore document ID (alphanumeric, dash, underscore only)
+    return item.tvgId.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 255);
+  }
+
+  // For items without tvgId, create hash from critical identifying fields
+  const hashInput = JSON.stringify({
+    name: item.name,
+    streamUrl: item.streamUrl,
+    tvgLogo: item.tvgLogo,
+    groupTitle: item.groupTitle,
+  });
+
+  // Create hash and use with prefix to ensure uniqueness
+  const hash = simpleHash(hashInput);
+  return `item_${hash}`;
+};
 
 /**
  * Create streaming parser engine
@@ -77,6 +119,9 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
 
   /**
    * Write accumulated items to Firestore
+   * DUPLICATE PREVENTION: Uses unique item IDs (tvgId or content hash) as document IDs
+   * with merge mode. On resume, items with same ID will update existing docs instead of
+   * creating duplicates. This ensures resume operations are idempotent.
    * @returns {Promise<void>}
    */
   const flushBatch = async () => {
@@ -96,26 +141,40 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
       const moviesRef = collection(playlistRef, 'movies');
       const seriesRef = collection(playlistRef, 'series');
 
-      // Write channels
+      // Write channels with unique IDs to prevent duplicates on resume
+      let channelsUpdated = 0;
       for (const item of accumulator.channels) {
-        const docRef = doc(channelsRef);
-        batch.set(docRef, item);
+        const uniqueId = generateUniqueItemId(item);
+        const docRef = doc(channelsRef, uniqueId);
+        // Use merge to update if exists, insert if new (prevents duplicate data)
+        batch.set(docRef, item, { merge: true });
         writeCount++;
+        channelsUpdated++;
       }
 
-      // Write movies
+      // Write movies with unique IDs to prevent duplicates on resume
+      let moviesUpdated = 0;
       for (const item of accumulator.movies) {
-        const docRef = doc(moviesRef);
-        batch.set(docRef, item);
+        const uniqueId = generateUniqueItemId(item);
+        const docRef = doc(moviesRef, uniqueId);
+        // Use merge to update if exists, insert if new (prevents duplicate data)
+        batch.set(docRef, item, { merge: true });
         writeCount++;
+        moviesUpdated++;
       }
 
-      // Write series
+      // Write series with unique IDs to prevent duplicates on resume
+      let seriesUpdated = 0;
       for (const item of accumulator.series) {
-        const docRef = doc(seriesRef);
-        batch.set(docRef, item);
+        const uniqueId = generateUniqueItemId(item);
+        const docRef = doc(seriesRef, uniqueId);
+        // Use merge to update if exists, insert if new (prevents duplicate data)
+        batch.set(docRef, item, { merge: true });
         writeCount++;
+        seriesUpdated++;
       }
+
+      console.log(`[streamingParserEngine] Batch write details: Channels ${channelsUpdated}, Movies ${moviesUpdated}, Series ${seriesUpdated} (using unique IDs for duplicate prevention on resume)`);
 
       // Update progress tracker with setDoc (merge) to handle non-existent docs
       const progressRef = doc(db, `playlists/${playlistId}/meta/progress`);

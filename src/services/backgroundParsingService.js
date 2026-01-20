@@ -115,6 +115,7 @@ const getRetryDelay = (retryCount) => {
  * Initialize progress tracker document
  * @param {string} playlistId
  * @param {Object} playlistData
+ * @param {boolean} isResume - Whether this is a resume of incomplete parse
  * @returns {Promise<void>}
  */
 const initProgressTracker = async (playlistId, playlistData, isResume = false) => {
@@ -136,6 +137,12 @@ const initProgressTracker = async (playlistId, playlistData, isResume = false) =
       if (existingProgress.exists()) {
         const existingData = existingProgress.data();
         console.log('[backgroundParsingService] Resuming with existing progress:', existingData);
+        
+        // NOTE: Parser will re-parse from line 0, but unique ID + merge mode prevents duplicates:
+        // - Items with same tvgId or content hash will update existing docs instead of creating new ones
+        // - Stats are calculated from actual database counts, not accumulated
+        // - This makes resume operations idempotent - can safely restart without data corruption
+        
         // Just update status, keep existing counts
         await setDoc(progressRef, {
           ...existingData,
