@@ -73,7 +73,7 @@
     "production": {
       "ios": {
         "ascAppId": "6755377309",
-        "ascApiKeyPath": "C:\\Projects\\OnviTV\\AuthKey_L9Z5QADL9Q.p8",
+        "ascApiKeyPath": "./AuthKey_L9Z5QADL9Q.p8",
         "ascApiKeyId": "L9Z5QADL9Q",
         "ascApiKeyIssuerId": "054a5e3b-4fbc-4457-80be-b5e9c1c68fdd"
       }
