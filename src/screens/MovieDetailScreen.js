@@ -309,7 +309,14 @@ const MovieDetailScreen = ({ route, navigation }) => {
   const rating = tmdbData?.voteAverage || movie.rating || movie.vote_average || '';
   const duration = tmdbData?.runtime || movie.duration || movie.runtime || '';
   const description = tmdbData?.overview || movie.description || movie.plot || movie.overview || 'No description available.';
-  const genres = tmdbData?.genres?.map(g => g.name) || movie.genre ? (Array.isArray(movie.genre) ? movie.genre : movie.genre.split(',').map(g => g.trim())) : [];
+  
+  // Fixed genres logic with proper parentheses for operator precedence
+  const genres = tmdbData?.genres?.map(g => g.name) || 
+    (movie.genre 
+      ? (Array.isArray(movie.genre) 
+          ? movie.genre 
+          : (typeof movie.genre === 'string' ? movie.genre.split(',').map(g => g.trim()) : []))
+      : []);
 
   return (
     <View style={styles.container}>
