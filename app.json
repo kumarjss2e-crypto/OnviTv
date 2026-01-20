@@ -32,7 +32,16 @@
         ],
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
-          "NSAllowsArbitraryLoadsInWebContent": true
+          "NSAllowsArbitraryLoadsInWebContent": true,
+          "NSAllowsLocalNetworking": true,
+          "NSExceptionDomains": {
+            "tx-4kott.com": {
+              "NSIncludesSubdomains": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSTemporaryExceptionMinimumTLSVersion": "TLSv1.0",
+              "NSTemporaryExceptionRequiresForwardSecrecy": false
+            }
+          }
         },
         "NSCameraUsageDescription": "This app uses the camera to scan QR codes for playlist import.",
         "NSMicrophoneUsageDescription": "This app requires microphone access for video playback.",
