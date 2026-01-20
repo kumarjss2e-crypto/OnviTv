@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { useParseLoading } from '../context/ParseLoadingContext';
@@ -104,6 +105,20 @@ const HomeScreen = ({ navigation }) => {
           series: content.series.length,
           total: content.channels.length + content.movies.length + content.series.length,
         });
+
+        // Cache the content to AsyncStorage for instant display on next load
+        try {
+          const cacheKey = `homescreen_content_${userId}`;
+          const cacheData = {
+            ...content,
+            cachedAt: Date.now(),
+          };
+          await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
+          console.log('[HomeScreen] Content cached to AsyncStorage');
+        } catch (cacheError) {
+          console.warn('[HomeScreen] Failed to cache content:', cacheError);
+          // Non-critical, don't block on cache failure
+        }
 
         setAllContent(content);
         // Reset pagination when content changes
@@ -216,6 +231,30 @@ const HomeScreen = ({ navigation }) => {
 
     setLoading(true);
 
+    // Load from cache first to show instant content
+    const loadFromCache = async () => {
+      try {
+        const cacheKey = `homescreen_content_${user.uid}`;
+        const cachedData = await AsyncStorage.getItem(cacheKey);
+        
+        if (cachedData) {
+          const parsed = JSON.parse(cachedData);
+          const { channels, movies, series } = parsed;
+          console.log('[HomeScreen] Loaded from cache:', { 
+            channels: channels?.length || 0, 
+            movies: movies?.length || 0, 
+            series: series?.length || 0 
+          });
+          setAllContent({ channels: channels || [], movies: movies || [], series: series || [] });
+          setLoading(false); // Stop showing loading spinner - we have cached data
+          return true;
+        }
+      } catch (error) {
+        console.warn('[HomeScreen] Failed to load from cache:', error);
+      }
+      return false;
+    };
+
     // Load initial data immediately (don't wait for real-time listeners)
     const initialLoad = async () => {
       console.log('[HomeScreen] Performing initial data load...');
@@ -246,8 +285,16 @@ const HomeScreen = ({ navigation }) => {
       }
     };
 
-    // Run initial load immediately
-    initialLoad();
+    // Run initial load - check cache first, then load fresh data
+    const init = async () => {
+      const fromCache = await loadFromCache();
+      
+      // Always load fresh data in background (whether cache was found or not)
+      // This keeps data fresh while showing cached content immediately
+      initialLoad();
+    };
+    
+    init();
 
     // Set up real-time listeners AFTER initial load to avoid blocking
     const setupRealtimeListeners = async () => {

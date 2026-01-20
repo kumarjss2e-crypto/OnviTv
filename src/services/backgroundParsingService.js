@@ -549,7 +549,18 @@ const resumeIncompleteParses = async () => {
     const results = [];
     for (const playlist of incompletePlaylists) {
       try {
-        const result = await startParsing(playlist.id, playlist);
+        // Normalize playlist data to ensure m3uUrl/serverUrl are properly extracted
+        const normalizedData = {
+          ...playlist,
+          m3uUrl: playlist.m3uConfig?.url,
+          serverUrl: playlist.xtreamConfig?.serverUrl,
+          username: playlist.xtreamConfig?.username,
+          password: playlist.xtreamConfig?.password,
+        };
+        
+        console.log(`[backgroundParsingService] Resuming parse for: ${playlist.id}, normalized m3uUrl:`, normalizedData.m3uUrl ? 'present' : 'MISSING');
+        
+        const result = await startParsing(playlist.id, normalizedData);
         results.push(result);
       } catch (error) {
         console.error(`Error resuming playlist ${playlist.id}:`, error);
