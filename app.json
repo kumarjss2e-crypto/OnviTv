@@ -2,7 +2,7 @@
   "expo": {
     "name": "OnviTV",
     "slug": "onvitv-app",
-    "version": "1.6.1",
+    "version": "1.6.2",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./assets/AppIcon@3x.png",
@@ -20,7 +20,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.onvitv.com",
-      "buildNumber": "1.6.1",
+      "buildNumber": "1.6.2",
       "requireFullScreen": false,
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/AppIcon@3x.png",
