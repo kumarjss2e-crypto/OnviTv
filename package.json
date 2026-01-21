@@ -6,6 +6,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "web:with-proxy": "concurrently \"node src/server/proxyServer.js\" \"expo start --web\"",
+    "proxy": "node src/server/proxyServer.js",
     "prebuild": "expo prebuild"
   },
   "dependencies": {

@@ -88,30 +88,9 @@ export default function VideoPlayerScreen({ route, navigation }) {
   const { user } = useAuth();
   const { needsAdToWatch, handleAdComplete, canStreamWithoutAd } = useFreeUserAds();
   
-  // Convert Xtream direct URLs to M3U8 format if needed
-  const convertStreamUrl = (url) => {
-    if (!url) return url;
-    
-    // Check if this is an Xtream direct stream URL
-    // Pattern: http://server:port/username/password/stream_id
-    const xtreamMatch = url.match(/^(https?:\/\/[^:]+(?::\d+)?)\/([\w]+)\/([\w]+)\/([\d]+)$/);
-    
-    if (xtreamMatch) {
-      const [, server, username, password, streamId] = xtreamMatch;
-      // Convert to HLS/M3U8 format that iOS prefers
-      // Try M3U8 variant first
-      const m3u8Url = `${server}/hls/${username}/${password}/${streamId}.m3u8`;
-      console.log('[VideoPlayerScreen] Converting Xtream stream to M3U8:', { original: url, converted: m3u8Url });
-      return m3u8Url;
-    }
-    
-    return url;
-  };
-  
   // Test stream URL for debugging (remove this later)
   const testStreamUrl = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
-  const convertedStreamUrl = convertStreamUrl(streamUrl);
-  const actualStreamUrl = convertedStreamUrl || testStreamUrl;
+  const actualStreamUrl = streamUrl || testStreamUrl;
   
   // Log route params for debugging
   console.log('[VideoPlayerScreen] Initialized with params:');
@@ -541,12 +520,7 @@ export default function VideoPlayerScreen({ route, navigation }) {
           <Video
             key={retryKey}
             ref={videoRef}
-            source={{ 
-              uri: actualStreamUrl,
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
-              }
-            }}
+            source={{ uri: actualStreamUrl }}
             style={styles.video}
             resizeMode="contain"
             paused={!status.isPlaying}

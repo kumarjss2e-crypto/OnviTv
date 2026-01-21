@@ -34,37 +34,26 @@
           "NSAllowsArbitraryLoads": true,
           "NSAllowsArbitraryLoadsInWebContent": true,
           "NSAllowsLocalNetworking": true,
-          "NSRequiresCertificateTransparency": false,
           "NSExceptionDomains": {
             "localhost": {
               "NSIncludesSubdomains": true,
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
-              "NSTemporaryExceptionRequiresForwardSecrecy": false,
-              "NSMinimumTLSVersion": "TLSv1.0"
-            },
-            "19245-par.tx-4kott.com": {
-              "NSIncludesSubdomains": true,
-              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
-              "NSTemporaryExceptionRequiresForwardSecrecy": false,
-              "NSMinimumTLSVersion": "TLSv1.0"
+              "NSTemporaryExceptionRequiresForwardSecrecy": false
             },
             "tx-4kott.com": {
               "NSIncludesSubdomains": true,
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
-              "NSTemporaryExceptionRequiresForwardSecrecy": false,
-              "NSMinimumTLSVersion": "TLSv1.0"
+              "NSTemporaryExceptionRequiresForwardSecrecy": false
             },
             "picons.cmshulk.com": {
               "NSIncludesSubdomains": true,
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
-              "NSTemporaryExceptionRequiresForwardSecrecy": false,
-              "NSMinimumTLSVersion": "TLSv1.0"
+              "NSTemporaryExceptionRequiresForwardSecrecy": false
             },
             "cmshulk.com": {
               "NSIncludesSubdomains": true,
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
-              "NSTemporaryExceptionRequiresForwardSecrecy": false,
-              "NSMinimumTLSVersion": "TLSv1.0"
+              "NSTemporaryExceptionRequiresForwardSecrecy": false
             }
           }
         },
