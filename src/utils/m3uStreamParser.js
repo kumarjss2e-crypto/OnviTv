@@ -257,21 +257,63 @@ export const streamParseM3U = async (m3uUrl, playlistId, onItemParsed, onProgres
     console.log(`[m3uStreamParser] Starting M3U parsing for ${playlistId}`);
     console.log(`[m3uStreamParser] URL: ${m3uUrl}`);
 
-    // Fetch file as stream using native fetch (works on web, iOS with ATS, Android)
-    const response = await fetch(m3uUrl, {
-      signal,
-      method: 'GET',
-      timeout: 30000, // 30 second timeout
-      headers: {
-        'Accept': 'application/x-mpegURL, text/plain, */*',
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache'
-      }
-    });
+    // Fetch file with retry logic for network stability
+    let response;
+    let lastError;
+    const maxRetries = 3;
+    const retryDelays = [1000, 3000, 5000]; // Exponential backoff in ms
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[m3uStreamParser] Fetch attempt ${attempt + 1}/${maxRetries + 1} for ${m3uUrl}`);
+        
+        response = await fetch(m3uUrl, {
+          signal,
+          method: 'GET',
+          timeout: 45000, // 45 second timeout
+          headers: {
+            'Accept': 'application/x-mpegURL, application/vnd.apple.mpegurl, text/plain, */*',
+            'User-Agent': 'VLC/3.0.0 (Portable version running on Windows)',
+            'Connection': 'close',
+            'Cache-Control': 'max-age=0',
+            'Pragma': 'no-cache'
+          }
+        });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (!response.ok) {
+          lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+          
+          // Retry on server errors or connection issues
+          if (response.status >= 500 || response.status === 444 || response.status === 408) {
+            if (attempt < maxRetries) {
+              console.warn(`[m3uStreamParser] ⚠️ Server error ${response.status}, retrying in ${retryDelays[attempt]}ms...`);
+              await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+              continue;
+            }
+          }
+          throw lastError;
+        }
+        
+        console.log(`[m3uStreamParser] ✅ Fetch successful on attempt ${attempt + 1}`);
+        break; // Success, exit retry loop
+        
+      } catch (error) {
+        lastError = error;
+        
+        // Retry on network errors
+        if ((error.message.includes('timeout') || error.message.includes('Receive failed') || error.message.includes('timed out')) && attempt < maxRetries) {
+          console.warn(`[m3uStreamParser] ⚠️ Network timeout, retrying in ${retryDelays[attempt]}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+          continue;
+        }
+        
+        // Don't retry on abort or other client errors
+        throw error;
+      }
+    }
+    
+    if (!response) {
+      throw lastError || new Error('Failed to fetch after all retries');
     }
 
     console.log(`[m3uStreamParser] Fetch successful, starting to parse...`);

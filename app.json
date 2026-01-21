@@ -34,6 +34,7 @@
           "NSAllowsArbitraryLoads": true,
           "NSAllowsArbitraryLoadsInWebContent": true,
           "NSAllowsLocalNetworking": true,
+          "NSRequiresCertificateTransparency": false,
           "NSExceptionDomains": {
             "localhost": {
               "NSIncludesSubdomains": true,
