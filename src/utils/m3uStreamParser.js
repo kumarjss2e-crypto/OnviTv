@@ -261,8 +261,12 @@ export const streamParseM3U = async (m3uUrl, playlistId, onItemParsed, onProgres
     const response = await fetch(m3uUrl, {
       signal,
       method: 'GET',
+      timeout: 30000, // 30 second timeout
       headers: {
-        'Accept': 'application/x-mpegURL, text/plain',
+        'Accept': 'application/x-mpegURL, text/plain, */*',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache'
       }
     });
 
@@ -271,30 +275,90 @@ export const streamParseM3U = async (m3uUrl, playlistId, onItemParsed, onProgres
     }
 
     console.log(`[m3uStreamParser] Fetch successful, starting to parse...`);
+    console.log(`[m3uStreamParser] Response status: ${response.status}, headers:`, {
+      contentType: response.headers.get('content-type'),
+      contentLength: response.headers.get('content-length'),
+      hasBody: !!response.body
+    });
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let done = false;
-
-    while (!done) {
-      const { value, done: readerDone } = await reader.read();
-      done = readerDone;
-
-      if (signal?.aborted) {
-        reader.cancel();
-        throw new Error('Parsing cancelled');
+    // Check if response has a body
+    if (!response.body) {
+      console.error('[m3uStreamParser] ❌ Response has no body - attempting text fallback');
+      // Fallback to text parsing if body stream is unavailable
+      const text = await response.text();
+      if (!text || text.length === 0) {
+        throw new Error('Response has no body and text is empty');
       }
+      
+      // Parse from text directly
+      console.log(`[m3uStreamParser] Successfully retrieved text (${(text.length / 1024).toFixed(2)} KB), parsing...`);
+      const lines = text.split('\n');
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        lineNumber++;
+        const trimmedLine = line.trim();
 
-      if (value) {
-        buffer += decoder.decode(value, { stream: !done });
+        if (signal?.aborted) {
+          throw new Error('Parsing cancelled');
+        }
 
-        // Process complete lines in buffer
-        const lines = buffer.split('\n');
-        
-        // Keep last incomplete line in buffer
-        buffer = lines.pop() || '';
+        if (!trimmedLine || trimmedLine.startsWith(';')) {
+          continue;
+        }
 
-        for (let i = 0; i < lines.length; i++) {
+        if (trimmedLine.startsWith('#EXTINF')) {
+          await processExtInfLine(trimmedLine, i, lines);
+        } else if (trimmedLine.startsWith('#EXTGRP')) {
+          await processExtGrpLine(trimmedLine);
+        } else if (trimmedLine.startsWith('#EXT-X-STREAM-INF')) {
+          // Skip HLS master playlist indicators
+          continue;
+        } else if (!trimmedLine.startsWith('#')) {
+          // URL line
+          await processUrlLine(trimmedLine);
+        }
+
+        // Report progress periodically
+        if (lineNumber % 100 === 0) {
+          progress.update({
+            lineNumber,
+            itemsProcessed: stats.channels + stats.movies + stats.series,
+            channels: stats.channels,
+            movies: stats.movies,
+            series: stats.series,
+            duplicates: duplicateCount,
+          });
+        }
+      }
+      
+      // Flush remaining items for text fallback path
+      await parserEngine.flush();
+    } else {
+      // Normal streaming path with response.body
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+
+        if (signal?.aborted) {
+          reader.cancel();
+          throw new Error('Parsing cancelled');
+        }
+
+        if (value) {
+          buffer += decoder.decode(value, { stream: !done });
+
+          // Process complete lines in buffer
+          const lines = buffer.split('\n');
+          
+          // Keep last incomplete line in buffer
+          buffer = lines.pop() || '';
+
+          for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           lineNumber++;
           const trimmedLine = line.trim();
