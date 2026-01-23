@@ -49,6 +49,19 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Large media files
+*.m3u
+*.mp4
+*.mkv
+*.avi
+
+# Crash logs
+crashlog.crash
+crash.log
+
+# Generated test files
+__tests__/
+
 # typescript
 *.tsbuildinfo
 

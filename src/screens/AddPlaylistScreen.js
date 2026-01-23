@@ -133,10 +133,26 @@ const AddPlaylistScreen = ({ navigation }) => {
       let playlistData;
 
       if (selectedType === 'm3u') {
+        // Normalize and validate M3U URL
+        let normalizedUrl = m3uUrl.trim();
+        
+        // Fix common URL issues
+        // Replace HTML entities if accidentally encoded
+        normalizedUrl = normalizedUrl
+          .replace(/&amp;/g, '&')
+          .replace(/&#38;/g, '&');
+        
+        // Ensure URL is properly formatted
+        if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+          normalizedUrl = 'http://' + normalizedUrl;
+        }
+        
+        console.log(`[AddPlaylistScreen] M3U URL before saving:`, normalizedUrl);
+        
         playlistData = {
           name: m3uName.trim(),
           type: 'm3u',
-          url: m3uUrl.trim(),
+          url: normalizedUrl,
         };
       } else {
         let serverUrl = xtreamServer.trim();

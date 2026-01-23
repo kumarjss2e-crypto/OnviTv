@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { updatePlaylistStats, setPlaylistParsingStatus, updateLastFetched } from '../services/playlistService';
 import { httpGet } from './httpClient';
+import { safeFetch, isDomainExcepted } from './atcConfig';
 
 /**
  * M3U Parser Utility
@@ -430,7 +431,7 @@ const deleteBatch = async (collectionName, playlistId, batchSize) => {
  * @param {string} playlistId - Playlist ID
  * @param {string} userId - User ID
  * @param {Object} parsedData - Parsed channels, movies, series
- * @returns {Promise<Object>} - Stats
+ * @returns {Promise<Object>} - Stats (actual saved counts from database, not parsed)
  */
 const saveToFirestore = async (playlistId, userId, parsedData) => {
   try {
@@ -466,14 +467,35 @@ const saveToFirestore = async (playlistId, userId, parsedData) => {
       BATCH_SIZE
     );
 
+    // Query database to get ACTUAL saved counts (not parsed counts)
+    // This accounts for filtering by supported formats
+    const channelsSnap = await getDocs(
+      query(
+        collection(firestore, 'channels'),
+        where('playlistId', '==', playlistId)
+      )
+    );
+    const moviesSnap = await getDocs(
+      query(
+        collection(firestore, 'movies'),
+        where('playlistId', '==', playlistId)
+      )
+    );
+    const seriesSnap = await getDocs(
+      query(
+        collection(firestore, 'series'),
+        where('playlistId', '==', playlistId)
+      )
+    );
+
     const stats = {
-      totalChannels: parsedData.channels.length,
-      totalMovies: parsedData.movies.length,
-      totalSeries: parsedData.series.length,
+      totalChannels: channelsSnap.size,
+      totalMovies: moviesSnap.size,
+      totalSeries: seriesSnap.size,
       totalCategories: parsedData.categories.length,
     };
 
-    console.log('Data saved to Firestore:', stats);
+    console.log('Data saved to Firestore (actual saved counts):', stats);
 
     return stats;
   } catch (error) {

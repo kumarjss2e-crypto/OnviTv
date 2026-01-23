@@ -176,37 +176,43 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
 
       console.log(`[streamingParserEngine] Batch write details: Channels ${channelsUpdated}, Movies ${moviesUpdated}, Series ${seriesUpdated} (using unique IDs for duplicate prevention on resume)`);
 
-      // Update progress tracker with setDoc (merge) to handle non-existent docs
-      const progressRef = doc(db, `playlists/${playlistId}/meta/progress`);
-      batch.set(progressRef, {
-        lastWriteTime: new Date().toISOString(),
-        totalItemsWritten: writeCount,
-        channels: accumulator.channels.length,
-        movies: accumulator.movies.length,
-        series: accumulator.series.length,
-      }, { merge: true });
+      // Commit batch FIRST
+      await batch.commit();
+      console.log(`[streamingParserEngine] ✅ Batch committed: ${writeCount} items written total`);
 
-      // Count ACTUAL items in database to get accurate stats (not accumulated counters)
+      // THEN count ACTUAL items in database to get accurate stats (not accumulated counters)
       const channelsSnap = await getDocs(query(collection(db, `playlists/${playlistId}/channels`)));
       const moviesSnap = await getDocs(query(collection(db, `playlists/${playlistId}/movies`)));
       const seriesSnap = await getDocs(query(collection(db, `playlists/${playlistId}/series`)));
       
       const actualStats = {
-        totalChannels: channelsSnap.size,
-        totalMovies: moviesSnap.size,
-        totalSeries: seriesSnap.size,
+        channels: channelsSnap.size,
+        movies: moviesSnap.size,
+        series: seriesSnap.size,
       };
+
+      console.log(`[streamingParserEngine] Actual saved stats from Firestore: Channels: ${actualStats.channels}, Movies: ${actualStats.movies}, Series: ${actualStats.series}`);
+
+      // Update progress tracker with ACTUAL saved stats (not accumulated counters)
+      const progressRef = doc(db, `playlists/${playlistId}/meta/progress`);
+      await setDoc(progressRef, {
+        lastWriteTime: new Date().toISOString(),
+        totalItemsWritten: writeCount,
+        channels: actualStats.channels,
+        movies: actualStats.movies,
+        series: actualStats.series,
+      }, { merge: true });
 
       // Update playlist stats with ACTUAL counts from database
       const playlistStatsRef = doc(db, `playlists/${playlistId}`);
-      batch.set(playlistStatsRef, {
-        stats: actualStats,
+      await setDoc(playlistStatsRef, {
+        stats: {
+          totalChannels: actualStats.channels,
+          totalMovies: actualStats.movies,
+          totalSeries: actualStats.series,
+        },
         lastUpdated: new Date().toISOString(),
       }, { merge: true });
-
-      // Commit batch
-      await batch.commit();
-      console.log(`[streamingParserEngine] ✅ Batch committed: ${writeCount} items written total (Stats: Channels: ${stats.channels}, Movies: ${stats.movies}, Series: ${stats.series})`);
 
       // Call callback on first batch saved
       if (!firstBatchSaved && onFirstBatchSaved) {
@@ -227,12 +233,13 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
       batch = newBatch;
 
       if (onProgressUpdate) {
+        // Call with ACTUAL stats from Firestore, not accumulated counters
         onProgressUpdate({
           itemsSaved: writeCount,
           totalWritten: writeCount,
-          channels: stats.channels,
-          movies: stats.movies,
-          series: stats.series,
+          channels: actualStats.channels,
+          movies: actualStats.movies,
+          series: actualStats.series,
         });
       }
     }).catch((error) => {
@@ -265,18 +272,22 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
         console.log(`[streamingParserEngine] Flushing final ${totalRemaining} items...`);
         // Flush all remaining items in batches of 50
         // Wait for the queue before checking accumulator in the loop
+        let finalFlushCount = 0;
         while (true) {
           // Wait for current queue to complete before checking accumulator
           await flushQueue;
           
           const currentBatchSize = accumulator.channels.length + accumulator.movies.length + accumulator.series.length;
-          console.log(`[streamingParserEngine] Flushing batch, items remaining: ${currentBatchSize}`);
+          console.log(`[streamingParserEngine] Final flush iteration ${finalFlushCount + 1}, items remaining: ${currentBatchSize}`);
           
           if (currentBatchSize > 0) {
             // Add this flush to the queue
+            console.log(`[streamingParserEngine] Executing final flush batch with ${currentBatchSize} items`);
             await flushBatch();
+            finalFlushCount++;
           } else {
             // No more items to flush
+            console.log(`[streamingParserEngine] ✅ All final flush batches complete (${finalFlushCount} batches)`);
             break;
           }
         }
@@ -284,7 +295,7 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
 
       console.log(`[streamingParserEngine] Waiting for all queued flushes to complete...`);
       await flushQueue;
-      console.log(`[streamingParserEngine] All flushes complete, total written: ${writeCount}`);
+      console.log(`[streamingParserEngine] ✅ All flushes complete, total written: ${writeCount}`);
 
       // Get actual counts from database
       const channelsSnap = await getDocs(query(collection(db, `playlists/${playlistId}/channels`)));
@@ -297,6 +308,8 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
         series: seriesSnap.size,
       };
 
+      console.log(`[streamingParserEngine] 📊 Final stats from database - Channels: ${actualStats.channels}, Movies: ${actualStats.movies}, Series: ${actualStats.series}`);
+
       // Update progress to completed with actual stats
       const progressRef = doc(db, `playlists/${playlistId}/meta/progress`);
       await updateDoc(progressRef, {
@@ -304,6 +317,7 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
         completedAt: new Date().toISOString(),
         totalItemsWritten: writeCount,
       });
+      console.log(`[streamingParserEngine] ✅ Progress document updated to 'completed'`);
 
       // Update playlist document with final accurate stats
       const playlistStatsRef = doc(db, `playlists/${playlistId}`);
@@ -315,6 +329,14 @@ export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSav
         },
         lastUpdated: new Date().toISOString(),
       }, { merge: true });
+      console.log(`[streamingParserEngine] ✅ Playlist stats updated with final counts`);
+      console.log(`[streamingParserEngine] 🎉 PARSE FINALIZATION COMPLETE!`);
+      console.log(`[streamingParserEngine] Final stats written to playlist document:`, {
+        totalChannels: actualStats.channels,
+        totalMovies: actualStats.movies,
+        totalSeries: actualStats.series,
+        totalWritten: writeCount,
+      });
 
       return {
         success: true,

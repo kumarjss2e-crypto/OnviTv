@@ -16,6 +16,7 @@ import { AlertProvider } from './src/components/CustomAlert';
 import { PremiumUpgradeModalProvider } from './src/context/PremiumUpgradeModalContext';
 import { colors } from './src/theme/colors';
 import { backgroundParsingService } from './src/services/backgroundParsingService';
+import { initializeATC } from './src/utils/atsInit';
 
 // Only import Google Mobile Ads on native platforms
 let mobileAds;
@@ -72,6 +73,9 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   useEffect(() => {
+    // Initialize iOS App Transport Security
+    initializeATC();
+
     // Initialize ads on native platforms
     if (Platform.OS !== 'web') {
       try {
@@ -92,6 +96,47 @@ export default function App() {
       .catch(error => {
         console.error('[App] Error resuming incomplete parses:', error);
       });
+
+    // Enable scrolling on web platform
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      // Set height and overflow on html and body to enable scrolling
+      const html = document.documentElement;
+      const body = document.body;
+      const root = document.getElementById('root');
+      
+      if (html) {
+        html.style.width = '100%';
+        html.style.height = '100%';
+        html.style.margin = '0';
+        html.style.padding = '0';
+      }
+      
+      if (body) {
+        body.style.width = '100%';
+        body.style.height = '100%';
+        body.style.margin = '0';
+        body.style.padding = '0';
+        body.style.overflow = 'auto';
+      }
+      
+      if (root) {
+        root.style.width = '100%';
+        root.style.height = '100%';
+        root.style.overflow = 'auto';
+      }
+
+      // Register service worker to fix streaming server issues
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker
+          .register('/service-worker.js')
+          .then((registration) => {
+            console.log('[App] Service Worker registered successfully:', registration);
+          })
+          .catch((error) => {
+            console.warn('[App] Service Worker registration failed:', error);
+          });
+      }
+    }
 
   }, []);
   

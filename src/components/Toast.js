@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
 import { colors } from '../theme/colors';
 
 const { width } = Dimensions.get('window');
@@ -116,14 +116,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 12,
     zIndex: 9999,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    // iOS/Android shadow (native only)
+    ...(Platform.OS !== 'web' && {
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
+    }),
+    // Web shadow
+    ...(Platform.OS === 'web' && {
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)',
+    }),
   },
   iconContainer: {
     width: 28,

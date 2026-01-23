@@ -2,8 +2,8 @@
   "expo": {
     "name": "OnviTV",
     "slug": "onvitv-app",
-    "version": "1.6.2",
-    "orientation": "portrait",
+    "version": "1.7.2",
+    "orientation": "sensor",
     "userInterfaceStyle": "dark",
     "icon": "./assets/AppIcon@3x.png",
     "splash": {
@@ -20,7 +20,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.onvitv.com",
-      "buildNumber": "1.6.2",
+      "buildNumber": "1.7.2",
       "requireFullScreen": false,
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/AppIcon@3x.png",
@@ -31,11 +31,18 @@
           "remote-notification"
         ],
         "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true,
-          "NSAllowsArbitraryLoadsInWebContent": true,
+          "NSAllowsArbitraryLoads": false,
+          "NSAllowsArbitraryLoadsInWebContent": false,
           "NSAllowsLocalNetworking": true,
+          "NSRequiresCertificateTransparency": false,
           "NSExceptionDomains": {
             "localhost": {
+              "NSIncludesSubdomains": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSTemporaryExceptionRequiresForwardSecrecy": false,
+              "NSMinimumTLSVersion": "TLSv1.0"
+            },
+            "127.0.0.1": {
               "NSIncludesSubdomains": true,
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
               "NSTemporaryExceptionRequiresForwardSecrecy": false
@@ -43,17 +50,57 @@
             "tx-4kott.com": {
               "NSIncludesSubdomains": true,
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
-              "NSTemporaryExceptionRequiresForwardSecrecy": false
+              "NSTemporaryExceptionRequiresForwardSecrecy": false,
+              "NSMinimumTLSVersion": "TLSv1.0"
             },
             "picons.cmshulk.com": {
               "NSIncludesSubdomains": true,
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
-              "NSTemporaryExceptionRequiresForwardSecrecy": false
+              "NSTemporaryExceptionRequiresForwardSecrecy": false,
+              "NSMinimumTLSVersion": "TLSv1.0"
             },
             "cmshulk.com": {
               "NSIncludesSubdomains": true,
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSTemporaryExceptionRequiresForwardSecrecy": false,
+              "NSMinimumTLSVersion": "TLSv1.0"
+            },
+            "110.39.27.47": {
+              "NSIncludesSubdomains": false,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
               "NSTemporaryExceptionRequiresForwardSecrecy": false
+            },
+            "m3u8-proxy.example.com": {
+              "NSIncludesSubdomains": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSTemporaryExceptionRequiresForwardSecrecy": false,
+              "NSMinimumTLSVersion": "TLSv1.0"
+            },
+            "cdnjs.cloudflare.com": {
+              "NSIncludesSubdomains": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": false,
+              "NSTemporaryExceptionRequiresForwardSecrecy": true
+            },
+            "googleapis.com": {
+              "NSIncludesSubdomains": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": false,
+              "NSTemporaryExceptionRequiresForwardSecrecy": true
+            },
+            "gstatic.com": {
+              "NSIncludesSubdomains": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": false,
+              "NSTemporaryExceptionRequiresForwardSecrecy": true
+            },
+            "firebaseio.com": {
+              "NSIncludesSubdomains": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": false,
+              "NSTemporaryExceptionRequiresForwardSecrecy": true
+            },
+            "iptv-org.ghub.io": {
+              "NSIncludesSubdomains": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSTemporaryExceptionRequiresForwardSecrecy": false,
+              "NSMinimumTLSVersion": "TLSv1.0"
             }
           }
         },
@@ -128,7 +175,7 @@
       "androidMode": "default",
       "androidCollapsedTitle": "OnviTV"
     },
-    "owner": "org9",
+    "owner": "org10",
     "runtimeVersion": {
       "policy": "appVersion"
     },

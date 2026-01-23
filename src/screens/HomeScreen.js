@@ -78,6 +78,36 @@ const HomeScreen = ({ navigation }) => {
   const [loadingMoreMap, setLoadingMoreMap] = useState({});
 
   // Debounced content loader to prevent excessive queries
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    // Detect if container is receiving pointer/touch events on web
+    if (Platform.OS === 'web' && containerRef.current) {
+      const container = containerRef.current;
+      
+      const handlePointerDown = () => console.log('[HomeScreen] POINTER DOWN detected');
+      const handlePointerUp = () => console.log('[HomeScreen] POINTER UP detected');
+      const handleTouchStart = () => console.log('[HomeScreen] TOUCH START detected');
+      const handleTouchEnd = () => console.log('[HomeScreen] TOUCH END detected');
+      const handleWheel = (e) => console.log('[HomeScreen] WHEEL event detected', e.deltaY);
+      
+      container.addEventListener('pointerdown', handlePointerDown);
+      container.addEventListener('pointerup', handlePointerUp);
+      container.addEventListener('touchstart', handleTouchStart);
+      container.addEventListener('touchend', handleTouchEnd);
+      container.addEventListener('wheel', handleWheel);
+      
+      return () => {
+        container.removeEventListener('pointerdown', handlePointerDown);
+        container.removeEventListener('pointerup', handlePointerUp);
+        container.removeEventListener('touchstart', handleTouchStart);
+        container.removeEventListener('touchend', handleTouchEnd);
+        container.removeEventListener('wheel', handleWheel);
+      };
+    }
+  }, []);
+
+  // Debounced content loader to prevent excessive queries
   const loadContentDataDebounced = useCallback((userId, skipDebounce = false) => {
     // Clear any pending debounce
     if (debounceTimerRef.current) {
@@ -627,7 +657,7 @@ const HomeScreen = ({ navigation }) => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} ref={containerRef}>
       <StatusBar barStyle="light-content" />
       
       {/* Parsing Loading Indicator - Linear Progress Bar */}

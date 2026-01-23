@@ -8,7 +8,7 @@ import { streamParseM3U } from '../utils/m3uStreamParser';
 import { streamParseXtream } from '../utils/xtreamStreamParser';
 import { createParserEngine } from '../utils/streamingParserEngine';
 import { db } from '../config/firebase';
-import { doc, updateDoc, setDoc, getDoc, collection, query, where, getDocs, increment } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, getDoc, collection, query, where, getDocs, increment, writeBatch, FieldPath } from 'firebase/firestore';
 
 // In-memory job tracking
 const activeJobs = new Map(); // playlistId -> {abortController, engine, stats}
@@ -226,6 +226,38 @@ const findIncompleteParses = async () => {
 };
 
 /**
+ * Normalize and extract URL from playlist data
+ * Handles both old format (m3uUrl key) and new format (m3uConfig object)
+ */
+const normalizePlaylistUrl = (playlistData) => {
+  let m3uUrl = playlistData.m3uUrl;
+  
+  // If m3uUrl not found, try m3uConfig structure
+  if (!m3uUrl && playlistData.m3uConfig?.url) {
+    m3uUrl = playlistData.m3uConfig.url;
+  }
+  
+  // Normalize URL - fix encoding issues
+  if (m3uUrl) {
+    const originalUrl = m3uUrl;
+    m3uUrl = m3uUrl
+      .replace(/&amp;/g, '&')
+      .replace(/&#38;/g, '&')
+      .replace(/&nbsp;/g, ' ')
+      .trim();
+    
+    if (originalUrl !== m3uUrl) {
+      console.warn(`[backgroundParsingService] URL was corrupted, normalized:`, {
+        before: originalUrl.substring(0, 80) + (originalUrl.length > 80 ? '...' : ''),
+        after: m3uUrl.substring(0, 80) + (m3uUrl.length > 80 ? '...' : ''),
+      });
+    }
+  }
+  
+  return m3uUrl;
+};
+
+/**
  * Start parsing a playlist
  * @param {string} playlistId
  * @param {Object} playlistData
@@ -245,6 +277,10 @@ const startParsing = async (playlistId, playlistData) => {
     
     // Check if we have the required URL/credentials
     if (playlistData.type === 'm3u') {
+      // Normalize M3U URL - handles both m3uUrl and m3uConfig.url formats
+      const normalizedUrl = normalizePlaylistUrl(playlistData);
+      playlistData.m3uUrl = normalizedUrl;
+      
       console.log(`[backgroundParsingService] M3U URL provided: ${playlistData.m3uUrl ? 'YES' : 'NO'}`);
       console.log(`[backgroundParsingService] Full M3U URL: ${playlistData.m3uUrl}`);
       if (!playlistData.m3uUrl) {
@@ -285,6 +321,7 @@ const startParsing = async (playlistId, playlistData) => {
     };
     
     const engine = createParserEngine(playlistId, (stats) => {
+      // Update progress with actual saved stats from Firestore (already updated by engine)
       updateProgress(playlistId, {
         channels: stats.channels,
         movies: stats.movies,
@@ -366,15 +403,13 @@ const startParsing = async (playlistId, playlistData) => {
 
       // Log progress every 50 items
       if (lineNumber % 50 === 0) {
-        console.log(`[backgroundParsingService] Progress - Line: ${lineNumber}, Total: ${stats.total}, Channels: ${stats.channels}, Movies: ${stats.movies}, Series: ${stats.series}`);
+        console.log(`[backgroundParsingService] Progress - Line: ${lineNumber}, Total parsed: ${stats.total}, Channels: ${stats.channels}, Movies: ${stats.movies}, Series: ${stats.series}`);
       }
 
+      // Update progress tracker with parsed counts (not saved stats - those are updated by engine callback)
       await updateProgress(playlistId, {
         lineNumber,
         itemsProcessed: stats.total,
-        channels: stats.channels,
-        movies: stats.movies,
-        series: stats.series,
         duplicates: stats.duplicates,
         unsupported: stats.unsupported,
         errors: stats.errors,
@@ -553,13 +588,18 @@ const resumeIncompleteParses = async () => {
     const incompletePlaylists = await findIncompleteParses();
     console.log(`Found ${incompletePlaylists.length} incomplete parses to resume`);
 
+    // MIGRATION: Fix any corrupted URLs in the database
+    await migrateCorruptedUrls(incompletePlaylists);
+
     const results = [];
     for (const playlist of incompletePlaylists) {
       try {
         // Normalize playlist data to ensure m3uUrl/serverUrl are properly extracted
+        let m3uUrl = normalizePlaylistUrl(playlist);
+        
         const normalizedData = {
           ...playlist,
-          m3uUrl: playlist.m3uConfig?.url,
+          m3uUrl,
           serverUrl: playlist.xtreamConfig?.serverUrl,
           username: playlist.xtreamConfig?.username,
           password: playlist.xtreamConfig?.password,
@@ -581,6 +621,74 @@ const resumeIncompleteParses = async () => {
     return [];
   }
 };
+
+/**
+ * Migration: Fix corrupted URLs in the database (HTML entity encoding)
+ * Scans all playlists for &amp; entities and updates them with proper & characters
+ */
+const migrateCorruptedUrls = async (playlists) => {
+  try {
+    console.log(`[backgroundParsingService] Running URL corruption migration...`);
+    
+    let fixedCount = 0;
+    const updates = []; // Store updates to apply directly instead of batch
+    
+    for (const playlist of playlists) {
+      // Check M3U URL
+      if (playlist.m3uConfig?.url) {
+        const originalUrl = playlist.m3uConfig.url;
+        const cleanedUrl = originalUrl
+          .replace(/&amp;/g, '&')
+          .replace(/&#38;/g, '&')
+          .trim();
+        
+        if (originalUrl !== cleanedUrl) {
+          console.log(`[backgroundParsingService] Fixing corrupted M3U URL in playlist ${playlist.id}`);
+          const playlistRef = doc(db, 'playlists', playlist.id);
+          updates.push(
+            updateDoc(playlistRef, {
+              'm3uConfig.url': cleanedUrl,
+            })
+          );
+          fixedCount++;
+        }
+      }
+      
+      // Check Xtream server URL
+      if (playlist.xtreamConfig?.serverUrl) {
+        const originalUrl = playlist.xtreamConfig.serverUrl;
+        const cleanedUrl = originalUrl
+          .replace(/&amp;/g, '&')
+          .replace(/&#38;/g, '&')
+          .trim();
+        
+        if (originalUrl !== cleanedUrl) {
+          console.log(`[backgroundParsingService] Fixing corrupted Xtream URL in playlist ${playlist.id}`);
+          const playlistRef = doc(db, 'playlists', playlist.id);
+          updates.push(
+            updateDoc(playlistRef, {
+              'xtreamConfig.serverUrl': cleanedUrl,
+            })
+          );
+          fixedCount++;
+        }
+      }
+    }
+    
+    if (fixedCount > 0) {
+      // Wait for all updates to complete
+      await Promise.all(updates);
+      console.log(`[backgroundParsingService] Migration complete: Fixed ${fixedCount} corrupted URLs in database`);
+    } else {
+      console.log(`[backgroundParsingService] Migration complete: No corrupted URLs found`);
+    }
+    
+  } catch (error) {
+    console.error('[backgroundParsingService] Error during URL migration:', error);
+    // Don't throw - migration failure shouldn't block app startup
+  }
+};
+
 
 /**
  * Get active parsing jobs

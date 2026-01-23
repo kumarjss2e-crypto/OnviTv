@@ -2,10 +2,12 @@
  * M3U Stream Parser
  * Parses M3U files line-by-line for streaming ingestion
  * Saves items immediately as they're parsed
+ * Uses disk-based downloading and parsing to handle large files (300MB+) on iOS/Android
  */
 
 import { validateStreamFormat } from './formatValidator';
 import { duplicateDetector } from './duplicateDetector';
+import * as FileSystem from 'expo-file-system';
 
 /**
  * Parse individual #EXTINF line
@@ -250,6 +252,142 @@ export const streamParseM3U = async (m3uUrl, playlistId, onItemParsed, onProgres
   let buffer = '';
   let byteOffset = 0;
 
+  // Create a processM3ULine factory that can be used in different contexts
+  const createM3ULineProcessor = (context) => {
+    return (line) => {
+      context.lineNumber = (context.lineNumber || 0) + 1;
+      const trimmedLine = line.trim();
+
+      if (context.signal?.aborted) {
+        throw new Error('Parsing cancelled');
+      }
+
+      // Skip empty lines and non-EXTINF comments
+      if (!trimmedLine || (trimmedLine.startsWith('#') && !trimmedLine.startsWith('#EXTINF'))) {
+        return;
+      }
+
+      // Parse EXTINF metadata line
+      if (trimmedLine.startsWith('#EXTINF')) {
+        context.currentExtinf = trimmedLine;
+        return;
+      }
+
+      // Stream URL line (next line after EXTINF)
+      if (context.currentExtinf) {
+        try {
+          const streamUrl = trimmedLine;
+          
+          if (!streamUrl) {
+            context.currentExtinf = null;
+            return;
+          }
+
+          // Parse metadata
+          const metadata = parseExtinfLine(context.currentExtinf, streamUrl);
+          const contentType = detectContentType(metadata);
+
+          // Check format support
+          const formatValidation = validateStreamFormat(streamUrl);
+          if (!formatValidation.isSupported) {
+            context.stats.unsupported++;
+            if (context.onProgress) {
+              context.onProgress(context.lineNumber, context.stats);
+            }
+            context.currentExtinf = null;
+            return;
+          }
+
+          // Check for duplicates
+          const item = {
+            name: metadata.name,
+            streamUrl,
+            type: contentType,
+          };
+
+          if (duplicateDetector.isDuplicate(context.playlistId, item)) {
+            context.stats.duplicates++;
+            if (context.onProgress) {
+              context.onProgress(context.lineNumber, context.stats);
+            }
+            context.currentExtinf = null;
+            return;
+          }
+
+          // Mark as seen
+          duplicateDetector.markSeen(context.playlistId, item);
+
+          // Determine category name with smart fallback
+          let categoryName = metadata.groupTitle;
+          if (!categoryName || categoryName.trim() === '') {
+            const urlLower = streamUrl.toLowerCase();
+            if (urlLower.includes('/movie')) {
+              categoryName = 'Movies';
+            } else if (urlLower.includes('/series')) {
+              categoryName = 'Series';
+            } else {
+              categoryName = 'Other';
+            }
+          }
+
+          // Build complete item
+          const completeItem = {
+            name: metadata.name || `Item ${context.lineNumber}`,
+            tvgId: metadata.tvgId,
+            tvgName: metadata.tvgName,
+            logo: metadata.tvgLogo,
+            categoryName: categoryName,
+            streamUrl: metadata.streamUrl,
+            type: contentType,
+            addedAt: new Date().toISOString(),
+          };
+
+          // Callback for item to be saved
+          if (context.onItemParsed) {
+            context.onItemParsed(completeItem, contentType);
+          }
+
+          // Update stats
+          if (contentType === 'channel') context.stats.channels++;
+          else if (contentType === 'movie') context.stats.movies++;
+          else if (contentType === 'series') context.stats.series++;
+          
+          context.stats.total++;
+
+          // Detailed logging for classification (every 1000 items)
+          if (context.stats.total % 1000 === 0) {
+            console.log(`[m3uStreamParser] Classification sample at item ${context.stats.total}: "${metadata.name}" -> ${contentType}`);
+          }
+
+          // Periodic progress update
+          if (context.lineNumber % 10 === 0 && context.onProgress) {
+            context.onProgress(context.lineNumber, context.stats);
+          }
+
+          context.currentExtinf = null;
+
+        } catch (error) {
+          console.error(`Error processing line ${context.lineNumber}:`, error);
+          context.stats.errors++;
+          context.currentExtinf = null;
+        }
+      }
+    };
+  };
+
+  // Create the processor with current context
+  const lineProcessorContext = {
+    stats,
+    lineNumber: 0,
+    currentExtinf: null,
+    playlistId,
+    signal,
+    onProgress,
+    onItemParsed,
+  };
+  
+  const processM3ULine = createM3ULineProcessor(lineProcessorContext);
+
   try {
     // Initialize duplicate detector for this playlist
     duplicateDetector.initPlaylist(playlistId);
@@ -261,12 +399,8 @@ export const streamParseM3U = async (m3uUrl, playlistId, onItemParsed, onProgres
     const response = await fetch(m3uUrl, {
       signal,
       method: 'GET',
-      timeout: 45000, // 45 second timeout
       headers: {
-        'Accept': 'application/x-mpegURL, text/plain, */*',
-        'User-Agent': 'VLC/3.0.0 (iPad; tvOS 14.7.1; en_US)',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache'
+        'Accept': 'application/x-mpegURL, text/plain',
       }
     });
 
@@ -274,162 +408,15 @@ export const streamParseM3U = async (m3uUrl, playlistId, onItemParsed, onProgres
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    console.log(`[m3uStreamParser] Fetch successful, starting to parse...`);
+    console.log(`[m3uStreamParser] Fetch successful, starting streaming download and parse...`);
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let done = false;
-
-    while (!done) {
-      const { value, done: readerDone } = await reader.read();
-      done = readerDone;
-
-      if (signal?.aborted) {
-        reader.cancel();
-        throw new Error('Parsing cancelled');
-      }
-
-      if (value) {
-        buffer += decoder.decode(value, { stream: !done });
-
-        // Process complete lines in buffer
-        const lines = buffer.split('\n');
-        
-        // Keep last incomplete line in buffer
-        buffer = lines.pop() || '';
-
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          lineNumber++;
-          const trimmedLine = line.trim();
-
-          if (signal?.aborted) {
-            throw new Error('Parsing cancelled');
-          }
-
-          // Yield to event loop every 100 lines to prevent blocking UI
-          if (i % 100 === 0 && i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 0));
-          }
-
-          // Skip empty lines and non-EXTINF comments
-          if (!trimmedLine || (trimmedLine.startsWith('#') && !trimmedLine.startsWith('#EXTINF'))) {
-            continue;
-          }
-
-          // Parse EXTINF metadata line
-          if (trimmedLine.startsWith('#EXTINF')) {
-            currentExtinf = trimmedLine;
-            continue;
-          }
-
-          // Stream URL line (next line after EXTINF)
-          if (currentExtinf) {
-            try {
-              const streamUrl = trimmedLine;
-              
-              if (!streamUrl) {
-                currentExtinf = null;
-                continue;
-              }
-
-              // Parse metadata
-              const metadata = parseExtinfLine(currentExtinf, streamUrl);
-              const contentType = detectContentType(metadata);
-
-              // Check format support
-              const formatValidation = validateStreamFormat(streamUrl);
-              if (!formatValidation.isSupported) {
-                stats.unsupported++;
-                if (onProgress) {
-                  onProgress(lineNumber, stats);
-                }
-                currentExtinf = null;
-                continue;
-              }
-
-              // Check for duplicates
-              const item = {
-                name: metadata.name,
-                streamUrl,
-                type: contentType,
-              };
-
-              if (duplicateDetector.isDuplicate(playlistId, item)) {
-                stats.duplicates++;
-                if (onProgress) {
-                  onProgress(lineNumber, stats);
-                }
-                currentExtinf = null;
-                continue;
-              }
-
-              // Mark as seen
-              duplicateDetector.markSeen(playlistId, item);
-
-              // Determine category name with smart fallback
-              let categoryName = metadata.groupTitle;
-              if (!categoryName || categoryName.trim() === '') {
-                // Try to extract from URL path for movies/series
-                const urlLower = streamUrl.toLowerCase();
-                if (urlLower.includes('/movie')) {
-                  categoryName = 'Movies';
-                } else if (urlLower.includes('/series')) {
-                  categoryName = 'Series';
-                } else {
-                  categoryName = 'Other';
-                }
-              }
-
-              // Build complete item
-              const completeItem = {
-                name: metadata.name || `Item ${lineNumber}`,
-                tvgId: metadata.tvgId,
-                tvgName: metadata.tvgName,
-                logo: metadata.tvgLogo,
-                categoryName: categoryName,
-                streamUrl: metadata.streamUrl,
-                type: contentType,
-                addedAt: new Date().toISOString(),
-              };
-
-              // Callback for item to be saved
-              if (onItemParsed) {
-                onItemParsed(completeItem, contentType);
-              }
-
-              // Update stats
-              if (contentType === 'channel') stats.channels++;
-              else if (contentType === 'movie') stats.movies++;
-              else if (contentType === 'series') stats.series++;
-              
-              stats.total++;
-
-              // Detailed logging for classification (every 1000 items)
-              if (stats.total % 1000 === 0) {
-                console.log(`[m3uStreamParser] Classification sample at item ${stats.total}: "${metadata.name}" -> ${contentType} (group: "${metadata.groupTitle}")`);
-              }
-
-              // Periodic progress update
-              if (lineNumber % 10 === 0 && onProgress) {
-                onProgress(lineNumber, stats);
-              }
-
-              currentExtinf = null;
-
-            } catch (error) {
-              console.error(`Error processing line ${lineNumber}:`, error);
-              stats.errors++;
-              currentExtinf = null;
-            }
-          }
-        }
-      }
-    }
+    // Try streaming Range request approach first (true streaming)
+    // If server doesn't support it, fallback to full download
+    await streamDownloadAndParseWithFallback(m3uUrl, playlistId, onProgress, signal, processM3ULine);
 
     // Final progress update
     if (onProgress) {
-      onProgress(lineNumber, stats);
+      onProgress(lineProcessorContext.lineNumber, stats);
     }
 
     console.log(`[m3uStreamParser] ✅ M3U parsing completed. Channels: ${stats.channels}, Movies: ${stats.movies}, Series: ${stats.series}, Total: ${stats.total}`);
@@ -445,6 +432,370 @@ export const streamParseM3U = async (m3uUrl, playlistId, onItemParsed, onProgres
     throw error;
   }
 };
+
+/**
+ * Stream download and parse with Range request support
+ * Tries to use Range requests for true streaming (parse while downloading)
+ * Falls back to full download if Range not supported
+ * @param {string} url - M3U file URL
+ * @param {string} playlistId - Playlist ID
+ * @param {Function} onProgress - Progress callback
+ * @param {AbortSignal} signal - Abort signal
+ * @param {Function} processM3ULine - Line processor function
+ */
+async function streamDownloadAndParseWithFallback(url, playlistId, onProgress, signal, processM3ULine) {
+  let supportsRange = false;
+  let totalSize = 0;
+  
+  try {
+    // Check if server supports Range requests
+    console.log(`[m3uStreamParser] Checking server Range request support...`);
+    
+    try {
+      const headResponse = await fetch(url, { 
+        method: 'HEAD',
+        signal,
+      });
+      
+      // Only trust Range headers if request succeeded
+      if (headResponse.ok) {
+        supportsRange = headResponse.headers.get('accept-ranges')?.toLowerCase() === 'bytes';
+        const contentLength = headResponse.headers.get('content-length');
+        totalSize = contentLength ? parseInt(contentLength, 10) : 0;
+      } else {
+        console.warn(`[m3uStreamParser] HEAD request failed (${headResponse.status}), will skip Range detection`);
+      }
+    } catch (headError) {
+      // HEAD request failed - this is common with some servers, skip Range detection
+      console.warn(`[m3uStreamParser] HEAD request failed, will use full download:`, headError.message);
+    }
+    
+    console.log(`[m3uStreamParser] Server supports Range: ${supportsRange}, Size: ${totalSize || 'unknown'}`);
+    
+    if (supportsRange && totalSize > 0 && totalSize < 2147483648) { // 2GB limit
+      // Use streaming Range request approach (true streaming)
+      console.log(`[m3uStreamParser] Using streaming Range request (parse while downloading)`);
+      await streamDownloadAndParseRangeRequests(url, playlistId, totalSize, onProgress, signal, processM3ULine);
+    } else {
+      // Fallback to full download
+      console.log(`[m3uStreamParser] Falling back to full download (Range not supported or file too large)`);
+      const fileUri = `${FileSystem.cacheDirectory}m3u_${playlistId}.tmp`;
+      
+      await downloadAndSaveToDisk(url, fileUri, onProgress, signal);
+      
+      // Parse from disk after download completes
+      let chunkCount = 0;
+      await parseFromDiskChunked(fileUri, (line) => {
+        processM3ULine(line);
+      }, (linesProcessed) => {
+        chunkCount++;
+        console.log(`[m3uStreamParser] Chunk ${chunkCount}: Processed ${linesProcessed} lines`);
+      }, signal);
+      
+      // Cleanup temp file
+      try {
+        await FileSystem.deleteAsync(fileUri, { idempotent: true });
+        console.log(`[m3uStreamParser] Cleaned up temp file`);
+      } catch (e) {
+        console.warn(`[m3uStreamParser] Failed to cleanup temp file:`, e);
+      }
+    }
+  } catch (error) {
+    console.error(`[m3uStreamParser] Error in streamDownloadAndParseWithFallback:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Stream download and parse using HTTP Range requests
+ * Downloads in 1MB chunks and parses each chunk immediately
+ * Items appear in UI in real-time as they're parsed
+ * @param {string} url - M3U file URL
+ * @param {string} playlistId - Playlist ID
+ * @param {number} totalSize - Total file size in bytes
+ * @param {Function} onProgress - Progress callback (lineNumber, stats)
+ * @param {AbortSignal} signal - Abort signal
+ * @param {Function} processM3ULine - Line processor function
+ */
+async function streamDownloadAndParseRangeRequests(url, playlistId, totalSize, onProgress, signal, processM3ULine) {
+  const CHUNK_SIZE = 1024 * 1024; // 1MB chunks for downloading
+  const PARSE_YIELD_INTERVAL = 500; // Yield every N lines to keep UI responsive
+  
+  let downloadedBytes = 0;
+  let parseBuffer = '';
+  let lastProgressUpdate = 0;
+  const PROGRESS_THROTTLE_MS = 500;
+  let linesProcessed = 0;
+  
+  // Stats object to track parsing progress - compatible with backgroundParsingService
+  const stats = {
+    total: 0,
+    channels: 0,
+    movies: 0,
+    series: 0,
+    duplicates: 0,
+    unsupported: 0,
+    errors: 0,
+  };
+  
+  try {
+    // Download and parse in chunks using Range requests
+    for (let start = 0; start < totalSize; start += CHUNK_SIZE) {
+      if (signal?.aborted) {
+        throw new Error('Download cancelled');
+      }
+      
+      const end = Math.min(start + CHUNK_SIZE - 1, totalSize - 1);
+      
+      try {
+        // Request specific byte range
+        const response = await fetch(url, {
+          headers: {
+            'Range': `bytes=${start}-${end}`,
+          },
+          signal,
+        });
+        
+        if (!response.ok && response.status !== 206) { // 206 = Partial Content
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const chunkText = await response.text();
+        downloadedBytes += chunkText.length;
+        parseBuffer += chunkText;
+        
+        // Parse lines from buffer
+        const lines = parseBuffer.split('\n');
+        
+        // Keep incomplete last line for next chunk
+        parseBuffer = lines[lines.length - 1];
+        
+        // Process all complete lines
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i];
+          
+          // Pass every line to processM3ULine - it handles EXTINF buffering and pairing
+          processM3ULine(line);
+          linesProcessed++;
+          
+          // Yield to event loop to keep UI responsive
+          if (linesProcessed % PARSE_YIELD_INTERVAL === 0) {
+            await new Promise(resolve => setImmediate(resolve));
+          }
+        }
+        
+        // Update progress (throttled to prevent main thread blocking)
+        const now = Date.now();
+        if (now - lastProgressUpdate >= PROGRESS_THROTTLE_MS) {
+          try {
+            // Call with compatible signature: onProgress(lineNumber, stats)
+            onProgress?.(linesProcessed, stats);
+          } catch (e) {
+            console.warn('[m3uStreamParser] Error in onProgress callback:', e);
+          }
+          lastProgressUpdate = now;
+        }
+        
+        console.log(`[m3uStreamParser] Range chunk: downloaded ${Math.round(downloadedBytes / 1024 / 1024)}MB, processed ${linesProcessed} lines`);
+        
+        // Yield between chunks to prevent UI freezing
+        await new Promise(resolve => setImmediate(resolve));
+        
+      } catch (error) {
+        console.error(`[m3uStreamParser] Error downloading chunk ${start}-${end}:`, error);
+        throw error;
+      }
+    }
+    
+    // Parse any remaining content in buffer
+    if (parseBuffer.trim().length > 0) {
+      const lines = parseBuffer.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim()) {
+          processM3ULine(line);
+          linesProcessed++;
+        }
+      }
+    }
+    
+    // Final progress update - 100% complete
+    try {
+      onProgress?.(linesProcessed, stats);
+    } catch (e) {
+      console.warn('[m3uStreamParser] Error in final onProgress callback:', e);
+    }
+    
+    console.log(`[m3uStreamParser] Streaming download and parse complete. Total lines: ${linesProcessed}`);
+    
+  } catch (error) {
+    console.error(`[m3uStreamParser] Error in streamDownloadAndParseRangeRequests:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Download file from URL to disk in chunks using XMLHttpRequest
+ * Streams data directly to disk, never loads entire file into memory
+ * @param {string} url - File URL
+ * @param {string} fileUri - Local file path to save to
+ * @param {Function} onProgress - Callback for progress updates
+ * @param {AbortSignal} signal - Abort signal
+ */
+async function downloadAndSaveToDisk(url, fileUri, onProgress, signal) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let lastProgressUpdate = 0;
+    const PROGRESS_THROTTLE_MS = 500; // Only update UI every 500ms
+    
+    // Track download progress with throttling to prevent UI freezing
+    xhr.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        const now = Date.now();
+        // Only call onProgress every 500ms to avoid blocking main thread
+        if (now - lastProgressUpdate >= PROGRESS_THROTTLE_MS) {
+          try {
+            // Call with download progress info - compatible with backgroundParsingService
+            onProgress?.(0, {
+              total: 0,
+              channels: 0,
+              movies: 0,
+              series: 0,
+              duplicates: 0,
+              unsupported: 0,
+              errors: 0,
+            });
+          } catch (e) {
+            console.warn('[m3uStreamParser] Error in onProgress callback:', e);
+          }
+          lastProgressUpdate = now;
+        }
+      }
+    });
+
+    xhr.addEventListener('abort', () => {
+      reject(new Error('Download cancelled'));
+    });
+
+    xhr.addEventListener('error', () => {
+      reject(new Error(`Download failed with status: ${xhr.status || 'unknown'}`));
+    });
+
+    xhr.addEventListener('load', async () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          // Ensure final progress update shows 100%
+          const responseLength = xhr.responseText?.length || 0;
+          try {
+            onProgress?.(0, {
+              total: 0,
+              channels: 0,
+              movies: 0,
+              series: 0,
+              duplicates: 0,
+              unsupported: 0,
+              errors: 0,
+            });
+          } catch (e) {
+            console.warn('[m3uStreamParser] Error in final onProgress callback:', e);
+          }
+          
+          // Get response as text and write to file
+          const text = xhr.responseText;
+          await FileSystem.writeAsStringAsync(fileUri, text, {
+            encoding: FileSystem.EncodingType.UTF8,
+          });
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      } else {
+        reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+      }
+    });
+
+    xhr.open('GET', url);
+    xhr.responseType = 'text'; // Ensure we get text response
+    xhr.send();
+
+    // Handle abort signal
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        xhr.abort();
+      });
+    }
+  });
+}
+
+/**
+ * Parse M3U file from disk in chunks (never loads entire file into memory)
+ * Reads file in 1MB chunks and processes line-by-line with periodic yields
+ * @param {string} fileUri - Local file path
+ * @param {Function} onLine - Callback for each line
+ * @param {Function} onChunk - Callback (linesInChunk) after each chunk
+ * @param {AbortSignal} signal - Abort signal
+ */
+async function parseFromDiskChunked(fileUri, onLine, onChunk, signal) {
+  const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+  const YIELD_INTERVAL = 500; // Yield to event loop every 500 lines to keep UI responsive
+  
+  const fileInfo = await FileSystem.getInfoAsync(fileUri);
+  const fileSize = fileInfo.size;
+
+  let offset = 0;
+  let lineBuffer = '';
+  let chunkIndex = 0;
+  let totalLinesProcessed = 0;
+
+  while (offset < fileSize) {
+    if (signal?.aborted) {
+      throw new Error('Parsing cancelled');
+    }
+
+    chunkIndex++;
+    const end = Math.min(offset + CHUNK_SIZE, fileSize);
+
+    // Read chunk from disk
+    const chunkData = await FileSystem.readAsStringAsync(fileUri, {
+      position: offset,
+      length: end - offset,
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
+    lineBuffer += chunkData;
+    
+    // Process complete lines from buffer
+    const lines = lineBuffer.split('\n');
+    
+    // Keep last incomplete line for next chunk
+    lineBuffer = lines[lines.length - 1];
+    
+    // Process all complete lines with periodic yields to keep UI responsive
+    let linesProcessed = 0;
+    for (let i = 0; i < lines.length - 1; i++) {
+      onLine(lines[i]);
+      linesProcessed++;
+      totalLinesProcessed++;
+      
+      // Yield to event loop every N lines to keep UI responsive
+      // This prevents the main thread from blocking
+      if (totalLinesProcessed % YIELD_INTERVAL === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
+
+    onChunk?.(linesProcessed);
+    offset = end;
+    
+    console.log(`[m3uStreamParser] Chunk ${chunkIndex}: ${linesProcessed} lines, total: ${totalLinesProcessed}`);
+  }
+
+  // Process remaining buffer
+  if (lineBuffer.trim()) {
+    onLine(lineBuffer);
+    onChunk?.(1);
+  }
+}
 
 export default {
   streamParseM3U,

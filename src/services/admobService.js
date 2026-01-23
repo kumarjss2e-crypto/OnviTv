@@ -54,7 +54,30 @@ export const createRewardedAd = () => {
   console.log('[createRewardedAd] Platform.OS =', Platform.OS);
   if (Platform.OS === 'web') {
     console.log('[createRewardedAd] Returning mock ad for web');
-    return RewardedAd.createForAdRequest('mock-ad-unit');
+    // Return a mock ad object for web platform
+    return {
+      load: async () => {
+        console.log('Mock ad load called');
+        return Promise.resolve();
+      },
+      show: async () => {
+        console.log('Mock ad show called');
+        return Promise.resolve();
+      },
+      addAdEventListener: (eventType, callback) => {
+        console.log('Mock ad listener added for event:', eventType);
+        // Auto-trigger loaded event after a short delay
+        if (eventType === 'loaded') {
+          setTimeout(() => callback(), 100);
+        }
+        // Auto-trigger earned reward event when shown
+        if (eventType === 'earned_reward') {
+          setTimeout(() => callback({ amount: 1 }), 500);
+        }
+        // Return unsubscribe function
+        return () => console.log('Mock ad listener removed');
+      },
+    };
   }
   const adUnitId = getRewardAdUnitId();
   
