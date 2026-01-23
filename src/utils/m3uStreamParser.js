@@ -3,11 +3,15 @@
  * Parses M3U files line-by-line for streaming ingestion
  * Saves items immediately as they're parsed
  * Uses disk-based downloading and parsing to handle large files (300MB+) on iOS/Android
+ * 
+ * OPTIMIZED: Now uses chunked downloading to start parsing within seconds
+ * instead of waiting for full file download
  */
 
 import { validateStreamFormat } from './formatValidator';
 import { duplicateDetector } from './duplicateDetector';
 import * as FileSystem from 'expo-file-system';
+import { downloadM3UInChunks, parseM3UChunk } from './chunkedM3UDownloader';
 
 /**
  * Parse individual #EXTINF line
@@ -393,26 +397,13 @@ export const streamParseM3U = async (m3uUrl, playlistId, onItemParsed, onProgres
     duplicateDetector.initPlaylist(playlistId);
 
     console.log(`[m3uStreamParser] Starting M3U parsing for ${playlistId}`);
+    console.log(`[m3uStreamParser] Starting M3U parsing for ${playlistId}`);
     console.log(`[m3uStreamParser] URL: ${m3uUrl}`);
 
-    // Fetch file as stream using native fetch (works on web, iOS with ATS, Android)
-    const response = await fetch(m3uUrl, {
-      signal,
-      method: 'GET',
-      headers: {
-        'Accept': 'application/x-mpegURL, text/plain',
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    console.log(`[m3uStreamParser] Fetch successful, starting streaming download and parse...`);
-
-    // Try streaming Range request approach first (true streaming)
-    // If server doesn't support it, fallback to full download
-    await streamDownloadAndParseWithFallback(m3uUrl, playlistId, onProgress, signal, processM3ULine);
+    // Use optimized chunked downloading that starts parsing immediately
+    // This allows items to appear in UI within 30-60 seconds even for large files
+    console.log(`[m3uStreamParser] Using optimized chunked download (parse starts immediately)`);
+    await streamDownloadAndParseChunked(m3uUrl, playlistId, onProgress, signal, processM3ULine, lineProcessorContext);
 
     // Final progress update
     if (onProgress) {
@@ -434,7 +425,98 @@ export const streamParseM3U = async (m3uUrl, playlistId, onItemParsed, onProgres
 };
 
 /**
- * Stream download and parse with Range request support
+ * Optimized chunked download and parse
+ * Downloads in chunks and parses each chunk immediately
+ * This is faster than waiting for full download before parsing
+ * @param {string} url - M3U file URL
+ * @param {string} playlistId - Playlist ID
+ * @param {Function} onProgress - Progress callback
+ * @param {AbortSignal} signal - Abort signal
+ * @param {Function} processM3ULine - Line processor function
+ * @param {Object} context - Parser context with stats
+ */
+async function streamDownloadAndParseChunked(url, playlistId, onProgress, signal, processM3ULine, context) {
+  let parseBuffer = '';
+  let chunkCount = 0;
+  let lastProgressTime = Date.now();
+  const PROGRESS_THROTTLE_MS = 500;
+  
+  try {
+    console.log(`[m3uStreamParser] Starting chunked download for ${url}`);
+    
+    // Use chunked downloader to download and trigger parse callbacks
+    await downloadM3UInChunks(
+      url,
+      // onChunk callback - called when each chunk arrives
+      async (chunkData) => {
+        chunkCount++;
+        console.log(`[m3uStreamParser] Chunk ${chunkCount} received (${chunkData.length} bytes)`);
+        
+        // Add chunk to buffer
+        parseBuffer += chunkData;
+        
+        // Extract and process complete lines
+        const lines = parseBuffer.split('\n');
+        
+        // Keep incomplete last line for next chunk
+        parseBuffer = lines[lines.length - 1];
+        
+        // Process all complete lines immediately
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i];
+          
+          if (signal?.aborted) {
+            throw new Error('Parsing cancelled');
+          }
+          
+          // Pass line to parser
+          try {
+            processM3ULine(line);
+          } catch (e) {
+            console.error(`[m3uStreamParser] Error processing line:`, e);
+            context.stats.errors++;
+          }
+        }
+        
+        // Periodic progress update (throttled)
+        const now = Date.now();
+        if (now - lastProgressTime >= PROGRESS_THROTTLE_MS && onProgress) {
+          try {
+            onProgress(context.lineNumber, context.stats);
+          } catch (e) {
+            console.warn('[m3uStreamParser] Error in onProgress:', e);
+          }
+          lastProgressTime = now;
+        }
+        
+        // Yield to event loop
+        await new Promise(resolve => setImmediate(resolve));
+      },
+      // onProgress callback - download progress
+      (bytesReceived, totalBytes) => {
+        const percentComplete = totalBytes > 0 ? Math.round((bytesReceived / totalBytes) * 100) : 0;
+        console.log(`[m3uStreamParser] Download progress: ${(bytesReceived / 1024 / 1024).toFixed(2)}MB / ${(totalBytes / 1024 / 1024).toFixed(2)}MB (${percentComplete}%)`);
+      },
+      signal,
+      30000 // timeout
+    );
+    
+    // Process any remaining buffered data
+    if (parseBuffer.trim()) {
+      console.log(`[m3uStreamParser] Processing final buffer: ${parseBuffer.length} bytes`);
+      processM3ULine(parseBuffer);
+    }
+    
+    console.log(`[m3uStreamParser] Chunked download completed (${chunkCount} chunks)`);
+    
+  } catch (error) {
+    console.error('[m3uStreamParser] Error in chunked download/parse:', error);
+    throw error;
+  }
+}
+
+/**
+ * Stream download and parse with Range request support (LEGACY - kept for reference)
  * Tries to use Range requests for true streaming (parse while downloading)
  * Falls back to full download if Range not supported
  * @param {string} url - M3U file URL
