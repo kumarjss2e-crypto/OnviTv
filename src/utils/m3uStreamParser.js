@@ -928,6 +928,11 @@ async function parseFromDiskChunked(fileUri, onLine, onChunk, signal) {
   }
 }
 
+export {
+  parseExtinfLine,
+  detectContentType,
+};
+
 export default {
   streamParseM3U,
 };

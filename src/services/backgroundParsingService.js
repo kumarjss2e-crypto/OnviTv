@@ -4,7 +4,9 @@
  * Handles concurrent playlist parsing
  */
 
-import { streamParseM3U } from '../utils/m3uStreamParser';
+import { Platform } from 'react-native';
+import parseM3UStreamNative from '../utils/nativeM3UParser';
+import streamParseM3U from '../utils/iosStreamingParser';
 import { streamParseXtream } from '../utils/xtreamStreamParser';
 import { createParserEngine } from '../utils/streamingParserEngine';
 import { db } from '../config/firebase';
@@ -356,7 +358,15 @@ const startParsing = async (playlistId, playlistData) => {
       ];
     } else {
       // Default to M3U
-      parseFunction = streamParseM3U;
+      // Use native streaming parser on iOS for better performance
+      // Fall back to JavaScript parser on Android/Web
+      if (Platform.OS === 'ios') {
+        console.log('[backgroundParsingService] Using native iOS streaming parser');
+        parseFunction = parseM3UStreamNative;
+      } else {
+        console.log('[backgroundParsingService] Using JavaScript streaming parser');
+        parseFunction = streamParseM3U;
+      }
       parseArgs = [playlistData.m3uUrl, playlistId];
     }
 
