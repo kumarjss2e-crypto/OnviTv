@@ -31,6 +31,8 @@ export const downloadM3UInChunks = async (
       let totalBytes = 0;
       let receivedBytes = 0;
       let buffer = ''; // Buffer incomplete lines
+      let lastProgressTime = Date.now();
+      const PROGRESS_THROTTLE_MS = 1000; // Only update progress every 1 second max
 
       // Set timeout
       xhr.timeout = timeout;
@@ -41,13 +43,12 @@ export const downloadM3UInChunks = async (
           totalBytes = event.total;
           receivedBytes = event.loaded;
 
-          if (onProgress) {
+          // Throttle progress updates to prevent freezing
+          const now = Date.now();
+          if (now - lastProgressTime >= PROGRESS_THROTTLE_MS && onProgress) {
             onProgress(receivedBytes, totalBytes);
+            lastProgressTime = now;
           }
-
-          console.log(
-            `[chunkedM3UDownloader] Progress: ${(receivedBytes / 1024 / 1024).toFixed(2)}MB / ${(totalBytes / 1024 / 1024).toFixed(2)}MB`
-          );
         }
       };
 
@@ -65,6 +66,11 @@ export const downloadM3UInChunks = async (
             console.log(
               `[chunkedM3UDownloader] Successfully downloaded ${(receivedBytes / 1024 / 1024).toFixed(2)}MB`
             );
+
+            // Final progress update
+            if (onProgress) {
+              onProgress(receivedBytes, totalBytes);
+            }
 
             resolve({
               success: true,

@@ -431,16 +431,18 @@ export default function VideoPlayerScreen({ route, navigation }) {
    */
   useFocusEffect(
     useCallback(() => {
-      // Unlock screen orientation for video player
+      // Lock to portrait when entering video player
+      // Fullscreen toggle will handle landscape rotation
       if (Platform.OS !== 'web' && ScreenOrientation) {
         try {
-          if (ScreenOrientation.unlockAsync) {
-            ScreenOrientation.unlockAsync().catch((err) => {
-              console.warn('[VideoPlayer] Failed to unlock orientation:', err);
+          if (ScreenOrientation.lockAsync && ScreenOrientation.OrientationLock) {
+            // Start in portrait - user must tap fullscreen to rotate
+            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch((err) => {
+              console.warn('[VideoPlayer] Failed to lock initial orientation:', err);
             });
           }
         } catch (err) {
-          console.warn('[VideoPlayer] Screen orientation error:', err);
+          console.warn('[VideoPlayer] Screen orientation error on focus:', err);
         }
       }
 
@@ -452,11 +454,12 @@ export default function VideoPlayerScreen({ route, navigation }) {
         StatusBar.setHidden(false);
         backHandler.remove();
         
-        // Always lock back to portrait when leaving video player
+        // Lock back to portrait when leaving video player
         if (Platform.OS !== 'web' && ScreenOrientation) {
           try {
             if (ScreenOrientation.lockAsync && ScreenOrientation.OrientationLock) {
-              ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch((err) => {
+              // Always lock to portrait on cleanup
+              ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch((err) => {
                 console.warn('[VideoPlayer] Failed to lock orientation back to portrait:', err);
               });
             }
@@ -539,15 +542,24 @@ export default function VideoPlayerScreen({ route, navigation }) {
         if (isFullscreen) {
           // Exit fullscreen - rotate back to portrait
           if (ScreenOrientation.lockAsync && ScreenOrientation.OrientationLock) {
-            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+            // Set state BEFORE lock to prevent race condition
+            setIsFullscreen(false);
+            // Use PORTRAIT_UP for explicit portrait locking
+            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch((err) => {
+              console.warn('[VideoPlayer] Failed to lock portrait:', err);
+            });
           }
         } else {
           // Enter fullscreen - rotate to landscape
           if (ScreenOrientation.lockAsync && ScreenOrientation.OrientationLock) {
-            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+            // Set state BEFORE lock to prevent race condition
+            setIsFullscreen(true);
+            // Use LANDSCAPE_RIGHT for explicit landscape locking
+            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT).catch((err) => {
+              console.warn('[VideoPlayer] Failed to lock landscape:', err);
+            });
           }
         }
-        setIsFullscreen(prev => !prev);
       } catch (err) {
         console.warn('[VideoPlayer] Failed to toggle orientation:', err);
       }

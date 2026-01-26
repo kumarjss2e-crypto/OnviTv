@@ -397,13 +397,56 @@ export const streamParseM3U = async (m3uUrl, playlistId, onItemParsed, onProgres
     duplicateDetector.initPlaylist(playlistId);
 
     console.log(`[m3uStreamParser] Starting M3U parsing for ${playlistId}`);
-    console.log(`[m3uStreamParser] Starting M3U parsing for ${playlistId}`);
     console.log(`[m3uStreamParser] URL: ${m3uUrl}`);
 
-    // Use optimized chunked downloading that starts parsing immediately
-    // This allows items to appear in UI within 30-60 seconds even for large files
-    console.log(`[m3uStreamParser] Using optimized chunked download (parse starts immediately)`);
-    await streamDownloadAndParseChunked(m3uUrl, playlistId, onProgress, signal, processM3ULine, lineProcessorContext);
+    // CRITICAL FIX: XMLHttpRequest doesn't expose partial response data in onprogress callback
+    // Solution: Download entire file to disk FIRST, then parse from disk (instant local reads)
+    // This ensures items appear in Firebase within 30 seconds because parsing from local disk is fast
+    console.log(`[m3uStreamParser] Using disk-based download + parse (XMLHttpRequest doesn't support streaming data access)`);
+    
+    const fileUri = `${FileSystem.cacheDirectory}m3u_${playlistId}.tmp`;
+    let downloadProgressStartTime = Date.now();
+    let parseProgressStartTime = null;
+    
+    // Phase 1: Download to disk (shows download progress)
+    console.log(`[m3uStreamParser] Phase 1: Downloading M3U file to disk...`);
+    await downloadAndSaveToDisk(m3uUrl, fileUri, (lineNum, downloadStats) => {
+      if (!parseProgressStartTime) {
+        // Still in download phase
+        const elapsedSeconds = Math.round((Date.now() - downloadProgressStartTime) / 1000);
+        console.log(`[m3uStreamParser] Download in progress (${elapsedSeconds}s elapsed)...`);
+      }
+      // Call original progress callback
+      if (onProgress) {
+        onProgress(lineProcessorContext.lineNumber, stats);
+      }
+    }, signal);
+    
+    console.log(`[m3uStreamParser] Phase 1 complete: File downloaded to disk`);
+    parseProgressStartTime = Date.now();
+    
+    // Phase 2: Parse from disk (instant local reads, items saved within 30 seconds)
+    console.log(`[m3uStreamParser] Phase 2: Parsing M3U from disk...`);
+    let chunkCount = 0;
+    await parseFromDiskChunked(fileUri, (line) => {
+      processM3ULine(line);
+    }, (linesProcessed) => {
+      chunkCount++;
+      // Progress callback for parsing phase
+      if (onProgress) {
+        onProgress(lineProcessorContext.lineNumber, stats);
+      }
+    }, signal);
+    
+    console.log(`[m3uStreamParser] Phase 2 complete: Parsed ${chunkCount} chunks from disk in ${Math.round((Date.now() - parseProgressStartTime) / 1000)}s`);
+    
+    // Cleanup temp file
+    try {
+      await FileSystem.deleteAsync(fileUri, { idempotent: true });
+      console.log(`[m3uStreamParser] Cleaned up temp file`);
+    } catch (e) {
+      console.warn(`[m3uStreamParser] Failed to cleanup temp file:`, e);
+    }
 
     // Final progress update
     if (onProgress) {
@@ -439,7 +482,9 @@ async function streamDownloadAndParseChunked(url, playlistId, onProgress, signal
   let parseBuffer = '';
   let chunkCount = 0;
   let lastProgressTime = Date.now();
-  const PROGRESS_THROTTLE_MS = 500;
+  const PROGRESS_THROTTLE_MS = 1000; // Update progress at most every 1 second
+  const YIELD_INTERVAL = 1000; // Yield to event loop every 1000 lines
+  let linesProcessedSinceYield = 0;
   
   try {
     console.log(`[m3uStreamParser] Starting chunked download for ${url}`);
@@ -472,9 +517,16 @@ async function streamDownloadAndParseChunked(url, playlistId, onProgress, signal
           // Pass line to parser
           try {
             processM3ULine(line);
+            linesProcessedSinceYield++;
           } catch (e) {
             console.error(`[m3uStreamParser] Error processing line:`, e);
             context.stats.errors++;
+          }
+          
+          // Yield to event loop periodically to prevent main thread blocking
+          if (linesProcessedSinceYield >= YIELD_INTERVAL) {
+            linesProcessedSinceYield = 0;
+            await new Promise(resolve => setImmediate(resolve));
           }
         }
         
@@ -488,11 +540,8 @@ async function streamDownloadAndParseChunked(url, playlistId, onProgress, signal
           }
           lastProgressTime = now;
         }
-        
-        // Yield to event loop
-        await new Promise(resolve => setImmediate(resolve));
       },
-      // onProgress callback - download progress
+      // onProgress callback - download progress (throttled by downloader)
       (bytesReceived, totalBytes) => {
         const percentComplete = totalBytes > 0 ? Math.round((bytesReceived / totalBytes) * 100) : 0;
         console.log(`[m3uStreamParser] Download progress: ${(bytesReceived / 1024 / 1024).toFixed(2)}MB / ${(totalBytes / 1024 / 1024).toFixed(2)}MB (${percentComplete}%)`);

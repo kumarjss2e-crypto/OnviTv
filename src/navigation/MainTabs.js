@@ -30,8 +30,8 @@ const MainTabsContent = () => {
   useFocusEffect(
     React.useCallback(() => {
       if (Platform.OS === 'ios' && ScreenOrientation?.lockAsync) {
-        // Lock to portrait when entering MainTabs
-        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch(() => {
+        // Lock to portrait when entering MainTabs (use PORTRAIT_UP for specificity)
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {
           // Ignore errors
         });
       }
