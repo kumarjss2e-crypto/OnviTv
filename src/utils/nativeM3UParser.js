@@ -12,8 +12,9 @@ import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
 let M3UStreamParserModule = null;
 let eventEmitter = null;
 let initAttempted = false;
+let nativeModuleEnabled = false; // DISABLED: Causing crash on app startup
 
-// Lazy-load native module only when explicitly requested
+// Lazy-load native module only when explicitly requested via test
 // This prevents crashes during app initialization
 const initializeNativeModule = () => {
   if (initAttempted) {
@@ -21,6 +22,13 @@ const initializeNativeModule = () => {
   }
 
   initAttempted = true;
+
+  // DISABLED: Native module is crashing the app on startup
+  // You can enable via: setNativeModuleEnabled(true) in test component
+  if (!nativeModuleEnabled) {
+    console.log('[nativeM3UParser] Native module disabled (crashing on startup). Using JavaScript parser.');
+    return null;
+  }
 
   try {
     console.log('[nativeM3UParser] Attempting to initialize native module...');
@@ -39,6 +47,14 @@ const initializeNativeModule = () => {
   }
 
   return M3UStreamParserModule;
+};
+
+// Export function to enable native module for testing only
+export const setNativeModuleEnabled = (enabled) => {
+  nativeModuleEnabled = enabled;
+  if (enabled) {
+    initAttempted = false; // Reset so it initializes on next call
+  }
 };
 
 /**

@@ -2,7 +2,7 @@
   "expo": {
     "name": "OnviTV",
     "slug": "onvitv-app",
-    "version": "1.7.7",
+    "version": "1.7.8",
     "orientation": "sensor",
     "userInterfaceStyle": "dark",
     "icon": "./assets/AppIcon@3x.png",
