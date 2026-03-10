@@ -11,18 +11,35 @@ import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
 
 let M3UStreamParserModule = null;
 let eventEmitter = null;
+let initAttempted = false;
 
-// Try to get native module, but don't crash if it's not available
-try {
-  M3UStreamParserModule = NativeModules.M3UStreamParser;
-  if (M3UStreamParserModule) {
-    eventEmitter = new NativeEventEmitter(M3UStreamParserModule);
-    console.log('[nativeM3UParser] Native module loaded successfully');
+// Lazy-load native module only when explicitly requested
+// This prevents crashes during app initialization
+const initializeNativeModule = () => {
+  if (initAttempted) {
+    return M3UStreamParserModule;
   }
-} catch (error) {
-  console.warn('[nativeM3UParser] Warning: Native module not available:', error.message);
-  M3UStreamParserModule = null;
-}
+
+  initAttempted = true;
+
+  try {
+    console.log('[nativeM3UParser] Attempting to initialize native module...');
+    M3UStreamParserModule = NativeModules.M3UStreamParser;
+    if (M3UStreamParserModule) {
+      eventEmitter = new NativeEventEmitter(M3UStreamParserModule);
+      console.log('[nativeM3UParser] ✓ Native module initialized successfully');
+    } else {
+      console.warn('[nativeM3UParser] Native module M3UStreamParser not found in NativeModules');
+      console.warn('[nativeM3UParser] Available modules:', Object.keys(NativeModules).join(', '));
+    }
+  } catch (error) {
+    console.error('[nativeM3UParser] ✗ Error initializing native module:', error.message);
+    console.error('[nativeM3U Parser] Stack:', error.stack);
+    M3UStreamParserModule = null;
+  }
+
+  return M3UStreamParserModule;
+};
 
 /**
  * Parse M3U file using native streaming
@@ -37,13 +54,17 @@ try {
  * @returns {Promise<Object>} - Parse result with stats
  */
 export async function parseM3UStream(url, callbacks, signal) {
-  if (!M3UStreamParserModule || !eventEmitter) {
+  // Lazy-load native module only when called
+  const module = initializeNativeModule();
+  const emitter = eventEmitter;
+  
+  if (!module || !emitter) {
     throw new Error('Native M3UStreamParser module not available');
   }
 
   return new Promise((resolve, reject) => {
     // Set up event listeners
-    const channelSubscription = eventEmitter.addListener(
+    const channelSubscription = emitter.addListener(
       'onChannelFound',
       (channel) => {
         if (callbacks?.onChannel) {
@@ -52,7 +73,7 @@ export async function parseM3UStream(url, callbacks, signal) {
       }
     );
 
-    const progressSubscription = eventEmitter.addListener(
+    const progressSubscription = emitter.addListener(
       'onProgress',
       ({ current, total }) => {
         if (callbacks?.onProgress) {
@@ -136,9 +157,12 @@ export async function parseM3UStreamNative(
   onProgress,
   signal
 ) {
+  // Lazy-load native module only when called
+  const module = initializeNativeModule();
+  
   // Check if native module is available on iOS
-  if (Platform.OS !== 'ios' || !M3UStreamParserModule) {
-    console.log('[nativeM3UParser] Native module not available, using JavaScript parser');
+  if (Platform.OS !== 'ios' || !module) {
+    console.log('[nativeM3UParser] Native module not available or not on iOS, using JavaScript parser');
     
     // Import and use JavaScript parser as fallback
     try {

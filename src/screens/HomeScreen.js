@@ -34,6 +34,7 @@ import {
   isShortScreen,
   getResponsiveValue 
 } from '../utils/responsive';
+import NativeStreamTestModal from '../components/NativeStreamTestModal';
 
 // Pagination config
 const ITEMS_PER_PAGE = 500; // Load 500 items per page for smooth scrolling with large playlists
@@ -56,6 +57,7 @@ const HomeScreen = ({ navigation }) => {
   const [selectedType, setSelectedType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showTestModal, setShowTestModal] = useState(false);
   const unsubscribesRef = useRef([]);
   const debounceTimerRef = useRef(null);
   
@@ -680,6 +682,12 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.headerRight}>
           <TouchableOpacity 
             style={styles.iconButton}
+            onPress={() => setShowTestModal(true)}
+          >
+            <Ionicons name="flask-outline" size={24} color={colors.primary.purple} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.iconButton}
             onPress={() => navigation.navigate('Profile')}
           >
             <Ionicons name="person-circle-outline" size={24} color={colors.text.primary} />
@@ -761,6 +769,12 @@ const HomeScreen = ({ navigation }) => {
             </Text>
           </View>
         }
+      />
+
+      {/* Native Stream Test Modal */}
+      <NativeStreamTestModal
+        visible={showTestModal}
+        onClose={() => setShowTestModal(false)}
       />
 
     </View>
