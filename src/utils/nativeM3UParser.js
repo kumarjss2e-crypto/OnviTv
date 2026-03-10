@@ -3,12 +3,26 @@
  * 
  * Wraps the native iOS Swift module that uses URLSession.bytes()
  * for true streaming M3U parsing without downloading entire file
+ * 
+ * Falls back to JavaScript implementation if native module unavailable
  */
 
 import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
 
-const M3UStreamParserModule = NativeModules.M3UStreamParser;
-const eventEmitter = new NativeEventEmitter(M3UStreamParserModule);
+let M3UStreamParserModule = null;
+let eventEmitter = null;
+
+// Try to get native module, but don't crash if it's not available
+try {
+  M3UStreamParserModule = NativeModules.M3UStreamParser;
+  if (M3UStreamParserModule) {
+    eventEmitter = new NativeEventEmitter(M3UStreamParserModule);
+    console.log('[nativeM3UParser] Native module loaded successfully');
+  }
+} catch (error) {
+  console.warn('[nativeM3UParser] Warning: Native module not available:', error.message);
+  M3UStreamParserModule = null;
+}
 
 /**
  * Parse M3U file using native streaming
@@ -23,11 +37,7 @@ const eventEmitter = new NativeEventEmitter(M3UStreamParserModule);
  * @returns {Promise<Object>} - Parse result with stats
  */
 export async function parseM3UStream(url, callbacks, signal) {
-  if (Platform.OS !== 'ios') {
-    throw new Error('M3U streaming parser only available on iOS');
-  }
-
-  if (!M3UStreamParserModule) {
+  if (!M3UStreamParserModule || !eventEmitter) {
     throw new Error('Native M3UStreamParser module not available');
   }
 
@@ -110,6 +120,8 @@ export async function parseM3UStream(url, callbacks, signal) {
  * SIGNATURE: parseM3UStreamNative(url, playlistId, onItemParsed, onProgress, signal)
  * Matches the interface expected by backgroundParsingService
  * 
+ * Tries native module first, falls back to JavaScript parser on failure
+ * 
  * @param {string} url - M3U file URL
  * @param {string} playlistId - Playlist ID (for logging)
  * @param {Function} onItemParsed - Called with (item, contentType) for each parsed item
@@ -124,10 +136,18 @@ export async function parseM3UStreamNative(
   onProgress,
   signal
 ) {
-  if (Platform.OS !== 'ios') {
-    // Fall back to JavaScript parser on Android/Web
-    console.log('[nativeM3UParser] Platform is not iOS, native parser unavailable');
-    throw new Error('Native parser only available on iOS');
+  // Check if native module is available on iOS
+  if (Platform.OS !== 'ios' || !M3UStreamParserModule) {
+    console.log('[nativeM3UParser] Native module not available, using JavaScript parser');
+    
+    // Import and use JavaScript parser as fallback
+    try {
+      const { default: streamParseM3U } = await import('./iosStreamingParser');
+      return streamParseM3U(url, playlistId, onItemParsed, onProgress, signal);
+    } catch (importError) {
+      console.error('[nativeM3UParser] Failed to import JavaScript parser:', importError);
+      throw importError;
+    }
   }
 
   console.log('[nativeM3UParser] Starting native M3U stream parse');
@@ -223,14 +243,22 @@ export async function parseM3UStreamNative(
     };
   } catch (error) {
     console.error('[nativeM3UParser] Parse error:', error);
-    stats.errors++;
-
-    return {
-      success: false,
-      error: error.message,
-      stats,
-      totalTimeMs: Date.now() - startTime,
-    };
+    
+    // Try to fall back to JavaScript parser on error
+    console.log('[nativeM3UParser] Attempting fallback to JavaScript parser...');
+    try {
+      const { default: streamParseM3U } = await import('./iosStreamingParser');
+      return streamParseM3U(url, playlistId, onItemParsed, onProgress, signal);
+    } catch (fallbackError) {
+      console.error('[nativeM3UParser] Fallback failed:', fallbackError);
+      stats.errors++;
+      return {
+        success: false,
+        error: error.message,
+        stats,
+        totalTimeMs: Date.now() - startTime,
+      };
+    }
   }
 }
 
