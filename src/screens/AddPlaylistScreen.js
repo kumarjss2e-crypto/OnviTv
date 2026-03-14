@@ -267,6 +267,18 @@ const AddPlaylistScreen = ({ navigation }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Add Playlist</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -460,6 +472,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border || '#333',
+    backgroundColor: colors.background,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
   downloadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -484,7 +517,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primary.purple,
     borderRadius: 3,
   },
   progressText: {
@@ -554,10 +587,10 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   testButton: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.secondary.cyan,
   },
   submitButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primary.purple,
     marginTop: 20,
   },
   buttonDisabled: {

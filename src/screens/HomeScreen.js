@@ -660,16 +660,6 @@ const HomeScreen = ({ navigation }) => {
     <View style={styles.container} ref={containerRef}>
       <StatusBar barStyle="light-content" />
       
-      {/* Parsing Loading Indicator - Linear Progress Bar */}
-      {hasAnyParsing && (
-        <View style={styles.parsingIndicator}>
-          <View style={styles.parsingBarContainer}>
-            <View style={[styles.parsingBar, { width: `${averageProgress}%` }]} />
-          </View>
-          <Text style={styles.parsingText}>Loading content... {averageProgress}%</Text>
-        </View>
-      )}
-      
       {/* Header */}
       <View style={styles.header}>
         <Image
