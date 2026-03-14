@@ -34,8 +34,6 @@ import {
   isShortScreen,
   getResponsiveValue 
 } from '../utils/responsive';
-import NativeStreamTestModal from '../components/NativeStreamTestModal';
-import IncrementalParserTestModal from '../components/IncrementalParserTestModal';
 
 // Pagination config
 const ITEMS_PER_PAGE = 500; // Load 500 items per page for smooth scrolling with large playlists
@@ -58,8 +56,6 @@ const HomeScreen = ({ navigation }) => {
   const [selectedType, setSelectedType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [showTestModal, setShowTestModal] = useState(false);
-  const [showIncrementalTestModal, setShowIncrementalTestModal] = useState(false);
   const unsubscribesRef = useRef([]);
   const debounceTimerRef = useRef(null);
   
@@ -684,20 +680,6 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.headerRight}>
           <TouchableOpacity 
             style={styles.iconButton}
-            onPress={() => setShowIncrementalTestModal(true)}
-            title="Test Incremental Parser"
-          >
-            <Ionicons name="bug-outline" size={24} color={colors.primary.purple} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.iconButton}
-            onPress={() => setShowTestModal(true)}
-            title="Test Native Stream"
-          >
-            <Ionicons name="flask-outline" size={24} color={colors.primary.purple} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.iconButton}
             onPress={() => navigation.navigate('Profile')}
           >
             <Ionicons name="person-circle-outline" size={24} color={colors.text.primary} />
@@ -781,32 +763,7 @@ const HomeScreen = ({ navigation }) => {
         }
       />
 
-      {/* Test Modals */}
-      <NativeStreamTestModal
-        visible={showTestModal}
-        onClose={() => setShowTestModal(false)}
-      />
-      
-      {/* Incremental Parser Test Modal */}
-      {showIncrementalTestModal && (
-        <View style={{ flex: 1, ...StyleSheet.absoluteFillObject, zIndex: 1000 }}>
-          <IncrementalParserTestModal />
-          <TouchableOpacity
-            style={{
-              position: 'absolute',
-              top: insets.top + 10,
-              right: 10,
-              padding: 10,
-              backgroundColor: colors.primary.purple,
-              borderRadius: 20,
-              zIndex: 1001,
-            }}
-            onPress={() => setShowIncrementalTestModal(false)}
-          >
-            <Ionicons name="close" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-      )}
+
 
     </View>
   );

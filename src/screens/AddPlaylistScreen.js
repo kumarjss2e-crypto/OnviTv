@@ -249,7 +249,7 @@ const AddPlaylistScreen = ({ navigation }) => {
     return (
       <View style={[styles.container, styles.downloadingContainer]}>
         <View style={styles.downloadingContent}>
-          <ActivityIndicator size="large" color={colors.primary.main} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.downloadingStatus}>{downloadStatus}</Text>
           
           {/* Progress bar */}
@@ -458,7 +458,7 @@ const AddPlaylistScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.main,
+    backgroundColor: colors.background,
   },
   downloadingContainer: {
     justifyContent: 'center',
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: colors.primary.main,
+    backgroundColor: colors.primary,
     borderRadius: 3,
   },
   progressText: {
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: colors.primary.main,
+    backgroundColor: colors.primary,
   },
   tabText: {
     color: colors.text.secondary,
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: colors.background.secondary,
-    borderColor: colors.border.main,
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 8,
     color: colors.text.primary,
@@ -554,10 +554,10 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   testButton: {
-    backgroundColor: colors.secondary.main,
+    backgroundColor: colors.secondary,
   },
   submitButton: {
-    backgroundColor: colors.primary.main,
+    backgroundColor: colors.primary,
     marginTop: 20,
   },
   buttonDisabled: {
