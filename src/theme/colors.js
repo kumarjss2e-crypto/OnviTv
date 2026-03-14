@@ -29,6 +29,18 @@ export const colors = {
     green: '#10b981',
     red: '#ef4444',
   },
+  success: {
+    main: '#10b981',
+  },
+  error: {
+    main: '#ef4444',
+  },
+  success: {
+    main: '#10b981',
+  },
+  error: {
+    main: '#ef4444',
+  },
   text: {
     primary: '#ffffff',     // Main text
     secondary: '#cbd5e1',   // Secondary text (slate-300)

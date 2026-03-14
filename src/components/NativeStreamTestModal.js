@@ -165,9 +165,9 @@ const NativeStreamTestModal = ({ visible, onClose }) => {
   const getLogColor = (type) => {
     switch (type) {
       case 'success':
-        return colors.success.main || '#10b981';
+        return colors.success?.main || colors.accent.green || '#10b981';
       case 'error':
-        return colors.error.main || '#ef4444';
+        return colors.error?.main || colors.accent.red || '#ef4444';
       case 'progress':
         return colors.primary.purple;
       default:
@@ -261,7 +261,7 @@ const NativeStreamTestModal = ({ visible, onClose }) => {
                 <Ionicons
                   name="trash"
                   size={18}
-                  color={logs.length > 0 ? colors.error.main : colors.text.muted}
+                  color={logs.length > 0 ? (colors.error?.main || colors.accent.red) : colors.text.muted}
                 />
               </TouchableOpacity>
             </View>
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   },
   resultErrorText: {
     fontSize: fontSizes.sm,
-    color: colors.error.main,
+    color: colors.error?.main || colors.accent.red,
   },
   footer: {
     paddingHorizontal: spacing.lg,
