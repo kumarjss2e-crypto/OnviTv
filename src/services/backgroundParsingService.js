@@ -5,7 +5,6 @@
  */
 
 import { Platform } from 'react-native';
-import parseM3UStreamNative from '../utils/nativeM3UParser';
 import streamParseM3U from '../utils/iosStreamingParser';
 import { streamParseXtream } from '../utils/xtreamStreamParser';
 import { createParserEngine } from '../utils/streamingParserEngine';
@@ -357,16 +356,10 @@ const startParsing = async (playlistId, playlistData) => {
         playlistId,
       ];
     } else {
-      // Default to M3U
-      // Use native streaming parser on iOS for better performance
-      // Fall back to JavaScript parser on Android/Web
-      if (Platform.OS === 'ios') {
-        console.log('[backgroundParsingService] Using native iOS streaming parser');
-        parseFunction = parseM3UStreamNative;
-      } else {
-        console.log('[backgroundParsingService] Using JavaScript streaming parser');
-        parseFunction = streamParseM3U;
-      }
+      // Default to M3U - use JavaScript streaming parser on all platforms
+      // Proven method: download file, then parse sequentially
+      console.log('[backgroundParsingService] Using JavaScript streaming parser (all platforms)');
+      parseFunction = streamParseM3U;
       parseArgs = [playlistData.m3uUrl, playlistId];
     }
 
@@ -723,8 +716,228 @@ const getJobStatus = (playlistId) => {
   };
 };
 
+/**
+ * Start M3U parsing from already-downloaded content
+ * Used by new AddPlaylistScreen flow: download first, then parse in background
+ * @param {string} playlistId
+ * @param {string} m3uUrl - Original URL for reference
+ * @param {string} fileContent - M3U file content (already downloaded)
+ * @returns {Promise<void>}
+ */
+const startM3UParsingFromContent = async (playlistId, m3uUrl, fileContent) => {
+  try {
+    console.log(`[backgroundParsingService] Starting M3U parsing from content for: ${playlistId}`);
+    console.log(`[backgroundParsingService] File content size: ${fileContent.length} chars`);
+
+    // Check if already parsing
+    if (activeJobs.has(playlistId)) {
+      console.warn(`[backgroundParsingService] Playlist ${playlistId} is already parsing`);
+      return;
+    }
+
+    // Get playlist data from database
+    const playlistRef = doc(db, 'playlists', playlistId);
+    const playlistSnap = await getDoc(playlistRef);
+
+    if (!playlistSnap.exists()) {
+      throw new Error(`Playlist ${playlistId} not found`);
+    }
+
+    const playlistData = playlistSnap.data();
+    playlistData.type = 'm3u';
+    playlistData.m3uUrl = m3uUrl;
+
+    // Initialize progress tracker
+    const progressRef = doc(db, `playlists/${playlistId}/meta/progress`);
+    const existingProgress = await getDoc(progressRef);
+    const isResume = existingProgress.exists();
+
+    await initProgressTracker(playlistId, playlistData, isResume);
+    console.log(`[backgroundParsingService] Progress tracker initialized (isResume: ${isResume})`);
+
+    // Create abort controller
+    const abortController = new AbortController();
+
+    // Create parser engine
+    const onFirstBatchSaved = () => {
+      console.log(`[backgroundParsingService] First batch saved for ${playlistId}`);
+      notifyParseListeners(playlistId, { type: 'firstBatchSaved', playlistId });
+    };
+
+    const engine = createParserEngine(playlistId, (stats) => {
+      updateProgress(playlistId, {
+        channels: stats.channels,
+        movies: stats.movies,
+        series: stats.series,
+        itemsSaved: stats.totalWritten,
+      });
+    }, onFirstBatchSaved);
+
+    // Store job reference
+    activeJobs.set(playlistId, {
+      abortController,
+      engine,
+      startTime: new Date(),
+    });
+
+    // Initialize network retry count
+    if (!networkRetries.has(playlistId)) {
+      networkRetries.set(playlistId, 0);
+    }
+
+    // Start parsing the content
+    console.log(`[backgroundParsingService] Beginning parse of M3U content...`);
+
+    // Import the parser - use simple JavaScript parser
+    const { default: streamParseM3U } = await import('../utils/iosStreamingParser');
+
+    // Create readable stream from content for parser compatibility
+    const parseAsync = async () => {
+      try {
+        let lastProgressLog = 0;
+        let itemsProcessed = 0;
+
+        // Simple line-based parser for already-downloaded content
+        const lines = fileContent.split('\n');
+        console.log(`[backgroundParsingService] M3U has ${lines.length} lines`);
+
+        let currentExtinf = null;
+        const stats = { channels: 0, movies: 0, series: 0, total: 0, errors: 0 };
+
+        for (const line of lines) {
+          if (abortController.signal.aborted) {
+            console.log('[backgroundParsingService] Parsing aborted');
+            break;
+          }
+
+          const trimmedLine = line.trim();
+
+          if (trimmedLine.startsWith('#EXTINF')) {
+            currentExtinf = trimmedLine;
+          } else if (trimmedLine && !trimmedLine.startsWith('#') && currentExtinf) {
+            try {
+              // Parse channel from EXTINF and URL
+              const nameMatch = currentExtinf.match(/,(.*)$/);
+              const name = nameMatch ? nameMatch[1].trim() : 'Unknown';
+
+              const tvgIdMatch = currentExtinf.match(/tvg-id="([^"]*)"/);
+              const tvgId = tvgIdMatch ? tvgIdMatch[1] : '';
+
+              const tvgNameMatch = currentExtinf.match(/tvg-name="([^"]*)"/);
+              const tvgName = tvgNameMatch ? tvgNameMatch[1] : name;
+
+              const logoMatch = currentExtinf.match(/tvg-logo="([^"]*)"/);
+              const logo = logoMatch ? logoMatch[1] : '';
+
+              const groupMatch = currentExtinf.match(/group-title="([^"]*)"/);
+              const group = groupMatch ? groupMatch[1] : 'Uncategorized';
+
+              // Determine content type
+              let contentType = 'channel';
+              if (name.toLowerCase().includes('movie')) contentType = 'movie';
+              if (name.toLowerCase().includes('series') || name.toLowerCase().includes('tv')) contentType = 'series';
+
+              const item = {
+                id: tvgId || btoa(trimmedLine).slice(0, 20),
+                name: name || 'Unknown',
+                logo: logo || '',
+                group: group,
+                contentType: contentType,
+                source: 'm3u',
+                streamUrl: trimmedLine,
+              };
+
+              const job = activeJobs.get(playlistId);
+              if (job && !job.abortController.signal.aborted) {
+                await job.engine.addItem(item, contentType);
+                itemsProcessed++;
+                stats[contentType === 'channel' ? 'channels' : contentType === 'movie' ? 'movies' : 'series']++;
+                stats.total++;
+
+                // Log progress periodically
+                if (itemsProcessed - lastProgressLog >= 100) {
+                  console.log(`[backgroundParsingService] Parsed ${itemsProcessed} items`);
+                  lastProgressLog = itemsProcessed;
+                  
+                  await updateProgress(playlistId, {
+                    channels: stats.channels,
+                    movies: stats.movies,
+                    series: stats.series,
+                    itemsSaved: itemsProcessed,
+                  });
+                }
+              }
+
+              currentExtinf = null;
+            } catch (error) {
+              console.error('[backgroundParsingService] Error parsing line:', error);
+              stats.errors++;
+            }
+          }
+        }
+
+        // Finalize parsing
+        const job = activeJobs.get(playlistId);
+        if (job) {
+          await job.engine.finalize();
+          console.log(`[backgroundParsingService] M3U parsing complete. Total items: ${itemsProcessed}`);
+        }
+
+      } catch (error) {
+        console.error('[backgroundParsingService] Parse error:', error);
+        throw error;
+      } finally {
+        // Clean up job
+        activeJobs.delete(playlistId);
+      }
+    };
+
+    // Run parsing asynchronously (don't await - let it run in background)
+    parseAsync().catch(error => {
+      console.error('[backgroundParsingService] Fatal parsing error:', error);
+      notifyParseListeners(playlistId, { type: 'error', error: error.message });
+    });
+
+    console.log('[backgroundParsingService] Background parsing started for:', playlistId);
+
+  } catch (error) {
+    console.error('[backgroundParsingService] Error starting M3U parsing from content:', error);
+    throw error;
+  }
+};
+
+/**
+ * Start Xtream parsing (fast, ~40 seconds)
+ * @param {string} playlistId
+ * @returns {Promise<void>}
+ */
+const startXtreamParsing = async (playlistId) => {
+  try {
+    console.log(`[backgroundParsingService] Starting Xtream parsing for: ${playlistId}`);
+
+    // Get playlist data from database
+    const playlistRef = doc(db, 'playlists', playlistId);
+    const playlistSnap = await getDoc(playlistRef);
+
+    if (!playlistSnap.exists()) {
+      throw new Error(`Playlist ${playlistId} not found`);
+    }
+
+    const playlistData = playlistSnap.data();
+
+    // Call startParsing with the full data
+    await startParsing(playlistId, playlistData);
+
+  } catch (error) {
+    console.error('[backgroundParsingService] Error starting Xtream parsing:', error);
+    throw error;
+  }
+};
+
 export const backgroundParsingService = {
   startParsing,
+  startM3UParsingFromContent,
+  startXtreamParsing,
   cancelParsing,
   resumeIncompleteParses,
   getActiveJobs,

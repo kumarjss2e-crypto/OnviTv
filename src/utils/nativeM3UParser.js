@@ -1,13 +1,21 @@
 /**
- * JavaScript Bridge for Native M3U Streaming Parser
+ * DISABLED: Native M3U Streaming Parser
  * 
- * Wraps the native iOS Swift module that uses URLSession.bytes()
- * for true streaming M3U parsing without downloading entire file
+ * This module was attempting to use Expo native modules for iOS streaming parsing.
+ * It was causing crashes on app startup.
  * 
- * Falls back to JavaScript implementation if native module unavailable
+ * Solution: Reverted to proven method of downloading full M3U file, then parsing sequentially.
+ * Users see channels within 2-3 seconds as parsing happens in background.
+ * 
+ * This file is kept for backward compatibility but all exports are disabled.
  */
 
-import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
+// This module is disabled - use iosStreamingParser instead
+console.warn('[nativeM3UParser] Native module disabled - using JavaScript parser');
+
+export default async () => {
+  throw new Error('Native M3U parser is disabled. Use iosStreamingParser instead.');
+};
 
 let M3UStreamParserModule = null;
 let eventEmitter = null;
