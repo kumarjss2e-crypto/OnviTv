@@ -159,7 +159,6 @@
         {
           "ios": {
             "deploymentTarget": "14.0",
-            "useFrameworks": "static",
             "newArchEnabled": false
           },
           "android": {
