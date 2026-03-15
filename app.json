@@ -158,8 +158,9 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "13.4",
-            "useFrameworks": "static"
+            "deploymentTarget": "14.0",
+            "useFrameworks": "static",
+            "newArchEnabled": false
           },
           "android": {
             "minSdkVersion": 21,
