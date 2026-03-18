@@ -10,8 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
-  ProgressViewIOS,
-  ProgressBarAndroid,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -347,22 +345,23 @@ const AddPlaylistScreen = ({ navigation }) => {
               
               {selectedType === 'm3u' && downloadProgress > 0 && downloadProgress < 1 && (
                 <View style={styles.progressContainer}>
-                  {Platform.OS === 'ios' ? (
-                    <ProgressViewIOS
-                      style={styles.progressBar}
-                      progress={downloadProgress}
-                      progressTintColor={colors.primary.purple}
-                    />
-                  ) : (
-                    <ProgressBarAndroid
-                      style={styles.progressBar}
-                      progress={downloadProgress}
-                      color={colors.primary.purple}
-                    />
-                  )}
-                  <Text style={styles.progressText}>
-                    {Math.round(downloadProgress * 100)}%
-                  </Text>
+                {Platform.OS === 'web' || Platform.OS === 'ios' || Platform.OS === 'android' ? (
+                  <>
+                    <View style={[styles.progressBar, { position: 'relative' }]}>
+                      <View
+                        style={{
+                          height: '100%',
+                          width: `${downloadProgress * 100}%`,
+                          backgroundColor: colors.primary.purple,
+                          borderRadius: 4,
+                        }}
+                      />
+                    </View>
+                    <Text style={styles.progressText}>
+                      {Math.round(downloadProgress * 100)}%
+                    </Text>
+                  </>
+                ) : null}
                 </View>
               )}
             </View>
@@ -611,6 +610,8 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     marginBottom: 8,
+    backgroundColor: 'rgba(128, 90, 213, 0.2)',
+    overflow: 'hidden',
   },
   progressText: {
     fontSize: 12,
