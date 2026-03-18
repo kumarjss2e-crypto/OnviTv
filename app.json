@@ -2,7 +2,7 @@
   "expo": {
     "name": "OnviTV",
     "slug": "onvitv-app",
-    "version": "1.8.2",
+    "version": "1.7.1",
     "orientation": "sensor",
     "userInterfaceStyle": "dark",
     "icon": "./assets/AppIcon@3x.png",
@@ -20,7 +20,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.onvitv.com",
-      "buildNumber": "1.7.5",
+      "buildNumber": "1.7.1",
       "requireFullScreen": false,
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/AppIcon@3x.png",
@@ -159,7 +159,6 @@
         {
           "ios": {
             "deploymentTarget": "13.4",
-            "useFrameworks": "static",
             "useFrameworks": "static"
           },
           "android": {
@@ -176,7 +175,7 @@
       "androidMode": "default",
       "androidCollapsedTitle": "OnviTV"
     },
-    "owner": "org11",
+    "owner": "org10",
     "runtimeVersion": {
       "policy": "appVersion"
     },

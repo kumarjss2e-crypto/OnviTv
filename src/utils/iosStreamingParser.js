@@ -110,18 +110,48 @@ async function readFileLines(fileUri, signal) {
  * Downloads and parses M3U file in true streaming fashion
  * Never accumulates entire file in memory as a single string
  * 
- * SIGNATURE: streamParseM3U(url, playlistId, onItemParsed, onProgress, signal)
+ * SIGNATURES: 
+ * - streamParseM3U(url, playlistId, onItemParsed, onProgress, signal) - Download and parse
+ * - streamParseM3U(url, playlistId, fileContent, onItemParsed, onProgress, signal) - Parse from content
  * 
  * @param {string} url - M3U file URL
  * @param {string} playlistId - Playlist document ID (for reference/logging)
- * @param {Function} onItemParsed - Called with (item, contentType) for each parsed item
- * @param {Function} onProgress - Called with (lineNumber, stats) for progress updates
- * @param {AbortSignal} signal - Abort signal
+ * @param {string|Function} fileContentOrOnItemParsed - Either pre-downloaded content (string) or onItemParsed callback
+ * @param {Function} onItemParsedOrOnProgress - onItemParsed callback (if third arg is content) or onProgress callback
+ * @param {Function} onProgressOrSignal - onProgress callback (if third arg is content) or AbortSignal
+ * @param {AbortSignal} signalOrUndefined - AbortSignal (if third arg is content) or undefined
  * @returns {Promise<Object>} - Parse result with stats
  */
-async function streamParseM3U(url, playlistId, onItemParsed, onProgress, signal) {
-  console.log('[iosStreamingParser] Starting streaming M3U parse for:', url);
+async function streamParseM3U(
+  url,
+  playlistId,
+  fileContentOrOnItemParsed,
+  onItemParsedOrOnProgress,
+  onProgressOrSignal,
+  signalOrUndefined
+) {
+  // Detect call signature
+  let fileContent = null;
+  let onItemParsed, onProgress, signal;
+  
+  if (typeof fileContentOrOnItemParsed === 'string') {
+    // streamParseM3U(url, playlistId, fileContent, onItemParsed, onProgress, signal)
+    console.log('[iosStreamingParser] Using pre-downloaded content mode');
+    fileContent = fileContentOrOnItemParsed;
+    onItemParsed = onItemParsedOrOnProgress;
+    onProgress = onProgressOrSignal;
+    signal = signalOrUndefined;
+  } else {
+    // streamParseM3U(url, playlistId, onItemParsed, onProgress, signal)
+    console.log('[iosStreamingParser] Using download mode');
+    onItemParsed = fileContentOrOnItemParsed;
+    onProgress = onItemParsedOrOnProgress;
+    signal = onProgressOrSignal;
+  }
+
+  console.log('[iosStreamingParser] Starting M3U parse for:', url);
   console.log('[iosStreamingParser] Playlist ID:', playlistId);
+  console.log('[iosStreamingParser] Mode:', fileContent ? 'content (pre-downloaded)' : 'download');
   
   const startTime = Date.now();
   const stats = {
@@ -139,25 +169,39 @@ async function streamParseM3U(url, playlistId, onItemParsed, onProgress, signal)
   let fileUri = null;
 
   try {
-    // Phase 1: Download file to disk
-    console.log('[iosStreamingParser] Phase 1: Downloading file to disk...');
-    const downloadStart = Date.now();
-    
-    fileUri = await downloadToDisc(url, (progress) => {
-      // Download progress is reported but we don't call onProgress during download
-      // since backgroundParsingService expects onProgress(lineNumber, stats)
-    }, signal);
+    let lines;
 
-    stats.downloadTimeMs = Date.now() - downloadStart;
-    console.log('[iosStreamingParser] Download complete, time:', stats.downloadTimeMs, 'ms');
+    if (fileContent) {
+      // Mode 1: Parse from pre-downloaded content
+      console.log('[iosStreamingParser] Phase 1: Using pre-downloaded content, size:', fileContent.length, 'chars');
+      stats.downloadTimeMs = 0; // No download time since content was pre-downloaded
+      
+      // Split content into lines
+      lines = fileContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+      console.log('[iosStreamingParser] Split into', lines.length, 'lines');
+      stats.parseTimeMs = 0; // Will be measured during parsing
+    } else {
+      // Mode 2: Download file to disk
+      console.log('[iosStreamingParser] Phase 1: Downloading file to disk...');
+      const downloadStart = Date.now();
+      
+      fileUri = await downloadToDisc(url, (progress) => {
+        // Download progress is reported but we don't call onProgress during download
+        // since backgroundParsingService expects onProgress(lineNumber, stats)
+      }, signal);
 
-    // Phase 2: Read file from disk into lines
-    console.log('[iosStreamingParser] Phase 2: Reading file lines from disk...');
-    const readStart = Date.now();
+      
+      stats.downloadTimeMs = Date.now() - downloadStart;
+      console.log('[iosStreamingParser] Download complete, time:', stats.downloadTimeMs, 'ms');
 
-    const lines = await readFileLines(fileUri, signal);
-    const readTimeMs = Date.now() - readStart;
-    console.log('[iosStreamingParser] Read complete, time:', readTimeMs, 'ms');
+      // Phase 2: Read file from disk into lines
+      console.log('[iosStreamingParser] Phase 2: Reading file lines from disk...');
+      const readStart = Date.now();
+
+      lines = await readFileLines(fileUri, signal);
+      const readTimeMs = Date.now() - readStart;
+      console.log('[iosStreamingParser] Read complete, time:', readTimeMs, 'ms');
+    }
 
     // Phase 3: Parse lines and call onItemParsed for each item
     console.log('[iosStreamingParser] Phase 3: Parsing lines and emitting items...');
@@ -238,7 +282,7 @@ async function streamParseM3U(url, playlistId, onItemParsed, onProgress, signal)
     stats.parseTimeMs = Date.now() - parseStart;
     console.log('[iosStreamingParser] Parsing complete:', stats);
 
-    // Clean up temp file
+    // Clean up temp file if downloaded
     if (fileUri) {
       try {
         await FileSystem.deleteAsync(fileUri);

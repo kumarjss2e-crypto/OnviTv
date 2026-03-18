@@ -1,110 +1,113 @@
 /**
- * M3U File Download Service
- * Handles downloading M3U files with progress tracking
- * Uses proven method: download entire file, then parse sequentially
+ * M3U Download Service
+ * Handles downloading M3U files with progress tracking and retry logic
+ * Designed to avoid Hermes string limit issues by streaming downloads
  */
 
 /**
  * Download M3U file with progress callback
- * @param {string} url - M3U URL to download
- * @param {function} onProgress - Callback with progress 0-1
+ * @param {string} url - M3U file URL
+ * @param {Function} onProgress - Callback with progress (0-1)
  * @returns {Promise<string>} - File content as text
  */
-export const downloadM3UFile = async (url, onProgress) => {
+export const downloadM3UFile = async (url, onProgress = null) => {
   try {
-    console.log('[m3uDownloadService] Starting download from:', url);
-
     const response = await fetch(url);
-
+    
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    // Get total file size from headers
     const contentLength = response.headers.get('content-length');
-    const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
-
-    console.log('[m3uDownloadService] Total file size:', totalBytes, 'bytes');
-
-    // If we can't get progress info, use a simpler approach
-    if (!totalBytes) {
-      console.log('[m3uDownloadService] No content-length, using text() method');
+    const total = parseInt(contentLength, 10) || 0;
+    
+    if (total === 0) {
+      // If no content-length, just get the text without progress
       const text = await response.text();
-      onProgress(1);
+      if (onProgress) onProgress(1);
       return text;
     }
 
-    // Read the response as a stream to track progress
+    // Read response body with progress tracking
     const reader = response.body.getReader();
-    let receivedBytes = 0;
     const chunks = [];
+    let received = 0;
 
     while (true) {
       const { done, value } = await reader.read();
-
+      
       if (done) {
         break;
       }
 
       chunks.push(value);
-      receivedBytes += value.length;
-
-      // Calculate and report progress
-      const progress = receivedBytes / totalBytes;
-      const percent = Math.round(progress * 100);
+      received += value.length;
       
-      console.log(`[m3uDownloadService] Downloaded ${percent}%`);
-      onProgress(progress);
+      if (onProgress && total > 0) {
+        const progress = received / total;
+        onProgress(Math.min(progress, 0.99));
+      }
     }
 
-    // Convert chunks to string
-    const decoder = new TextDecoder();
-    let fileContent = '';
-
+    // Combine chunks into single string
+    const uint8Array = new Uint8Array(received);
+    let position = 0;
     for (const chunk of chunks) {
-      fileContent += decoder.decode(chunk, { stream: true });
+      uint8Array.set(chunk, position);
+      position += chunk.length;
     }
 
-    // Flush the decoder
-    fileContent += decoder.decode();
-
-    console.log('[m3uDownloadService] Download complete. File size:', fileContent.length, 'chars');
-    onProgress(1);
-
-    return fileContent;
-
+    const decoder = new TextDecoder('utf-8');
+    const text = decoder.decode(uint8Array);
+    
+    if (onProgress) onProgress(1);
+    return text;
   } catch (error) {
-    console.error('[m3uDownloadService] Download error:', error.message);
-    throw new Error(`Failed to download M3U file: ${error.message}`);
+    console.error('[m3uDownloadService] Download error:', error);
+    throw error;
   }
 };
 
 /**
- * Download file with retry logic for network failures
- * @param {string} url - File URL
- * @param {function} onProgress - Progress callback
- * @param {number} maxRetries - Max retry attempts
- * @returns {Promise<string>} - File content
+ * Download M3U file with retry logic
+ * @param {string} url - M3U file URL
+ * @param {Function} onProgress - Callback with progress (0-1)
+ * @param {number} maxRetries - Maximum number of retries
+ * @returns {Promise<string>} - File content as text
  */
-export const downloadM3UFileWithRetry = async (url, onProgress, maxRetries = 3) => {
-  let lastError;
+export const downloadM3UFileWithRetry = async (
+  url,
+  onProgress = null,
+  maxRetries = 3
+) => {
+  let lastError = null;
+  let attemptCount = 0;
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      console.log(`[m3uDownloadService] Download attempt ${attempt}/${maxRetries}`);
-      return await downloadM3UFile(url, onProgress);
+      attemptCount = attempt + 1;
+      console.log(`[m3uDownloadService] Attempt ${attemptCount}/${maxRetries}:`, url);
+      
+      const content = await downloadM3UFile(url, onProgress);
+      console.log(`[m3uDownloadService] Download successful on attempt ${attemptCount}`);
+      return content;
     } catch (error) {
       lastError = error;
-      console.warn(`[m3uDownloadService] Attempt ${attempt} failed:`, error.message);
+      console.error(`[m3uDownloadService] Attempt ${attemptCount} failed:`, error.message);
 
-      if (attempt < maxRetries) {
-        // Wait before retry (exponential backoff)
-        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+      if (attempt < maxRetries - 1) {
+        // Exponential backoff: 2s, 4s, 8s
+        const delayMs = Math.pow(2, attempt + 1) * 1000;
         console.log(`[m3uDownloadService] Retrying in ${delayMs}ms...`);
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
     }
   }
 
-  throw lastError || new Error('Download failed after all retries');
+  throw lastError || new Error('Failed to download M3U file after retries');
+};
+
+export default {
+  downloadM3UFile,
+  downloadM3UFileWithRetry,
 };

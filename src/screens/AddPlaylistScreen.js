@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  ProgressViewIOS,
   ProgressBarAndroid,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { useParseLoading } from '../context/ParseLoadingContext';
 import { addPlaylist } from '../services/playlistService';
 import { backgroundParsingService } from '../services/backgroundParsingService';
-import { downloadM3UFile } from '../services/m3uDownloadService';
+import { downloadM3UFileWithRetry } from '../services/m3uDownloadService';
 import { db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import CustomAlert from '../components/CustomAlert';
@@ -28,9 +30,11 @@ const AddPlaylistScreen = ({ navigation }) => {
   const [selectedType, setSelectedType] = useState('m3u'); // 'm3u' or 'xtream'
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
+  
+  // Processing state
+  const [processing, setProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState('');
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadStatus, setDownloadStatus] = useState('');
 
   // M3U fields
   const [m3uName, setM3uName] = useState('');
@@ -132,21 +136,24 @@ const AddPlaylistScreen = ({ navigation }) => {
       }
     }
 
-    setLoading(true);
-    setIsDownloading(true);
+    setProcessing(true);
+    setProcessingMessage('Saving playlist...');
     setDownloadProgress(0);
-    setDownloadStatus('Saving playlist...');
 
     try {
       let playlistData;
-      let normalizedUrl;
 
       if (selectedType === 'm3u') {
         // Normalize and validate M3U URL
-        normalizedUrl = m3uUrl.trim()
+        let normalizedUrl = m3uUrl.trim();
+        
+        // Fix common URL issues
+        // Replace HTML entities if accidentally encoded
+        normalizedUrl = normalizedUrl
           .replace(/&amp;/g, '&')
           .replace(/&#38;/g, '&');
         
+        // Ensure URL is properly formatted
         if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
           normalizedUrl = 'http://' + normalizedUrl;
         }
@@ -158,53 +165,7 @@ const AddPlaylistScreen = ({ navigation }) => {
           type: 'm3u',
           url: normalizedUrl,
         };
-
-        // Step 1: Save playlist to database
-        const result = await addPlaylist(user.uid, playlistData);
-        if (!result.success) {
-          throw new Error('Failed to save playlist');
-        }
-
-        const playlistId = result.playlistId;
-        console.log(`[AddPlaylistScreen] Playlist saved with ID:`, playlistId);
-
-        // Step 2: Download M3U file with progress tracking
-        setDownloadStatus('Downloading playlist file...');
-        console.log('[AddPlaylistScreen] Starting M3U download...');
-
-        const fileContent = await downloadM3UFile(
-          normalizedUrl,
-          (progress) => {
-            const percent = Math.round(progress * 100);
-            setDownloadProgress(percent);
-            console.log(`[AddPlaylistScreen] Download progress: ${percent}%`);
-          }
-        );
-
-        console.log('[AddPlaylistScreen] M3U file downloaded, size:', fileContent.length);
-        setDownloadStatus('Parsing playlist file...');
-        setDownloadProgress(100);
-
-        // Step 3: Start background parsing
-        // The parsing will happen invisibly in the background
-        console.log('[AddPlaylistScreen] Starting background parsing...');
-        startParsing(playlistId);
-
-        // Step 4: Start the actual parsing job
-        await backgroundParsingService.startM3UParsingFromContent(
-          playlistId,
-          normalizedUrl,
-          fileContent
-        );
-
-        console.log('[AddPlaylistScreen] Background parsing job started');
-
-        // Step 5: Navigate to Home (user sees content, parsing continues invisibly)
-        setIsDownloading(false);
-        navigation.navigate('Home');
-
       } else {
-        // Xtream flow - same but faster (no download needed)
         let serverUrl = xtreamServer.trim();
         if (!serverUrl.startsWith('http://') && !serverUrl.startsWith('https://')) {
           serverUrl = 'http://' + serverUrl;
@@ -220,115 +181,267 @@ const AddPlaylistScreen = ({ navigation }) => {
           username: xtreamUsername.trim(),
           password: xtreamPassword.trim(),
         };
+      }
 
-        // Xtream: save and fetch instantly (~40 seconds)
-        setDownloadStatus('Fetching Xtream data...');
-        const result = await addPlaylist(user.uid, playlistData);
+      const result = await addPlaylist(user.uid, playlistData);
 
-        if (result.success) {
-          const playlistId = result.playlistId;
-          startParsing(playlistId);
+      if (result.success) {
+        console.log(`[AddPlaylistScreen] Playlist saved. ID: ${result.playlistId}`);
+        
+        if (selectedType === 'm3u') {
+          // M3U: Download file with progress tracking
+          console.log('[AddPlaylistScreen] Starting M3U download...');
+          setProcessingMessage('Downloading playlist file...');
+          
+          try {
+            // Download M3U file with progress callback
+            const m3uContent = await downloadM3UFileWithRetry(
+              playlistData.url,
+              (progress) => {
+                const percent = Math.round(progress * 100);
+                console.log(`[AddPlaylistScreen] Download progress: ${percent}%`);
+                setDownloadProgress(progress);
+                setProcessingMessage(`Downloading playlist file... ${percent}%`);
+              },
+              3 // max retries
+            );
 
-          // Start Xtream parsing (will be fast, ~40 seconds)
-          await backgroundParsingService.startXtreamParsing(playlistId);
+            console.log(`[AddPlaylistScreen] Download complete. File size: ${m3uContent.length} chars`);
+            
+            // Download complete - now start background parsing
+            setProcessingMessage('Parsing playlist items...');
+            
+            // Start background parsing with downloaded content
+            setTimeout(async () => {
+              try {
+                // Fetch full playlist data from Firestore
+                const playlistRef = doc(db, 'playlists', result.playlistId);
+                const playlistSnap = await getDoc(playlistRef);
+                
+                if (playlistSnap.exists()) {
+                  const fullPlaylistData = playlistSnap.data();
+                  const normalizedData = {
+                    ...fullPlaylistData,
+                    m3uUrl: fullPlaylistData.m3uConfig?.url,
+                  };
+                  
+                  // Start parsing from downloaded content
+                  console.log(`[AddPlaylistScreen] Starting background M3U parsing...`);
+                  startParsing(result.playlistId);
+                  
+                  await backgroundParsingService.startM3UParsingFromContent(
+                    result.playlistId,
+                    playlistData.url,
+                    m3uContent
+                  );
+                }
+              } catch (parseError) {
+                console.error('[AddPlaylistScreen] Error starting parsing:', parseError);
+              }
+            }, 100);
+            
+            // Navigate to Home immediately - parsing continues in background
+            setTimeout(() => {
+              setProcessing(false);
+              setLoading(false);
+              // Clear form
+              setM3uName('');
+              setM3uUrl('');
+              setDownloadProgress(0);
+              // Navigate to main tabs
+              navigation.navigate('Home');
+            }, 500);
 
-          // Navigate after Xtream fetch completes
-          setIsDownloading(false);
-          navigation.navigate('Home');
+          } catch (downloadError) {
+            console.error('[AddPlaylistScreen] M3U download failed:', downloadError);
+            setProcessing(false);
+            setLoading(false);
+            CustomAlert.alert('Download Error', 'Failed to download M3U file. Please try again.');
+          }
+        } else {
+          // Xtream: Fetch and parse instantly (~40 seconds)
+          console.log('[AddPlaylistScreen] Starting Xtream parsing...');
+          setProcessingMessage('Fetching Xtream playlist...');
+          
+          // Start parsing immediately
+          setTimeout(async () => {
+            try {
+              const playlistRef = doc(db, 'playlists', result.playlistId);
+              const playlistSnap = await getDoc(playlistRef);
+              
+              if (playlistSnap.exists()) {
+                const fullPlaylistData = playlistSnap.data();
+                const normalizedData = {
+                  ...fullPlaylistData,
+                  serverUrl: fullPlaylistData.xtreamConfig?.serverUrl,
+                  username: fullPlaylistData.xtreamConfig?.username,
+                  password: fullPlaylistData.xtreamConfig?.password,
+                };
+                
+                console.log(`[AddPlaylistScreen] Starting background Xtream parsing...`);
+                startParsing(result.playlistId);
+                
+                await backgroundParsingService.startXtreamParsing(result.playlistId);
+              }
+            } catch (parseError) {
+              console.error('[AddPlaylistScreen] Error starting Xtream parsing:', parseError);
+            }
+          }, 100);
+          
+          // Xtream takes ~40 seconds, show progress message
+          // Navigate after 45 seconds to ensure parsing has started
+          setTimeout(() => {
+            setProcessing(false);
+            setLoading(false);
+            // Clear form
+            setXtreamName('');
+            setXtreamServer('');
+            setXtreamUsername('');
+            setXtreamPassword('');
+            setDownloadProgress(0);
+            // Navigate to main tabs
+            navigation.navigate('Home');
+          }, 45000);
         }
+      } else {
+        setProcessing(false);
+        setLoading(false);
+        CustomAlert.alert('Error', result.error || 'Failed to add playlist');
       }
     } catch (error) {
-      console.error('[AddPlaylistScreen] Error:', error);
-      setIsDownloading(false);
+      setProcessing(false);
       setLoading(false);
-      CustomAlert.alert('Error', error.message || 'Failed to add playlist. Please try again.');
+      console.error('Error saving playlist:', error);
+      CustomAlert.alert('Error', 'Failed to save playlist. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (isDownloading) {
-    return (
-      <View style={[styles.container, styles.downloadingContainer]}>
-        <View style={styles.downloadingContent}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.downloadingStatus}>{downloadStatus}</Text>
-          
-          {/* Progress bar */}
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressBar, { width: `${downloadProgress}%` }]} />
-          </View>
-          <Text style={styles.progressText}>{downloadProgress}% Complete</Text>
-        </View>
-      </View>
-    );
-  }
-
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
       style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* Processing Modal */}
+      <Modal
+        visible={processing}
+        transparent={true}
+        animationType="fade"
+        statusBarTranslucent={true}
+      >
+        <View style={styles.processingOverlay}>
+          <View style={styles.processingModal}>
+            <View style={styles.processingContent}>
+              <ActivityIndicator
+                size="large"
+                color={colors.primary.purple}
+                style={styles.processingSpinner}
+              />
+              <Text style={styles.processingTitle}>
+                Extracting and Saving Playlist
+              </Text>
+              <Text style={styles.processingMessage}>
+                {processingMessage}
+              </Text>
+              
+              {selectedType === 'm3u' && downloadProgress > 0 && downloadProgress < 1 && (
+                <View style={styles.progressContainer}>
+                  {Platform.OS === 'ios' ? (
+                    <ProgressViewIOS
+                      style={styles.progressBar}
+                      progress={downloadProgress}
+                      progressTintColor={colors.primary.purple}
+                    />
+                  ) : (
+                    <ProgressBarAndroid
+                      style={styles.progressBar}
+                      progress={downloadProgress}
+                      color={colors.primary.purple}
+                    />
+                  )}
+                  <Text style={styles.progressText}>
+                    {Math.round(downloadProgress * 100)}%
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          disabled={processing}
         >
-          <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Playlist</Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.placeholder} />
       </View>
 
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Tab Selection */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              selectedType === 'm3u' && styles.activeTab,
-            ]}
-            onPress={() => setSelectedType('m3u')}
-          >
-            <Text style={[
-              styles.tabText,
-              selectedType === 'm3u' && styles.activeTabText,
-            ]}>
-              M3U Playlist
-            </Text>
-          </TouchableOpacity>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Type Selector */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Playlist Type</Text>
+          <View style={styles.typeSelector}>
+            <TouchableOpacity
+              style={[styles.typeButton, selectedType === 'm3u' && styles.typeButtonActive]}
+              onPress={() => setSelectedType('m3u')}
+            >
+              <Ionicons
+                name="document-text"
+                size={24}
+                color={selectedType === 'm3u' ? colors.text.primary : colors.text.muted}
+              />
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  selectedType === 'm3u' && styles.typeButtonTextActive,
+                ]}
+              >
+                M3U URL
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              selectedType === 'xtream' && styles.activeTab,
-            ]}
-            onPress={() => setSelectedType('xtream')}
-          >
-            <Text style={[
-              styles.tabText,
-              selectedType === 'xtream' && styles.activeTabText,
-            ]}>
-              Xtream Codes
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.typeButton, selectedType === 'xtream' && styles.typeButtonActive]}
+              onPress={() => setSelectedType('xtream')}
+            >
+              <Ionicons
+                name="globe"
+                size={24}
+                color={selectedType === 'xtream' ? colors.text.primary : colors.text.muted}
+              />
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  selectedType === 'xtream' && styles.typeButtonTextActive,
+                ]}
+              >
+                Xtream Codes
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* M3U Form */}
         {selectedType === 'm3u' && (
-          <View style={styles.form}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>M3U Playlist Details</Text>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Playlist Name</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter playlist name"
-                placeholderTextColor={colors.text.secondary}
+                placeholder="e.g., My IPTV"
+                placeholderTextColor={colors.text.muted}
                 value={m3uName}
                 onChangeText={setM3uName}
-                editable={!loading}
+                autoCapitalize="words"
               />
             </View>
 
@@ -336,59 +449,33 @@ const AddPlaylistScreen = ({ navigation }) => {
               <Text style={styles.label}>M3U URL</Text>
               <TextInput
                 style={styles.input}
-                placeholder="https://example.com/playlist.m3u"
-                placeholderTextColor={colors.text.secondary}
+                placeholder="http://example.com/playlist.m3u"
+                placeholderTextColor={colors.text.muted}
                 value={m3uUrl}
                 onChangeText={setM3uUrl}
-                editable={!loading}
                 autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
               />
+              <Text style={styles.hint}>Enter the full URL to your M3U playlist file</Text>
             </View>
-
-            <TouchableOpacity
-              style={[styles.button, styles.testButton, testing && styles.buttonDisabled]}
-              onPress={handleTestConnection}
-              disabled={testing || loading}
-            >
-              {testing ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <>
-                  <Ionicons name="link" size={18} color="white" />
-                  <Text style={styles.buttonText}> Test Connection</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.submitButton, loading && styles.buttonDisabled]}
-              onPress={handleSavePlaylist}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <>
-                  <Ionicons name="cloud-upload" size={18} color="white" />
-                  <Text style={styles.buttonText}> Add Playlist</Text>
-                </>
-              )}
-            </TouchableOpacity>
           </View>
         )}
 
         {/* Xtream Form */}
         {selectedType === 'xtream' && (
-          <View style={styles.form}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Xtream Codes Details</Text>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Playlist Name</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter playlist name"
-                placeholderTextColor={colors.text.secondary}
+                placeholder="e.g., My Xtream"
+                placeholderTextColor={colors.text.muted}
                 value={xtreamName}
                 onChangeText={setXtreamName}
-                editable={!loading}
+                autoCapitalize="words"
               />
             </View>
 
@@ -396,12 +483,13 @@ const AddPlaylistScreen = ({ navigation }) => {
               <Text style={styles.label}>Server URL</Text>
               <TextInput
                 style={styles.input}
-                placeholder="example.com or http://example.com:8000"
-                placeholderTextColor={colors.text.secondary}
+                placeholder="http://example.com:8080"
+                placeholderTextColor={colors.text.muted}
                 value={xtreamServer}
                 onChangeText={setXtreamServer}
-                editable={!loading}
                 autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
               />
             </View>
 
@@ -409,12 +497,12 @@ const AddPlaylistScreen = ({ navigation }) => {
               <Text style={styles.label}>Username</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter username"
-                placeholderTextColor={colors.text.secondary}
+                placeholder="Your username"
+                placeholderTextColor={colors.text.muted}
                 value={xtreamUsername}
                 onChangeText={setXtreamUsername}
-                editable={!loading}
                 autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
 
@@ -422,46 +510,52 @@ const AddPlaylistScreen = ({ navigation }) => {
               <Text style={styles.label}>Password</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter password"
-                placeholderTextColor={colors.text.secondary}
+                placeholder="Your password"
+                placeholderTextColor={colors.text.muted}
                 value={xtreamPassword}
                 onChangeText={setXtreamPassword}
-                editable={!loading}
+                autoCapitalize="none"
+                autoCorrect={false}
                 secureTextEntry
               />
             </View>
-
-            <TouchableOpacity
-              style={[styles.button, styles.testButton, testing && styles.buttonDisabled]}
-              onPress={handleTestConnection}
-              disabled={testing || loading}
-            >
-              {testing ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <>
-                  <Ionicons name="link" size={18} color="white" />
-                  <Text style={styles.buttonText}> Test Connection</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.submitButton, loading && styles.buttonDisabled]}
-              onPress={handleSavePlaylist}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <>
-                  <Ionicons name="cloud-upload" size={18} color="white" />
-                  <Text style={styles.buttonText}> Add Playlist</Text>
-                </>
-              )}
-            </TouchableOpacity>
           </View>
         )}
+
+        {/* Actions */}
+        <View style={styles.actionsSection}>
+          <TouchableOpacity
+            style={styles.testButton}
+            onPress={handleTestConnection}
+            disabled={testing || loading}
+          >
+            {testing ? (
+              <ActivityIndicator size="small" color={colors.text.primary} />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={20} color={colors.text.primary} />
+                <Text style={styles.testButtonText}>Test Connection</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={handleSavePlaylist}
+            disabled={loading || testing}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.text.primary} />
+            ) : (
+              <>
+                <Ionicons name="save-outline" size={20} color={colors.text.primary} />
+                <Text style={styles.saveButtonText}>Save Playlist</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.bottomPadding} />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -470,17 +564,68 @@ const AddPlaylistScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.neutral.slate900,
+  },
+  processingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  processingModal: {
+    backgroundColor: colors.neutral.slate800,
+    borderRadius: 16,
+    padding: 32,
+    width: '80%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  processingContent: {
+    alignItems: 'center',
+  },
+  processingSpinner: {
+    marginBottom: 24,
+  },
+  processingTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  processingMessage: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  progressContainer: {
+    width: '100%',
+    marginTop: 16,
+  },
+  progressBar: {
+    height: 6,
+    borderRadius: 3,
+    marginBottom: 8,
+  },
+  progressText: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 50,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border || '#333',
-    backgroundColor: colors.background,
+    borderBottomColor: colors.neutral.slate800,
   },
   backButton: {
     width: 40,
@@ -489,117 +634,112 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.text.primary,
   },
-  downloadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  downloadingContent: {
-    alignItems: 'center',
-    padding: 40,
-  },
-  downloadingStatus: {
-    color: colors.text.primary,
-    fontSize: 16,
-    marginTop: 20,
-    fontWeight: '600',
-  },
-  progressContainer: {
-    width: 250,
-    height: 6,
-    backgroundColor: colors.background.secondary,
-    borderRadius: 3,
-    marginTop: 20,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: colors.primary.purple,
-    borderRadius: 3,
-  },
-  progressText: {
-    color: colors.text.secondary,
-    fontSize: 12,
-    marginTop: 10,
+  placeholder: {
+    width: 40,
   },
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    padding: 20,
+  section: {
+    padding: 16,
   },
-  tabContainer: {
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 16,
+  },
+  typeSelector: {
     flexDirection: 'row',
-    marginBottom: 30,
-    backgroundColor: colors.background.secondary,
-    borderRadius: 8,
-    padding: 4,
+    gap: 12,
   },
-  tab: {
+  typeButton: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 6,
+    flexDirection: 'column',
     alignItems: 'center',
+    padding: 20,
+    borderRadius: 12,
+    backgroundColor: 'rgba(30, 41, 59, 0.4)',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  activeTab: {
-    backgroundColor: colors.primary,
+  typeButtonActive: {
+    borderColor: colors.primary.purple,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
   },
-  tabText: {
-    color: colors.text.secondary,
+  typeButtonText: {
+    marginTop: 8,
     fontSize: 14,
     fontWeight: '600',
+    color: colors.text.muted,
   },
-  activeTabText: {
-    color: 'white',
-  },
-  form: {
-    marginBottom: 40,
+  typeButtonTextActive: {
+    color: colors.text.primary,
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    color: colors.text.primary,
     fontSize: 14,
     fontWeight: '600',
+    color: colors.text.secondary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.background.secondary,
-    borderColor: colors.border,
-    borderWidth: 1,
+    backgroundColor: 'rgba(30, 41, 59, 0.4)',
     borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     color: colors.text.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.1)',
   },
-  button: {
+  hint: {
+    marginTop: 6,
+    fontSize: 12,
+    color: colors.text.muted,
+  },
+  actionsSection: {
+    padding: 16,
+    gap: 12,
+  },
+  testButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    backgroundColor: 'rgba(30, 41, 59, 0.6)',
+    paddingVertical: 14,
     borderRadius: 8,
-    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.primary.purple,
+    gap: 8,
   },
-  testButton: {
-    backgroundColor: colors.secondary.cyan,
-  },
-  submitButton: {
-    backgroundColor: colors.primary.purple,
-    marginTop: 20,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
+  testButtonText: {
+    fontSize: 15,
     fontWeight: '600',
+    color: colors.text.primary,
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary.purple,
+    paddingVertical: 14,
+    borderRadius: 8,
+    gap: 8,
+  },
+  saveButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  bottomPadding: {
+    height: 40,
   },
 });
 
