@@ -12,13 +12,53 @@
  */
 export const downloadM3UFile = async (url, onProgress = null) => {
   try {
-    // For web platform with certificate issues, try CORS proxy as fallback
-    let fetchUrl = url;
     const isWebPlatform = typeof window !== 'undefined';
+    let fetchUrl = url;
     
     console.log(`[m3uDownloadService] Downloading from: ${url}`);
     
-    const response = await fetch(fetchUrl);
+    // Try direct fetch first
+    let response;
+    try {
+      response = await fetch(fetchUrl);
+    } catch (directError) {
+      // If direct fetch fails and we're on web, try CORS proxy
+      if (isWebPlatform && directError.message && 
+          (directError.message.includes('Certificate') || 
+           directError.message.includes('CORS') ||
+           directError.message.includes('Failed to fetch'))) {
+        console.log(`[m3uDownloadService] Direct fetch failed, trying CORS proxy...`);
+        
+        // Try multiple CORS proxies
+        const corsProxies = [
+          'https://cors-anywhere.herokuapp.com/',
+          'https://api.allorigins.win/raw?url=',
+          'https://thingproxy.freeboard.io/fetch/',
+        ];
+        
+        let corsResponse = null;
+        for (const proxy of corsProxies) {
+          try {
+            const proxiedUrl = proxy + encodeURIComponent(url);
+            console.log(`[m3uDownloadService] Trying proxy: ${proxy}`);
+            corsResponse = await fetch(proxiedUrl, { timeout: 10000 });
+            if (corsResponse.ok) {
+              console.log(`[m3uDownloadService] CORS proxy succeeded`);
+              response = corsResponse;
+              break;
+            }
+          } catch (proxyError) {
+            console.log(`[m3uDownloadService] Proxy failed: ${proxyError.message}`);
+          }
+        }
+        
+        if (!corsResponse) {
+          throw directError;
+        }
+      } else {
+        throw directError;
+      }
+    }
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
