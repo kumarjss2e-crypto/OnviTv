@@ -189,97 +189,100 @@ const AddPlaylistScreen = ({ navigation }) => {
         if (selectedType === 'm3u') {
           // M3U: Download file with progress tracking
           console.log('[AddPlaylistScreen] Starting M3U download...');
-          setProcessingMessage('Downloading playlist file...');
+          setProcessingMessage('Downloading playlist file... 0%');
+          setDownloadProgress(0);
           
-          // Show initial progress to make modal visible
-          setDownloadProgress(0.05);
-          
-          // Debounce progress updates for smooth animation on fast downloads
-          let lastProgressUpdate = 0;
-          const minProgressInterval = 50; // milliseconds between UI updates
-          let progressUpdateTimeout = null;
+          // Track download speed for time estimation
+          let downloadStartTime = Date.now();
+          let lastProgressValue = 0;
+          let lastProgressTime = downloadStartTime;
           
           try {
             // Download M3U file with progress callback
             const m3uContent = await downloadM3UFileWithRetry(
               playlistData.url,
               (progress) => {
-                const percent = Math.round(progress * 100);
                 const now = Date.now();
+                const percent = Math.round(progress * 100);
                 
-                // Clamp progress to at least 5% so user sees bar starting
-                const displayProgress = Math.max(progress, 0.05);
+                // Calculate download speed and time remaining
+                const elapsedSeconds = (now - downloadStartTime) / 1000;
+                const progressDelta = progress - lastProgressValue;
+                const timeDelta = (now - lastProgressTime) / 1000;
                 
-                // Update immediately if it's been long enough, or debounce
-                if (now - lastProgressUpdate >= minProgressInterval) {
-                  console.log(`[AddPlaylistScreen] Download progress: ${percent}%`);
-                  setDownloadProgress(displayProgress);
-                  setProcessingMessage(`Downloading playlist file... ${percent}%`);
-                  lastProgressUpdate = now;
-                } else if (!progressUpdateTimeout) {
-                  // Schedule update after min interval
-                  progressUpdateTimeout = setTimeout(() => {
-                    console.log(`[AddPlaylistScreen] Download progress: ${percent}%`);
-                    setDownloadProgress(displayProgress);
-                    setProcessingMessage(`Downloading playlist file... ${percent}%`);
-                    lastProgressUpdate = Date.now();
-                    progressUpdateTimeout = null;
-                  }, minProgressInterval);
+                // Estimate time remaining
+                let timeRemaining = 'calculating...';
+                if (progress > 0 && progress < 1 && timeDelta > 0) {
+                  const bytesPerSecond = progressDelta / timeDelta;
+                  if (bytesPerSecond > 0) {
+                    const remainingProgress = 1 - progress;
+                    const estimatedSecondsLeft = remainingProgress / bytesPerSecond;
+                    const minutes = Math.floor(estimatedSecondsLeft / 60);
+                    const seconds = Math.floor(estimatedSecondsLeft % 60);
+                    
+                    if (minutes > 0) {
+                      timeRemaining = `${minutes}m ${seconds}s remaining`;
+                    } else {
+                      timeRemaining = `${seconds}s remaining`;
+                    }
+                  }
                 }
+                
+                console.log(`[AddPlaylistScreen] Download progress: ${percent}% - ${timeRemaining}`);
+                setDownloadProgress(progress);
+                setProcessingMessage(`Downloading playlist file... ${percent}%\n${timeRemaining}`);
+                
+                lastProgressValue = progress;
+                lastProgressTime = now;
               },
               3 // max retries
             );
 
-            // Clear any pending progress update
-            if (progressUpdateTimeout) {
-              clearTimeout(progressUpdateTimeout);
-            }
-
             console.log(`[AddPlaylistScreen] Download complete. File size: ${m3uContent.length} chars`);
             
-            // Download complete - now start background parsing
-            setProcessingMessage('Parsing playlist items...');
+            // Download is complete - set progress to 100%
+            setDownloadProgress(1);
+            setProcessingMessage('Download complete! Starting parsing...');
+            
+            // Small delay to show completion message
+            await new Promise(resolve => setTimeout(resolve, 300));
             
             // Start background parsing with downloaded content
-            setTimeout(async () => {
-              try {
-                // Fetch full playlist data from Firestore
-                const playlistRef = doc(db, 'playlists', result.playlistId);
-                const playlistSnap = await getDoc(playlistRef);
+            try {
+              // Fetch full playlist data from Firestore
+              const playlistRef = doc(db, 'playlists', result.playlistId);
+              const playlistSnap = await getDoc(playlistRef);
+              
+              if (playlistSnap.exists()) {
+                const fullPlaylistData = playlistSnap.data();
+                const normalizedData = {
+                  ...fullPlaylistData,
+                  m3uUrl: fullPlaylistData.m3uConfig?.url,
+                };
                 
-                if (playlistSnap.exists()) {
-                  const fullPlaylistData = playlistSnap.data();
-                  const normalizedData = {
-                    ...fullPlaylistData,
-                    m3uUrl: fullPlaylistData.m3uConfig?.url,
-                  };
-                  
-                  // Start parsing from downloaded content
-                  console.log(`[AddPlaylistScreen] Starting background M3U parsing...`);
-                  startParsing(result.playlistId);
-                  
-                  await backgroundParsingService.startM3UParsingFromContent(
-                    result.playlistId,
-                    playlistData.url,
-                    m3uContent
-                  );
-                }
-              } catch (parseError) {
-                console.error('[AddPlaylistScreen] Error starting parsing:', parseError);
+                // Start parsing from downloaded content
+                console.log(`[AddPlaylistScreen] Starting background M3U parsing...`);
+                startParsing(result.playlistId);
+                
+                await backgroundParsingService.startM3UParsingFromContent(
+                  result.playlistId,
+                  playlistData.url,
+                  m3uContent
+                );
               }
-            }, 100);
+            } catch (parseError) {
+              console.error('[AddPlaylistScreen] Error starting parsing:', parseError);
+            }
             
-            // Navigate to Home immediately - parsing continues in background
-            setTimeout(() => {
-              setProcessing(false);
-              setLoading(false);
-              // Clear form
-              setM3uName('');
-              setM3uUrl('');
-              setDownloadProgress(0);
-              // Navigate to main tabs
-              navigation.navigate('Home');
-            }, 500);
+            // NOW navigate to Home - download is verified complete
+            setProcessing(false);
+            setLoading(false);
+            // Clear form
+            setM3uName('');
+            setM3uUrl('');
+            setDownloadProgress(0);
+            // Navigate to main tabs
+            navigation.navigate('Home');
 
           } catch (downloadError) {
             console.error('[AddPlaylistScreen] M3U download failed:', downloadError);

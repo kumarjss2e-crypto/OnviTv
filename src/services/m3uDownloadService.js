@@ -101,21 +101,23 @@ export const downloadM3UFile = async (url, onProgress = null) => {
             console.log(`[m3uDownloadService] Download progress: ${Math.round(cappedProgress * 100)}% (${received}/${total} bytes)`);
             onProgress(cappedProgress);
             lastProgressUpdate = progress;
+            lastProgressTime = Date.now();
           }
         } else {
-          // No content-length: estimate progress based on elapsed time and chunk accumulation
-          // Show progress every 50KB or every 500ms
+          // No content-length: emit progress more frequently 
+          // Update every 50KB or every 1 second to show activity
           const now = Date.now();
           const timeDelta = now - lastProgressTime;
-          const bytesSinceLast = received - (lastProgressUpdate > 0 ? lastProgressUpdate * 1000000 : 0);
           
-          if (received % 51200 < 1024 || timeDelta > 500) {
-            // For unknown size, simulate progress: 0-90% as we download, then jump to 100%
-            // This gives visual feedback without misleading the user
-            const estimatedProgress = Math.min(0.1 + (received / 5000000), 0.90); // Assume ~5MB typical
-            console.log(`[m3uDownloadService] Download progress (unknown size): ${Math.round(estimatedProgress * 100)}% (${received} bytes)`);
+          const shouldUpdate = received % 51200 < 1024 || timeDelta > 1000;
+          
+          if (shouldUpdate) {
+            // For unknown size, estimate based on accumulated data:
+            // Assume max ~50MB, show 5-90% progress based on received bytes
+            const estimatedProgress = Math.min(0.05 + (received / 50000000) * 0.85, 0.90);
+            console.log(`[m3uDownloadService] Download progress (unknown size): ${Math.round(estimatedProgress * 100)}% (${received} bytes received)`);
             onProgress(estimatedProgress);
-            lastProgressUpdate = received / 1000000;
+            lastProgressUpdate = estimatedProgress;
             lastProgressTime = now;
           }
         }
