@@ -1,3 +1,4 @@
+import contentStorageService from './contentStorageService';
 import { firestore } from '../config/firebase';
 import { 
   collection, 
@@ -14,53 +15,43 @@ import {
  * Series Service - Handles TV series operations
  */
 
-// Get series by playlist
+// Get series by playlist - now reads from AsyncStorage
 export const getSeriesByPlaylist = async (playlistId, limitCount = 20) => {
   try {
-    const seriesRef = collection(firestore, 'series');
-    const q = query(
-      seriesRef,
-      where('playlistId', '==', playlistId),
-      orderBy('addedAt', 'desc'),
-      limit(limitCount)
-    );
-    const snapshot = await getDocs(q);
-
-    const series = [];
-    snapshot.forEach(docSnap => {
-      series.push({ id: docSnap.id, ...docSnap.data() });
-    });
-
-    return { success: true, data: series };
+    const series = await contentStorageService.getSeries(playlistId);
+    
+    // Apply limit if specified
+    const limited = limitCount ? series.slice(0, limitCount) : series;
+    console.log(`[seriesService] Playlist ${playlistId}: Found ${limited.length} series`);
+    
+    return { success: true, data: limited };
   } catch (error) {
-    console.error('Error getting series by playlist:', error);
+    console.error('[seriesService] Error getting series by playlist:', error);
     return { success: false, error: error.message };
   }
 };
 
-// Get all series for a user (from all their playlists - nested subcollections)
+// Get all series for a user (from all their playlists - from AsyncStorage)
 export const getUserSeries = async (userId) => {
   try {
-    // Query all playlists for this user
+    // Query all playlists for this user from Firebase (metadata only)
     const playlistsRef = collection(firestore, 'playlists');
     const playlistsQ = query(playlistsRef, where('userId', '==', userId));
     const playlistsSnapshot = await getDocs(playlistsQ);
 
     const series = [];
     
-    // For each playlist, get series from nested subcollection
+    // For each playlist, get series from AsyncStorage
     for (const playlistDoc of playlistsSnapshot.docs) {
       const playlistId = playlistDoc.id;
-      const seriesRef = collection(firestore, `playlists/${playlistId}/series`);
-      const seriesSnapshot = await getDocs(seriesRef);
+      const playlistSeries = await contentStorageService.getSeries(playlistId);
       
-      console.log(`[seriesService] Playlist ${playlistId}: Found ${seriesSnapshot.size} series`);
+      console.log(`[seriesService] Playlist ${playlistId}: Found ${playlistSeries.length} series`);
       
-      seriesSnapshot.forEach(docSnap => {
+      playlistSeries.forEach(item => {
         series.push({ 
-          id: docSnap.id, 
+          ...item,
           playlistId,
-          ...docSnap.data() 
         });
       });
     }
@@ -69,7 +60,7 @@ export const getUserSeries = async (userId) => {
 
     return { success: true, data: series };
   } catch (error) {
-    console.error('Error getting user series:', error);
+    console.error('[seriesService] Error getting user series:', error);
     return { success: false, error: error.message };
   }
 };

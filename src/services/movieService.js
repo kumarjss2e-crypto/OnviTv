@@ -1,3 +1,4 @@
+import contentStorageService from './contentStorageService';
 import { firestore } from '../config/firebase';
 import { 
   collection, 
@@ -76,53 +77,43 @@ export const getMoviesByCategory = async (categoryName, limitCount = 10) => {
   }
 };
 
-// Get movies by playlist
+// Get movies by playlist - now reads from AsyncStorage
 export const getMoviesByPlaylist = async (playlistId, limitCount = 20) => {
   try {
-    const moviesRef = collection(firestore, 'movies');
-    const q = query(
-      moviesRef,
-      where('playlistId', '==', playlistId),
-      orderBy('addedAt', 'desc'),
-      limit(limitCount)
-    );
-    const snapshot = await getDocs(q);
-
-    const movies = [];
-    snapshot.forEach(docSnap => {
-      movies.push({ id: docSnap.id, ...docSnap.data() });
-    });
-
-    return { success: true, data: movies };
+    const movies = await contentStorageService.getMovies(playlistId);
+    
+    // Apply limit if specified
+    const limited = limitCount ? movies.slice(0, limitCount) : movies;
+    console.log(`[movieService] Playlist ${playlistId}: Found ${limited.length} movies`);
+    
+    return { success: true, data: limited };
   } catch (error) {
     asyncLog.error('movieService: Get by playlist error', { error: error.message, playlistId });
     return { success: false, error: error.message };
   }
 };
 
-// Get all movies for a user (from all their playlists - nested subcollections)
+// Get all movies for a user (from all their playlists - from AsyncStorage)
 export const getUserMovies = async (userId) => {
   try {
-    // Query all playlists for this user
+    // Query all playlists for this user from Firebase (metadata only)
     const playlistsRef = collection(firestore, 'playlists');
     const playlistsQ = query(playlistsRef, where('userId', '==', userId));
     const playlistsSnapshot = await getDocs(playlistsQ);
 
     const movies = [];
     
-    // For each playlist, get movies from nested subcollection
+    // For each playlist, get movies from AsyncStorage
     for (const playlistDoc of playlistsSnapshot.docs) {
       const playlistId = playlistDoc.id;
-      const moviesRef = collection(firestore, `playlists/${playlistId}/movies`);
-      const moviesSnapshot = await getDocs(moviesRef);
+      const playlistMovies = await contentStorageService.getMovies(playlistId);
       
-      console.log(`[movieService] Playlist ${playlistId}: Found ${moviesSnapshot.size} movies`);
+      console.log(`[movieService] Playlist ${playlistId}: Found ${playlistMovies.length} movies`);
       
-      moviesSnapshot.forEach(docSnap => {
+      playlistMovies.forEach(movie => {
         movies.push({ 
-          id: docSnap.id, 
+          ...movie,
           playlistId,
-          ...docSnap.data() 
         });
       });
     }

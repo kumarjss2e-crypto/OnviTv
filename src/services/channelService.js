@@ -1,94 +1,68 @@
+import contentStorageService from './contentStorageService';
 import { firestore } from '../config/firebase';
 import { 
   collection, 
-  doc, 
-  getDoc, 
   getDocs, 
   query, 
-  where, 
-  writeBatch,
-  serverTimestamp 
+  where,
 } from 'firebase/firestore';
 
 /**
  * Channel Service - Handles live TV channel operations
+ * Content stored in AsyncStorage (local), playlist metadata in Firebase
  */
 
-// Add channels in batch (from playlist parsing)
-export const addChannelsBatch = async (channels) => {
+// Add channels in batch (from playlist parsing) - now saves to AsyncStorage
+export const addChannelsBatch = async (playlistId, channels) => {
   try {
-    const batch = writeBatch(firestore);
-    const channelsRef = collection(firestore, 'channels');
-    
-    channels.forEach(channel => {
-      const channelRef = doc(channelsRef);
-      batch.set(channelRef, {
-        ...channel,
-        addedAt: serverTimestamp(),
-      });
-    });
-
-    await batch.commit();
+    await contentStorageService.saveChannels(playlistId, channels);
+    console.log(`[channelService] Saved ${channels.length} channels for playlist ${playlistId}`);
     return { success: true };
   } catch (error) {
-    console.error('Error adding channels batch:', error);
+    console.error('[channelService] Error adding channels batch:', error);
     return { success: false, error: error.message };
   }
 };
 
-// Get channels by playlist
+// Get channels by playlist - now reads from AsyncStorage
 export const getChannelsByPlaylist = async (playlistId, categoryName = null) => {
   try {
-    const channelsRef = collection(firestore, 'channels');
-    let q;
+    const channels = await contentStorageService.getChannels(playlistId);
     
+    let filtered = channels;
     if (categoryName) {
-      q = query(
-        channelsRef,
-        where('playlistId', '==', playlistId),
-        where('categoryName', '==', categoryName)
-      );
-    } else {
-      q = query(channelsRef, where('playlistId', '==', playlistId));
+      filtered = channels.filter(ch => ch.categoryName === categoryName);
     }
 
-    const snapshot = await getDocs(q);
-    const channels = [];
-    
-    snapshot.forEach(docSnap => {
-      channels.push({ id: docSnap.id, ...docSnap.data() });
-    });
-
-    return { success: true, data: channels };
+    console.log(`[channelService] Playlist ${playlistId}: Found ${filtered.length} channels`);
+    return { success: true, data: filtered };
   } catch (error) {
-    console.error('Error getting channels:', error);
+    console.error('[channelService] Error getting channels:', error);
     return { success: false, error: error.message };
   }
 };
 
-// Get all user channels (from nested subcollections under playlists)
+// Get all user channels from all their playlists - reads from AsyncStorage
 export const getUserChannels = async (userId) => {
   try {
-    // Query all playlists for this user
+    // Get user's playlists from Firebase (metadata only)
     const playlistsRef = collection(firestore, 'playlists');
     const playlistsQ = query(playlistsRef, where('userId', '==', userId));
     const playlistsSnapshot = await getDocs(playlistsQ);
 
     const channels = [];
     
-    // For each playlist, get channels from nested subcollection
+    // For each playlist, get channels from AsyncStorage
     for (const playlistDoc of playlistsSnapshot.docs) {
       const playlistId = playlistDoc.id;
-      const channelsRef = collection(firestore, `playlists/${playlistId}/channels`);
-      const channelsSnapshot = await getDocs(channelsRef);
+      const playlistChannels = await contentStorageService.getChannels(playlistId);
       
-      console.log(`[channelService] Playlist ${playlistId}: Found ${channelsSnapshot.size} channels`);
+      console.log(`[channelService] Playlist ${playlistId}: Found ${playlistChannels.length} channels`);
       
-      channelsSnapshot.forEach(docSnap => {
+      playlistChannels.forEach(channel => {
         channels.push({ 
-          id: docSnap.id, 
+          ...channel,
           playlistId,
-          ...docSnap.data() 
         });
       });
     }
@@ -97,7 +71,7 @@ export const getUserChannels = async (userId) => {
 
     return { success: true, data: channels };
   } catch (error) {
-    console.error('Error getting user channels:', error);
+    console.error('[channelService] Error getting user channels:', error);
     return { success: false, error: error.message };
   }
 };
