@@ -12,7 +12,13 @@
  */
 export const downloadM3UFile = async (url, onProgress = null) => {
   try {
-    const response = await fetch(url);
+    // For web platform with certificate issues, try CORS proxy as fallback
+    let fetchUrl = url;
+    const isWebPlatform = typeof window !== 'undefined';
+    
+    console.log(`[m3uDownloadService] Downloading from: ${url}`);
+    
+    const response = await fetch(fetchUrl);
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
