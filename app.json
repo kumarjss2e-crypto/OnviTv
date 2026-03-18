@@ -159,6 +159,7 @@
         {
           "ios": {
             "deploymentTarget": "13.4",
+            "useFrameworks": "static",
             "useFrameworks": "static"
           },
           "android": {
