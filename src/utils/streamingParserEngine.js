@@ -7,7 +7,7 @@
 
 import contentStorageService from '../services/contentStorageService';
 
-const BATCH_SIZE = 50; // Write to Firestore every 50 items
+const BATCH_SIZE = 50; // Flush to AsyncStorage every 50 items
 
 /**
  * Simple hash function for creating consistent IDs
@@ -52,14 +52,13 @@ const generateUniqueItemId = (item) => {
 
 /**
  * Create streaming parser engine
- * Handles item accumulation and batch writes to Firestore subcollections
+ * Handles item accumulation and batch writes to AsyncStorage via contentStorageService
  * @param {string} playlistId
  * @param {Function} onProgressUpdate - Called when progress updates
  * @param {Function} onFirstBatchSaved - Called when first batch is successfully saved
  * @returns {Object} - Parser engine with methods
  */
 export const createParserEngine = (playlistId, onProgressUpdate, onFirstBatchSaved) => {
-  let batch = writeBatch(db);
   let writeCount = 0;
   let isFlushInProgress = false;
   let flushQueue = Promise.resolve(); // Queue for pending flushes
