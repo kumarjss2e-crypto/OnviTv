@@ -191,18 +191,49 @@ const AddPlaylistScreen = ({ navigation }) => {
           console.log('[AddPlaylistScreen] Starting M3U download...');
           setProcessingMessage('Downloading playlist file...');
           
+          // Show initial progress to make modal visible
+          setDownloadProgress(0.05);
+          
+          // Debounce progress updates for smooth animation on fast downloads
+          let lastProgressUpdate = 0;
+          const minProgressInterval = 50; // milliseconds between UI updates
+          let progressUpdateTimeout = null;
+          
           try {
             // Download M3U file with progress callback
             const m3uContent = await downloadM3UFileWithRetry(
               playlistData.url,
               (progress) => {
                 const percent = Math.round(progress * 100);
-                console.log(`[AddPlaylistScreen] Download progress: ${percent}%`);
-                setDownloadProgress(progress);
-                setProcessingMessage(`Downloading playlist file... ${percent}%`);
+                const now = Date.now();
+                
+                // Clamp progress to at least 5% so user sees bar starting
+                const displayProgress = Math.max(progress, 0.05);
+                
+                // Update immediately if it's been long enough, or debounce
+                if (now - lastProgressUpdate >= minProgressInterval) {
+                  console.log(`[AddPlaylistScreen] Download progress: ${percent}%`);
+                  setDownloadProgress(displayProgress);
+                  setProcessingMessage(`Downloading playlist file... ${percent}%`);
+                  lastProgressUpdate = now;
+                } else if (!progressUpdateTimeout) {
+                  // Schedule update after min interval
+                  progressUpdateTimeout = setTimeout(() => {
+                    console.log(`[AddPlaylistScreen] Download progress: ${percent}%`);
+                    setDownloadProgress(displayProgress);
+                    setProcessingMessage(`Downloading playlist file... ${percent}%`);
+                    lastProgressUpdate = Date.now();
+                    progressUpdateTimeout = null;
+                  }, minProgressInterval);
+                }
               },
               3 // max retries
             );
+
+            // Clear any pending progress update
+            if (progressUpdateTimeout) {
+              clearTimeout(progressUpdateTimeout);
+            }
 
             console.log(`[AddPlaylistScreen] Download complete. File size: ${m3uContent.length} chars`);
             

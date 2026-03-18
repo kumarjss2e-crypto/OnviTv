@@ -79,7 +79,7 @@ export const downloadM3UFile = async (url, onProgress = null) => {
     const chunks = [];
     let received = 0;
     let lastProgressUpdate = 0;
-    const progressUpdateThreshold = 0.01; // Update UI every 1% or every 50KB
+    const progressUpdateThreshold = 0.005; // Update UI every 0.5% for smoother visual feedback
 
     while (true) {
       const { done, value } = await reader.read();
@@ -95,10 +95,11 @@ export const downloadM3UFile = async (url, onProgress = null) => {
         const progress = received / total;
         const progressDelta = progress - lastProgressUpdate;
         
-        // Update progress if 1% increment or every 50KB
-        if (progressDelta >= progressUpdateThreshold || received % 51200 < 1024) {
-          onProgress(Math.min(progress, 0.99));
-          lastProgressUpdate = progress;
+        // Update progress if 0.5% increment reached
+        if (progressDelta >= progressUpdateThreshold) {
+          const cappedProgress = Math.min(progress, 0.99);
+          onProgress(cappedProgress);
+          lastProgressUpdate = cappedProgress;
         }
       }
     }
