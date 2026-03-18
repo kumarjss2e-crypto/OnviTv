@@ -64,22 +64,20 @@ export const downloadM3UFile = async (url, onProgress = null) => {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
+    // Get content length if available
     const contentLength = response.headers.get('content-length');
     const total = parseInt(contentLength, 10) || 0;
     
-    if (total === 0) {
-      // If no content-length, just get the text without progress
-      const text = await response.text();
-      if (onProgress) onProgress(1);
-      return text;
-    }
+    console.log(`[m3uDownloadService] Content-Length: ${contentLength || 'NOT PROVIDED'}, total: ${total}`);
 
-    // Read response body with progress tracking
+    // Always use streaming reader even if content-length is unknown
+    // This allows us to track progress from actual bytes received
     const reader = response.body.getReader();
     const chunks = [];
     let received = 0;
     let lastProgressUpdate = 0;
-    const progressUpdateThreshold = 0.005; // Update UI every 0.5% for smoother visual feedback
+    const progressUpdateInterval = 50 * 1024; // Update every 50KB chunks received
+    let lastProgressTime = Date.now();
 
     while (true) {
       const { done, value } = await reader.read();
@@ -91,18 +89,40 @@ export const downloadM3UFile = async (url, onProgress = null) => {
       chunks.push(value);
       received += value.length;
       
-      if (onProgress && total > 0) {
-        const progress = received / total;
-        const progressDelta = progress - lastProgressUpdate;
-        
-        // Update progress if 0.5% increment reached
-        if (progressDelta >= progressUpdateThreshold) {
-          const cappedProgress = Math.min(progress, 0.99);
-          onProgress(cappedProgress);
-          lastProgressUpdate = cappedProgress;
+      if (onProgress) {
+        // If we know the total, use it for realistic progress
+        if (total > 0) {
+          const progress = received / total;
+          const progressDelta = progress - lastProgressUpdate;
+          
+          // Update every 0.5% or every 50KB
+          if (progressDelta >= 0.005 || received - (lastProgressUpdate * total) >= progressUpdateInterval) {
+            const cappedProgress = Math.min(progress, 0.99);
+            console.log(`[m3uDownloadService] Download progress: ${Math.round(cappedProgress * 100)}% (${received}/${total} bytes)`);
+            onProgress(cappedProgress);
+            lastProgressUpdate = progress;
+          }
+        } else {
+          // No content-length: estimate progress based on elapsed time and chunk accumulation
+          // Show progress every 50KB or every 500ms
+          const now = Date.now();
+          const timeDelta = now - lastProgressTime;
+          const bytesSinceLast = received - (lastProgressUpdate > 0 ? lastProgressUpdate * 1000000 : 0);
+          
+          if (received % 51200 < 1024 || timeDelta > 500) {
+            // For unknown size, simulate progress: 0-90% as we download, then jump to 100%
+            // This gives visual feedback without misleading the user
+            const estimatedProgress = Math.min(0.1 + (received / 5000000), 0.90); // Assume ~5MB typical
+            console.log(`[m3uDownloadService] Download progress (unknown size): ${Math.round(estimatedProgress * 100)}% (${received} bytes)`);
+            onProgress(estimatedProgress);
+            lastProgressUpdate = received / 1000000;
+            lastProgressTime = now;
+          }
         }
       }
     }
+
+    console.log(`[m3uDownloadService] Download complete. Total bytes: ${received}`);
 
     // Combine chunks into single string
     const uint8Array = new Uint8Array(received);
