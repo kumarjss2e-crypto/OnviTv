@@ -19,8 +19,9 @@ const STORAGE_KEYS = {
 export const saveChannels = async (playlistId, channels) => {
   try {
     const key = STORAGE_KEYS.CHANNELS + playlistId;
+    const saveTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
     await AsyncStorage.setItem(key, JSON.stringify(channels));
-    console.log(`[contentStorageService] Saved ${channels.length} channels for ${playlistId}`);
+    console.log(`[${saveTime}] [contentStorageService] 💾 Saved ${channels.length} channels for ${playlistId}`);
   } catch (error) {
     console.error('[contentStorageService] Error saving channels:', error);
     throw error;
@@ -33,10 +34,11 @@ export const saveChannels = async (playlistId, channels) => {
 export const getChannels = async (playlistId) => {
   try {
     const key = STORAGE_KEYS.CHANNELS + playlistId;
+    const loadTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
     const data = await AsyncStorage.getItem(key);
     if (data) {
       const channels = JSON.parse(data);
-      console.log(`[contentStorageService] Loaded ${channels.length} channels for ${playlistId}`);
+      console.log(`[${loadTime}] [contentStorageService] 📖 Loaded ${channels.length} channels for ${playlistId}`);
       return channels;
     }
     return [];
@@ -52,8 +54,9 @@ export const getChannels = async (playlistId) => {
 export const saveMovies = async (playlistId, movies) => {
   try {
     const key = STORAGE_KEYS.MOVIES + playlistId;
+    const saveTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
     await AsyncStorage.setItem(key, JSON.stringify(movies));
-    console.log(`[contentStorageService] Saved ${movies.length} movies for ${playlistId}`);
+    console.log(`[${saveTime}] [contentStorageService] 💾 Saved ${movies.length} movies for ${playlistId}`);
   } catch (error) {
     console.error('[contentStorageService] Error saving movies:', error);
     throw error;
@@ -66,6 +69,7 @@ export const saveMovies = async (playlistId, movies) => {
 export const getMovies = async (playlistId) => {
   try {
     const key = STORAGE_KEYS.MOVIES + playlistId;
+    const loadTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
     const data = await AsyncStorage.getItem(key);
     if (data) {
       const movies = JSON.parse(data);

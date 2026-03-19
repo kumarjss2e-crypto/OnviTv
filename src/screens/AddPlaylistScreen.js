@@ -247,34 +247,28 @@ const AddPlaylistScreen = ({ navigation }) => {
             // Small delay to show completion message
             await new Promise(resolve => setTimeout(resolve, 300));
             
-            // Start background parsing with downloaded content
+            // Start background parsing with downloaded content (NON-BLOCKING)
+            console.log(`[AddPlaylistScreen] Starting background M3U parsing...`);
+            startParsing(result.playlistId);
+            
+            // Fire parsing and wait for first batch to be saved before navigating
             try {
-              // Fetch full playlist data from Firestore
-              const playlistRef = doc(db, 'playlists', result.playlistId);
-              const playlistSnap = await getDoc(playlistRef);
+              const firstBatchResult = await backgroundParsingService.startM3UParsingFromContent(
+                result.playlistId,
+                playlistData.url,
+                m3uContent
+              );
               
-              if (playlistSnap.exists()) {
-                const fullPlaylistData = playlistSnap.data();
-                const normalizedData = {
-                  ...fullPlaylistData,
-                  m3uUrl: fullPlaylistData.m3uConfig?.url,
-                };
-                
-                // Start parsing from downloaded content
-                console.log(`[AddPlaylistScreen] Starting background M3U parsing...`);
-                startParsing(result.playlistId);
-                
-                await backgroundParsingService.startM3UParsingFromContent(
-                  result.playlistId,
-                  playlistData.url,
-                  m3uContent
-                );
-              }
+              // First batch saved - now safe to navigate
+              const navTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
+              console.log(`[${navTime}] [AddPlaylistScreen] 🏠 NAVIGATING TO HOME - first batch saved, content ready`);
+              
             } catch (parseError) {
-              console.error('[AddPlaylistScreen] Error starting parsing:', parseError);
+              console.error('[AddPlaylistScreen] Parsing initialization error:', parseError);
+              // Still navigate even if parsing fails initially - background job continues anyway
             }
             
-            // NOW navigate to Home - download is verified complete
+            // Close modal and navigate
             setProcessing(false);
             setLoading(false);
             // Clear form

@@ -124,7 +124,8 @@ export const downloadM3UFile = async (url, onProgress = null) => {
       }
     }
 
-    console.log(`[m3uDownloadService] Download complete. Total bytes: ${received}`);
+    const downloadTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
+    console.log(`[${downloadTime}] [m3uDownloadService] ✅ DOWNLOAD COMPLETE. Total bytes: ${received}`);
 
     // Combine chunks into single string
     const uint8Array = new Uint8Array(received);

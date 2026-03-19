@@ -7,7 +7,7 @@
 
 import contentStorageService from '../services/contentStorageService';
 
-const BATCH_SIZE = 50; // Flush to AsyncStorage every 50 items
+const BATCH_SIZE = 15; // Flush to AsyncStorage every 15 items (faster first content appearance)
 
 /**
  * Simple hash function for creating consistent IDs

@@ -129,7 +129,8 @@ const HomeScreen = ({ navigation }) => {
         };
 
         const elapsed = Date.now() - startTime;
-        console.log('[HomeScreen] Content loaded in ' + elapsed + 'ms:', {
+        const contentTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
+        console.log(`[${contentTime}] [HomeScreen] 📺 CONTENT DISPLAYED in ${elapsed}ms:`, {
           channels: content.channels.length,
           movies: content.movies.length,
           series: content.series.length,

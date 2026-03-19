@@ -707,220 +707,216 @@ const migrateCorruptedUrls = async (playlists) => {
  * @param {string} fileContent - Pre-downloaded M3U file content
  * @returns {Promise<Object>} - Parsing result
  */
-const startM3UParsingFromContent = async (playlistId, url, fileContent) => {
-  try {
-    console.log(`[backgroundParsingService] Starting M3U parsing from content for playlist: ${playlistId}`);
-    console.log(`[backgroundParsingService] File size: ${fileContent.length} characters`);
-
-    // Check if already parsing
-    if (activeJobs.has(playlistId)) {
-      console.warn(`[backgroundParsingService] Playlist ${playlistId} is already parsing`);
-      return { success: false, error: 'Already parsing' };
-    }
-
-    // Initialize progress tracker
-    const progressRef = doc(db, `playlists/${playlistId}/meta/progress`);
-    const existingProgress = await getDoc(progressRef);
-    const isResume = existingProgress.exists();
-    
-    const playlistRef = doc(db, 'playlists', playlistId);
-    const playlistSnap = await getDoc(playlistRef);
-    const playlistData = playlistSnap.data();
-
-    await initProgressTracker(playlistId, {
-      ...playlistData,
-      type: 'm3u',
-      m3uUrl: url,
-    }, isResume);
-    console.log(`[backgroundParsingService] Progress tracker initialized for M3U content parsing`);
-
-    // Create abort controller for this job
-    const abortController = new AbortController();
-    
-    // Create onFirstBatchSaved callback
-    const onFirstBatchSaved = () => {
-      console.log(`[backgroundParsingService] First batch saved for ${playlistId}, notifying listeners`);
-      notifyParseListeners(playlistId, { type: 'firstBatchSaved', playlistId });
-    };
-    
-    const engine = createParserEngine(playlistId, (stats) => {
-      // Update progress with actual saved stats from Firestore
-      updateProgress(playlistId, {
-        channels: stats.channels,
-        movies: stats.movies,
-        series: stats.series,
-        itemsSaved: stats.totalWritten,
-      });
-    }, onFirstBatchSaved);
-
-    // Store job reference
-    activeJobs.set(playlistId, {
-      abortController,
-      engine,
-      startTime: new Date(),
-    });
-
-    // Initialize network retry count for this session
-    if (!networkRetries.has(playlistId)) {
-      networkRetries.set(playlistId, 0);
-    }
-
-    // Use JavaScript streaming parser to parse from content
-    const parseFunction = streamParseM3U;
-    const parseArgs = [
-      url, // Original URL (for reference)
-      playlistId,
-      fileContent, // Pre-downloaded content (NEW)
-    ];
-
-    // Define callbacks
-    const onItemParsed = async (item, contentType) => {
-      const job = activeJobs.get(playlistId);
-      if (job && !job.abortController.signal.aborted) {
-        // Check if playlist still exists before writing
-        try {
-          const playlistRef = doc(db, 'playlists', playlistId);
-          const playlistSnap = await getDoc(playlistRef);
-          if (!playlistSnap.exists()) {
-            console.log(`[backgroundParsingService] Playlist ${playlistId} was deleted, stopping parsing`);
-            job.abortController.abort();
-            return;
-          }
-        } catch (error) {
-          console.error('[backgroundParsingService] Error checking playlist existence:', error);
-        }
-        
-        await job.engine.addItem(item, contentType);
-      }
-    };
-
-    let lastProgressLog = 0;
-    const onProgress = async (lineNumber, stats) => {
-      // Check if playlist still exists
+const startM3UParsingFromContent = (playlistId, url, fileContent) => {
+  // Return promise that resolves when first batch is saved, parsing continues in background
+  return new Promise((resolveFirstBatch, rejectFirstBatch) => {
+    // Fire parsing in background without blocking
+    const runParsing = async () => {
+      let firstBatchSaved = false;
+      
       try {
-        const playlistRef = doc(db, 'playlists', playlistId);
-        const playlistSnap = await getDoc(playlistRef);
-        if (!playlistSnap.exists()) {
-          console.log(`[backgroundParsingService] Playlist ${playlistId} was deleted, stopping parsing`);
-          const job = activeJobs.get(playlistId);
-          if (job) {
-            job.abortController.abort();
-          }
+        const parseStartTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
+        console.log(`[${parseStartTime}] [backgroundParsingService] 🚀 PARSING STARTS for playlist: ${playlistId}`);
+        console.log(`[backgroundParsingService] File size: ${fileContent.length} characters`);
+
+        // Check if already parsing
+        if (activeJobs.has(playlistId)) {
+          console.warn(`[backgroundParsingService] Playlist ${playlistId} is already parsing`);
+          rejectFirstBatch(new Error('Already parsing'));
           return;
         }
-      } catch (error) {
-        console.error('[backgroundParsingService] Error checking playlist existence:', error);
-      }
 
-      // Log progress every 50 items
-      if (lineNumber % 50 === 0) {
-        console.log(`[backgroundParsingService] Progress - Line: ${lineNumber}, Total parsed: ${stats.total}, Channels: ${stats.channels}, Movies: ${stats.movies}, Series: ${stats.series}`);
-      }
+        // Initialize progress tracker
+        const progressRef = doc(db, `playlists/${playlistId}/meta/progress`);
+        const existingProgress = await getDoc(progressRef);
+        const isResume = existingProgress.exists();
+        
+        const playlistRef = doc(db, 'playlists', playlistId);
+        const playlistSnap = await getDoc(playlistRef);
+        const playlistData = playlistSnap.data();
 
-      // Update progress tracker
-      await updateProgress(playlistId, {
-        lineNumber,
-        itemsProcessed: stats.total,
-        duplicates: stats.duplicates,
-        unsupported: stats.unsupported,
-        errors: stats.errors,
-      });
-    };
+        await initProgressTracker(playlistId, {
+          ...playlistData,
+          type: 'm3u',
+          m3uUrl: url,
+        }, isResume);
+        console.log(`[backgroundParsingService] Progress tracker initialized for M3U content parsing`);
 
-    try {
-      // Call parser with file content
-      console.log(`[backgroundParsingService] Calling JavaScript M3U parser with pre-downloaded content...`);
-      const parserStats = await parseFunction(
-        ...parseArgs,
-        onItemParsed,
-        onProgress,
-        abortController.signal
-      );
-
-      console.log(`[backgroundParsingService] Parser completed. Stats:`, parserStats);
-
-      // Finalize
-      console.log(`[backgroundParsingService] Finalizing parse...`);
-      await engine.finalize();
-      console.log(`[backgroundParsingService] Parse finalized successfully`);
-
-      // Get actual saved stats from engine
-      const engineStats = engine.getStats();
-      console.log(`[backgroundParsingService] Engine stats (actual saved):`, engineStats);
-
-      // Update playlist document with final stats
-      console.log(`[backgroundParsingService] Updating playlist document with final stats...`);
-      await updateDoc(doc(db, 'playlists', playlistId), {
-        stats: {
-          totalChannels: engineStats.channels || 0,
-          totalMovies: engineStats.movies || 0,
-          totalSeries: engineStats.series || 0,
-        },
-        parseStatus: 'completed',
-        isParsing: false,
-        lastParseDate: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-      }).catch(err => console.error('[backgroundParsingService] Error updating playlist stats:', err));
-
-      // Success
-      activeJobs.delete(playlistId);
-      networkRetries.delete(playlistId);
-
-      console.log(`[backgroundParsingService] ✅ M3U parsing completed successfully for ${playlistId}`);
-      return {
-        success: true,
-        stats: engineStats,
-        duration: new Date() - (activeJobs.get(playlistId)?.startTime || new Date()),
-      };
-
-    } catch (error) {
-      console.error(`[backgroundParsingService] ❌ M3U parsing failed for ${playlistId}:`, error?.message);
-
-      // Notify listeners that parsing failed
-      notifyParseListeners(playlistId, { type: 'parseFailed', playlistId, error: error?.message });
-
-      // Get partial stats from engine before cleanup
-      const partialStats = engine.getStats();
+        // Create abort controller for this job
+        const abortController = new AbortController();
+        
+        // Create onFirstBatchSaved callback
+        const onFirstBatchSaved = () => {
+          if (!firstBatchSaved) {
+            firstBatchSaved = true;
+            const batchSaveTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
+            console.log(`[${batchSaveTime}] [backgroundParsingService] ✨ FIRST BATCH SAVED for ${playlistId}, allowing navigation`);
+            resolveFirstBatch({ success: true, playlistId });
+            notifyParseListeners(playlistId, { type: 'firstBatchSaved', playlistId });
+          }
+        };
       
-      // Update playlist with partial stats
-      const playlistRef = doc(db, 'playlists', playlistId);
-      await updateDoc(playlistRef, {
-        isParsing: false,
-        parseStatus: 'partial',
-        lastError: error?.message,
-        stats: {
-          totalChannels: partialStats.channels,
-          totalMovies: partialStats.movies,
-          totalSeries: partialStats.series,
-        },
-        lastUpdated: new Date().toISOString(),
-      }).catch(err => console.error('Error updating playlist stats:', err));
+        const engine = createParserEngine(playlistId, (stats) => {
+          updateProgress(playlistId, {
+            channels: stats.channels,
+            movies: stats.movies,
+            series: stats.series,
+            itemsSaved: stats.totalWritten,
+          });
+        }, onFirstBatchSaved);
 
-      await updateProgress(playlistId, {
-        status: 'error',
-        error: error?.message,
-      });
+        // Store job reference
+        activeJobs.set(playlistId, {
+          abortController,
+          engine,
+          startTime: new Date(),
+        });
 
-      activeJobs.delete(playlistId);
+        // Initialize network retry count for this session
+        if (!networkRetries.has(playlistId)) {
+          networkRetries.set(playlistId, 0);
+        }
 
-      return {
-        success: false,
-        error: error?.message,
-      };
-    }
+        // Use JavaScript streaming parser to parse from content
+        const parseFunction = streamParseM3U;
+        const parseArgs = [
+          url,
+          playlistId,
+          fileContent,
+        ];
 
-  } catch (error) {
-    console.error('[backgroundParsingService] Error in startM3UParsingFromContent:', error);
-    activeJobs.delete(playlistId);
+        // Define callbacks
+        const onItemParsed = async (item, contentType) => {
+          const job = activeJobs.get(playlistId);
+          if (job && !job.abortController.signal.aborted) {
+            try {
+              const playlistRef = doc(db, 'playlists', playlistId);
+              const playlistSnap = await getDoc(playlistRef);
+              if (!playlistSnap.exists()) {
+                console.log(`[backgroundParsingService] Playlist ${playlistId} was deleted, stopping parsing`);
+                job.abortController.abort();
+                return;
+              }
+            } catch (error) {
+              console.error('[backgroundParsingService] Error checking playlist existence:', error);
+            }
+            
+            await job.engine.addItem(item, contentType);
+          }
+        };
 
-    // Notify listeners that parsing failed
-    notifyParseListeners(playlistId, { type: 'parseFailed', playlistId, error: error.message });
+        const onProgress = async (lineNumber, stats) => {
+          try {
+            const playlistRef = doc(db, 'playlists', playlistId);
+            const playlistSnap = await getDoc(playlistRef);
+            if (!playlistSnap.exists()) {
+              console.log(`[backgroundParsingService] Playlist ${playlistId} was deleted, stopping parsing`);
+              const job = activeJobs.get(playlistId);
+              if (job) {
+                job.abortController.abort();
+              }
+              return;
+            }
+          } catch (error) {
+            console.error('[backgroundParsingService] Error checking playlist existence:', error);
+          }
 
-    return {
-      success: false,
-      error: error.message,
+          if (lineNumber % 50 === 0) {
+            console.log(`[backgroundParsingService] Progress - Line: ${lineNumber}, Total parsed: ${stats.total}, Channels: ${stats.channels}, Movies: ${stats.movies}, Series: ${stats.series}`);
+          }
+
+          await updateProgress(playlistId, {
+            lineNumber,
+            itemsProcessed: stats.total,
+            duplicates: stats.duplicates,
+            unsupported: stats.unsupported,
+            errors: stats.errors,
+          });
+        };
+
+        // Call parser with file content
+        console.log(`[backgroundParsingService] Calling JavaScript M3U parser with pre-downloaded content...`);
+        const parserStats = await parseFunction(
+          ...parseArgs,
+          onItemParsed,
+          onProgress,
+          abortController.signal
+        );
+
+        console.log(`[backgroundParsingService] Parser completed. Stats:`, parserStats);
+
+        // Finalize
+        console.log(`[backgroundParsingService] Finalizing parse...`);
+        await engine.finalize();
+        console.log(`[backgroundParsingService] Parse finalized successfully`);
+
+        // Get actual saved stats from engine
+        const engineStats = engine.getStats();
+        console.log(`[backgroundParsingService] Engine stats (actual saved):`, engineStats);
+
+        // Update playlist document with final stats
+        console.log(`[backgroundParsingService] Updating playlist document with final stats...`);
+        await updateDoc(doc(db, 'playlists', playlistId), {
+          stats: {
+            totalChannels: engineStats.channels || 0,
+            totalMovies: engineStats.movies || 0,
+            totalSeries: engineStats.series || 0,
+          },
+          parseStatus: 'completed',
+          isParsing: false,
+          lastParseDate: new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+        }).catch(err => console.error('[backgroundParsingService] Error updating playlist stats:', err));
+
+        // Success
+        activeJobs.delete(playlistId);
+        networkRetries.delete(playlistId);
+
+        console.log(`[backgroundParsingService] ✅ M3U parsing completed successfully for ${playlistId}`);
+
+      } catch (error) {
+        console.error(`[backgroundParsingService] ❌ M3U parsing failed for ${playlistId}:`, error?.message);
+
+        notifyParseListeners(playlistId, { type: 'parseFailed', playlistId, error: error?.message });
+
+        const job = activeJobs.get(playlistId);
+        if (job) {
+          const partialStats = job.engine.getStats();
+          
+          const playlistRef = doc(db, 'playlists', playlistId);
+          await updateDoc(playlistRef, {
+            isParsing: false,
+            parseStatus: 'partial',
+            lastError: error?.message,
+            stats: {
+              totalChannels: partialStats.channels,
+              totalMovies: partialStats.movies,
+              totalSeries: partialStats.series,
+            },
+            lastUpdated: new Date().toISOString(),
+          }).catch(err => console.error('Error updating playlist stats:', err));
+
+          await updateProgress(playlistId, {
+            status: 'error',
+            error: error?.message,
+          });
+
+          activeJobs.delete(playlistId);
+        }
+        
+        // Reject only if first batch wasn't saved yet
+        if (!firstBatchSaved) {
+          rejectFirstBatch(error);
+        }
+      }
     };
-  }
+
+    // Start parsing but don't await - fire and forget
+    runParsing().catch(err => {
+      console.error('[backgroundParsingService] Uncaught error in parsing:', err);
+      rejectFirstBatch(err);
+    });
+  });
 };
 
 /**
