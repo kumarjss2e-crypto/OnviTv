@@ -46,7 +46,8 @@
       "distribution": "store",
       "ios": {
         "simulator": false,
-        "image": "latest"
+        "image": "latest",
+        "autoSubmit": false
       },
       "android": {
         "buildType": "apk"
