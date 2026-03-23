@@ -1,24 +1,20 @@
 post_install do |installer|  
-  # Force all pods to iOS 13.0 minimum deployment target
+  # Workaround: Remove platform from deployment target settings
+  # This allows Xcode's range enforcement (12.0-26.2.99) to apply
   installer.pods_project.targets.each do |target|
-    # For GoogleSignIn and AppAuth specifically
-    if target.name.include?('GoogleSignIn') || target.name.include?('AppAuth') || target.name.include?('GTM')
-      target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-        config.build_settings.delete('IPHONEOS_DEPLOYMENT_TARGET') if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_s.to_f < 13.0
-      end
-    end
-    
-    # Apply to all targets
     target.build_configurations.each do |config|
-      deployment_target = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
-      if deployment_target.nil? || deployment_target.to_f < 13.0
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      # Explicitly set to 13.0 for all pods
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      
+      # Remove any iOS-specific overrides that might conflict
+      if config.build_settings['OTHER_CFLAGS']
+        flags = config.build_settings['OTHER_CFLAGS']
+        flags = flags.delete_if { |flag| flag.include?('min-version') } if flags.is_a?(Array)
       end
     end
   end
   
-  # Also fix MACOSX_DEPLOYMENT_TARGET if present
+  # Fix the project-level deployment target
   installer.pods_project.build_configurations.each do |config|
     config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
   end
