@@ -382,7 +382,7 @@ const HomeScreen = ({ navigation }) => {
           moviesByGenre[genre].push(movie);
         });
 
-         Movies grouped by category:', Object.keys(moviesByGenre).map(g => ({ category: g, count: moviesByGenre[g].length })));
+        console.log('Movies grouped by category:', Object.keys(moviesByGenre).map(g => ({ category: g, count: moviesByGenre[g].length })));
 
         categories = Object.keys(moviesByGenre)
           .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : 0))
@@ -412,7 +412,7 @@ const HomeScreen = ({ navigation }) => {
           seriesByGenre[genre].push(show);
         });
 
-         Series grouped by category:', Object.keys(seriesByGenre).map(g => ({ category: g, count: seriesByGenre[g].length })));
+        console.log('Series grouped by category:', Object.keys(seriesByGenre).map(g => ({ category: g, count: seriesByGenre[g].length })));
 
         categories = Object.keys(seriesByGenre)
           .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : 0))
@@ -443,7 +443,7 @@ const HomeScreen = ({ navigation }) => {
           channelsByCategory[category].push(channel);
         });
 
-         Channels grouped by category:', Object.keys(channelsByCategory).map(c => ({ category: c, count: channelsByCategory[c].length })));
+        console.log('Channels grouped by category:', Object.keys(channelsByCategory).map(c => ({ category: c, count: channelsByCategory[c].length })));
 
         categories = Object.keys(channelsByCategory)
           .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : 0))
