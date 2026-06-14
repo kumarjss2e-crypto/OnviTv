@@ -308,7 +308,7 @@ const HomeScreen = ({ navigation }) => {
   // Refresh on focus
   useFocusEffect(
     React.useCallback(() => {
-       Screen focused, refreshing content...');
+      console.log('Screen focused, refreshing content...');
       if (user) {
         // Skip debounce when screen is focused for faster refresh
         loadContentDataDebounced(user.uid, true);
