@@ -1,4 +1,4 @@
-import contentStorageService from './contentStorageService';
+import { itemStorageService } from './itemStorageService';
 import { firestore } from '../config/firebase';
 import { 
   collection, 
@@ -15,14 +15,14 @@ import {
  * Series Service - Handles TV series operations
  */
 
-// Get series by playlist - now reads from AsyncStorage
+// Get series by playlist - reads from unified storage
 export const getSeriesByPlaylist = async (playlistId, limitCount = 20) => {
   try {
-    const series = await contentStorageService.getSeries(playlistId);
+    const series = await itemStorageService.getItemsByType(playlistId, 'series');
     
     // Apply limit if specified
     const limited = limitCount ? series.slice(0, limitCount) : series;
-    console.log(`[seriesService] Playlist ${playlistId}: Found ${limited.length} series`);
+    console.log(`[CONTENT_LOAD] Playlist ${playlistId}: Found ${limited.length} series`);
     
     return { success: true, data: limited };
   } catch (error) {
@@ -31,7 +31,7 @@ export const getSeriesByPlaylist = async (playlistId, limitCount = 20) => {
   }
 };
 
-// Get all series for a user (from all their playlists - from AsyncStorage)
+// Get all series for a user (from all their playlists - reads from unified storage)
 export const getUserSeries = async (userId) => {
   try {
     // Query all playlists for this user from Firebase (metadata only)
@@ -41,12 +41,12 @@ export const getUserSeries = async (userId) => {
 
     const series = [];
     
-    // For each playlist, get series from AsyncStorage
+    // For each playlist, get series from unified storage
     for (const playlistDoc of playlistsSnapshot.docs) {
       const playlistId = playlistDoc.id;
-      const playlistSeries = await contentStorageService.getSeries(playlistId);
+      const playlistSeries = await itemStorageService.getItemsByType(playlistId, 'series');
       
-      console.log(`[seriesService] Playlist ${playlistId}: Found ${playlistSeries.length} series`);
+      console.log(`[CONTENT_LOAD] Playlist ${playlistId}: Found ${playlistSeries.length} series`);
       
       playlistSeries.forEach(item => {
         series.push({ 
@@ -56,7 +56,7 @@ export const getUserSeries = async (userId) => {
       });
     }
 
-    console.log(`[seriesService] Total series across all playlists: ${series.length}`);
+    console.log(`[CONTENT_LOAD] Total series across all playlists: ${series.length}`);
 
     return { success: true, data: series };
   } catch (error) {

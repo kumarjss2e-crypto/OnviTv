@@ -18,8 +18,11 @@ const SplashScreen = ({ navigation }) => {
   const buttonOpacity = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
 
+  console.log('[SplashScreen] Rendered! authLoading:', authLoading, 'user:', user ? 'exists' : 'null');
+
   useEffect(() => {
     // Wait for auth to load
+    console.log('[SplashScreen] useEffect: authLoading=', authLoading, 'hasNavigated=', hasNavigated);
     if (!authLoading && !hasNavigated) {
       checkAuthAndNavigation();
     }

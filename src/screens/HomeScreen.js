@@ -80,32 +80,7 @@ const HomeScreen = ({ navigation }) => {
   // Debounced content loader to prevent excessive queries
   const containerRef = useRef(null);
 
-  useEffect(() => {
-    // Detect if container is receiving pointer/touch events on web
-    if (Platform.OS === 'web' && containerRef.current) {
-      const container = containerRef.current;
-      
-      const handlePointerDown = () => console.log('[HomeScreen] POINTER DOWN detected');
-      const handlePointerUp = () => console.log('[HomeScreen] POINTER UP detected');
-      const handleTouchStart = () => console.log('[HomeScreen] TOUCH START detected');
-      const handleTouchEnd = () => console.log('[HomeScreen] TOUCH END detected');
-      const handleWheel = (e) => console.log('[HomeScreen] WHEEL event detected', e.deltaY);
-      
-      container.addEventListener('pointerdown', handlePointerDown);
-      container.addEventListener('pointerup', handlePointerUp);
-      container.addEventListener('touchstart', handleTouchStart);
-      container.addEventListener('touchend', handleTouchEnd);
-      container.addEventListener('wheel', handleWheel);
-      
-      return () => {
-        container.removeEventListener('pointerdown', handlePointerDown);
-        container.removeEventListener('pointerup', handlePointerUp);
-        container.removeEventListener('touchstart', handleTouchStart);
-        container.removeEventListener('touchend', handleTouchEnd);
-        container.removeEventListener('wheel', handleWheel);
-      };
-    }
-  }, []);
+
 
   // Debounced content loader to prevent excessive queries
   const loadContentDataDebounced = useCallback((userId, skipDebounce = false) => {
@@ -116,8 +91,6 @@ const HomeScreen = ({ navigation }) => {
 
     const loadData = async () => {
       try {
-        console.log('[HomeScreen] Loading content data...');
-        const startTime = Date.now();
         const playlistsResult = await getUserChannels(userId);
         const moviesResult = await getUserMovies(userId);
         const seriesResult = await getUserSeries(userId);
@@ -128,15 +101,6 @@ const HomeScreen = ({ navigation }) => {
           series: seriesResult.success ? seriesResult.data : [],
         };
 
-        const elapsed = Date.now() - startTime;
-        const contentTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
-        console.log(`[${contentTime}] [HomeScreen] 📺 CONTENT DISPLAYED in ${elapsed}ms:`, {
-          channels: content.channels.length,
-          movies: content.movies.length,
-          series: content.series.length,
-          total: content.channels.length + content.movies.length + content.series.length,
-        });
-
         // Cache the content to AsyncStorage for instant display on next load
         try {
           const cacheKey = `homescreen_content_${userId}`;
@@ -145,9 +109,7 @@ const HomeScreen = ({ navigation }) => {
             cachedAt: Date.now(),
           };
           await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
-          console.log('[HomeScreen] Content cached to AsyncStorage');
         } catch (cacheError) {
-          console.warn('[HomeScreen] Failed to cache content:', cacheError);
           // Non-critical, don't block on cache failure
         }
 
@@ -156,7 +118,6 @@ const HomeScreen = ({ navigation }) => {
         setCategoryPages({});
         setLoading(false);
       } catch (error) {
-        console.error('[HomeScreen] Error loading content:', error);
         setLoading(false);
       }
     };
@@ -271,25 +232,18 @@ const HomeScreen = ({ navigation }) => {
         if (cachedData) {
           const parsed = JSON.parse(cachedData);
           const { channels, movies, series } = parsed;
-          console.log('[HomeScreen] Loaded from cache:', { 
-            channels: channels?.length || 0, 
-            movies: movies?.length || 0, 
-            series: series?.length || 0 
-          });
           setAllContent({ channels: channels || [], movies: movies || [], series: series || [] });
           setLoading(false); // Stop showing loading spinner - we have cached data
           return true;
         }
       } catch (error) {
-        console.warn('[HomeScreen] Failed to load from cache:', error);
+        // Non-critical, just fail silently
       }
       return false;
     };
 
     // Load initial data immediately (don't wait for real-time listeners)
     const initialLoad = async () => {
-      console.log('[HomeScreen] Performing initial data load...');
-      const startTime = Date.now();
       try {
         const playlistsResult = await getUserChannels(user.uid);
         const moviesResult = await getUserMovies(user.uid);
@@ -301,17 +255,9 @@ const HomeScreen = ({ navigation }) => {
           series: seriesResult.success ? seriesResult.data : [],
         };
 
-        const elapsed = Date.now() - startTime;
-        console.log('[HomeScreen] Initial load complete in ' + elapsed + 'ms:', {
-          channels: content.channels.length,
-          movies: content.movies.length,
-          series: content.series.length,
-        });
-
         setAllContent(content);
         setLoading(false);
       } catch (error) {
-        console.error('[HomeScreen] Error in initial load:', error);
         setLoading(false);
       }
     };
@@ -334,7 +280,6 @@ const HomeScreen = ({ navigation }) => {
 
       // Listen to playlist changes (simplified - just trigger refresh)
       const playlistsUnsub = onSnapshot(playlistsQuery, (playlistsSnapshot) => {
-        console.log('[HomeScreen] Playlists changed, triggering refresh...');
         // Defer reload to next tick to avoid blocking UI
         setTimeout(() => {
           loadContentDataDebounced(user.uid, true);
@@ -363,7 +308,7 @@ const HomeScreen = ({ navigation }) => {
   // Refresh on focus
   useFocusEffect(
     React.useCallback(() => {
-      console.log('[HomeScreen] Screen focused, refreshing content...');
+       Screen focused, refreshing content...');
       if (user) {
         // Skip debounce when screen is focused for faster refresh
         loadContentDataDebounced(user.uid, true);
@@ -437,7 +382,7 @@ const HomeScreen = ({ navigation }) => {
           moviesByGenre[genre].push(movie);
         });
 
-        console.log('[HomeScreen] Movies grouped by category:', Object.keys(moviesByGenre).map(g => ({ category: g, count: moviesByGenre[g].length })));
+         Movies grouped by category:', Object.keys(moviesByGenre).map(g => ({ category: g, count: moviesByGenre[g].length })));
 
         categories = Object.keys(moviesByGenre)
           .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : 0))
@@ -467,7 +412,7 @@ const HomeScreen = ({ navigation }) => {
           seriesByGenre[genre].push(show);
         });
 
-        console.log('[HomeScreen] Series grouped by category:', Object.keys(seriesByGenre).map(g => ({ category: g, count: seriesByGenre[g].length })));
+         Series grouped by category:', Object.keys(seriesByGenre).map(g => ({ category: g, count: seriesByGenre[g].length })));
 
         categories = Object.keys(seriesByGenre)
           .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : 0))
@@ -498,7 +443,7 @@ const HomeScreen = ({ navigation }) => {
           channelsByCategory[category].push(channel);
         });
 
-        console.log('[HomeScreen] Channels grouped by category:', Object.keys(channelsByCategory).map(c => ({ category: c, count: channelsByCategory[c].length })));
+         Channels grouped by category:', Object.keys(channelsByCategory).map(c => ({ category: c, count: channelsByCategory[c].length })));
 
         categories = Object.keys(channelsByCategory)
           .sort((a, b) => (a === 'Other' ? 1 : b === 'Other' ? -1 : 0))

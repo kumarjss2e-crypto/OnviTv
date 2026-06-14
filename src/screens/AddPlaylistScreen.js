@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -17,7 +16,6 @@ import { useAuth } from '../context/AuthContext';
 import { useParseLoading } from '../context/ParseLoadingContext';
 import { addPlaylist } from '../services/playlistService';
 import { backgroundParsingService } from '../services/backgroundParsingService';
-import { downloadM3UFileWithRetry } from '../services/m3uDownloadService';
 import { db } from '../config/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import CustomAlert from '../components/CustomAlert';
@@ -28,11 +26,6 @@ const AddPlaylistScreen = ({ navigation }) => {
   const [selectedType, setSelectedType] = useState('m3u'); // 'm3u' or 'xtream'
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
-  
-  // Processing state
-  const [processing, setProcessing] = useState(false);
-  const [processingMessage, setProcessingMessage] = useState('');
-  const [downloadProgress, setDownloadProgress] = useState(0);
 
   // M3U fields
   const [m3uName, setM3uName] = useState('');
@@ -96,7 +89,6 @@ const AddPlaylistScreen = ({ navigation }) => {
         }
       }
     } catch (error) {
-      console.error('Test connection error:', error);
       CustomAlert.alert('Error', 'Failed to connect. Please check your details and try again.');
     } finally {
       setTesting(false);
@@ -134,9 +126,7 @@ const AddPlaylistScreen = ({ navigation }) => {
       }
     }
 
-    setProcessing(true);
-    setProcessingMessage('Saving playlist...');
-    setDownloadProgress(0);
+    setLoading(true);
 
     try {
       let playlistData;
@@ -156,7 +146,7 @@ const AddPlaylistScreen = ({ navigation }) => {
           normalizedUrl = 'http://' + normalizedUrl;
         }
         
-        console.log(`[AddPlaylistScreen] M3U URL:`, normalizedUrl);
+        log(`[AddPlaylistScreen] M3U URL before saving:`, normalizedUrl);
         
         playlistData = {
           name: m3uName.trim(),
@@ -184,160 +174,78 @@ const AddPlaylistScreen = ({ navigation }) => {
       const result = await addPlaylist(user.uid, playlistData);
 
       if (result.success) {
-        console.log(`[AddPlaylistScreen] Playlist saved. ID: ${result.playlistId}`);
-        
-        if (selectedType === 'm3u') {
-          // M3U: Download file with progress tracking
-          console.log('[AddPlaylistScreen] Starting M3U download...');
-          setProcessingMessage('Downloading playlist file... 0%');
-          setDownloadProgress(0);
-          
-          // Track download speed for time estimation
-          let downloadStartTime = Date.now();
-          let lastProgressValue = 0;
-          let lastProgressTime = downloadStartTime;
-          
-          try {
-            // Download M3U file with progress callback
-            const m3uContent = await downloadM3UFileWithRetry(
-              playlistData.url,
-              (progress) => {
-                const now = Date.now();
-                const percent = Math.round(progress * 100);
-                
-                // Calculate download speed and time remaining
-                const elapsedSeconds = (now - downloadStartTime) / 1000;
-                const progressDelta = progress - lastProgressValue;
-                const timeDelta = (now - lastProgressTime) / 1000;
-                
-                // Estimate time remaining
-                let timeRemaining = 'calculating...';
-                if (progress > 0 && progress < 1 && timeDelta > 0) {
-                  const bytesPerSecond = progressDelta / timeDelta;
-                  if (bytesPerSecond > 0) {
-                    const remainingProgress = 1 - progress;
-                    const estimatedSecondsLeft = remainingProgress / bytesPerSecond;
-                    const minutes = Math.floor(estimatedSecondsLeft / 60);
-                    const seconds = Math.floor(estimatedSecondsLeft % 60);
-                    
-                    if (minutes > 0) {
-                      timeRemaining = `${minutes}m ${seconds}s remaining`;
-                    } else {
-                      timeRemaining = `${seconds}s remaining`;
-                    }
-                  }
-                }
-                
-                console.log(`[AddPlaylistScreen] Download progress: ${percent}% - ${timeRemaining}`);
-                setDownloadProgress(progress);
-                setProcessingMessage(`Downloading playlist file... ${percent}%\n${timeRemaining}`);
-                
-                lastProgressValue = progress;
-                lastProgressTime = now;
+        // Show success dialog
+        CustomAlert.alert(
+          'Success',
+          `Playlist "${playlistData.name}" added! ✓`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate home
+                navigation.navigate('Home');
               },
-              3 // max retries
-            );
+            },
+          ]
+        );
 
-            console.log(`[AddPlaylistScreen] Download complete. File size: ${m3uContent.length} chars`);
+        // Start parsing in background after dialog
+        setTimeout(async () => {
+          try {
+            log(`[AddPlaylistScreen] Starting background parsing for playlist ${result.playlistId}`);
             
-            // Download is complete - set progress to 100%
-            setDownloadProgress(1);
-            setProcessingMessage('Download complete! Starting parsing...');
-            
-            // Small delay to show completion message
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // Start background parsing with downloaded content (NON-BLOCKING)
-            console.log(`[AddPlaylistScreen] Starting background M3U parsing...`);
+            // Notify context that parsing is starting
             startParsing(result.playlistId);
             
-            // Fire parsing and wait for first batch to be saved before navigating
-            try {
-              const firstBatchResult = await backgroundParsingService.startM3UParsingFromContent(
-                result.playlistId,
-                playlistData.url,
-                m3uContent
-              );
-              
-              // First batch saved - now safe to navigate
-              const navTime = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3});
-              console.log(`[${navTime}] [AddPlaylistScreen] 🏠 NAVIGATING TO HOME - first batch saved, content ready`);
-              
-            } catch (parseError) {
-              console.error('[AddPlaylistScreen] Parsing initialization error:', parseError);
-              // Still navigate even if parsing fails initially - background job continues anyway
+            // Fetch full playlist data from Firestore to ensure we have all fields
+            const playlistRef = doc(db, 'playlists', result.playlistId);
+            const playlistSnap = await getDoc(playlistRef);
+            
+            if (!playlistSnap.exists()) {
+              error('[AddPlaylistScreen] Playlist not found in Firestore');
+              return;
             }
             
-            // Close modal and navigate
-            setProcessing(false);
-            setLoading(false);
-            // Clear form
-            setM3uName('');
-            setM3uUrl('');
-            setDownloadProgress(0);
-            // Navigate to main tabs
-            navigation.navigate('Home');
-
-          } catch (downloadError) {
-            console.error('[AddPlaylistScreen] M3U download failed:', downloadError);
-            setProcessing(false);
-            setLoading(false);
-            CustomAlert.alert('Download Error', 'Failed to download M3U file. Please try again.');
+            const fullPlaylistData = playlistSnap.data();
+            log('[AddPlaylistScreen] Fetched full playlist data:', JSON.stringify({
+              name: fullPlaylistData.name,
+              type: fullPlaylistData.type,
+              m3uConfig: fullPlaylistData.m3uConfig,
+              xtreamConfig: fullPlaylistData.xtreamConfig,
+              keys: Object.keys(fullPlaylistData),
+            }, null, 2));
+            
+            // Normalize the data for backgroundParsingService
+            // Extract URLs from config objects
+            const normalizedData = {
+              ...fullPlaylistData,
+              m3uUrl: fullPlaylistData.m3uConfig?.url,
+              serverUrl: fullPlaylistData.xtreamConfig?.serverUrl,
+              username: fullPlaylistData.xtreamConfig?.username,
+              password: fullPlaylistData.xtreamConfig?.password,
+            };
+            
+            log('[AddPlaylistScreen] Normalized data for parsing:', {
+              type: normalizedData.type,
+              m3uUrl: normalizedData.m3uUrl ? 'present' : 'MISSING',
+              serverUrl: normalizedData.serverUrl ? 'present' : 'MISSING',
+              hasM3uConfig: !!normalizedData.m3uConfig,
+              hasXtreamConfig: !!normalizedData.xtreamConfig,
+            });
+            
+            // Start parsing with normalized data
+            await backgroundParsingService.startParsing(result.playlistId, normalizedData);
+            log(`[AddPlaylistScreen] Parsing initiated for playlist ${result.playlistId}`);
+          } catch (error) {
+            error('[AddPlaylistScreen] Error starting background parsing:', error);
           }
-        } else {
-          // Xtream: Fetch and parse instantly (~40 seconds)
-          console.log('[AddPlaylistScreen] Starting Xtream parsing...');
-          setProcessingMessage('Fetching Xtream playlist...');
-          
-          // Start parsing immediately
-          setTimeout(async () => {
-            try {
-              const playlistRef = doc(db, 'playlists', result.playlistId);
-              const playlistSnap = await getDoc(playlistRef);
-              
-              if (playlistSnap.exists()) {
-                const fullPlaylistData = playlistSnap.data();
-                const normalizedData = {
-                  ...fullPlaylistData,
-                  serverUrl: fullPlaylistData.xtreamConfig?.serverUrl,
-                  username: fullPlaylistData.xtreamConfig?.username,
-                  password: fullPlaylistData.xtreamConfig?.password,
-                };
-                
-                console.log(`[AddPlaylistScreen] Starting background Xtream parsing...`);
-                startParsing(result.playlistId);
-                
-                await backgroundParsingService.startXtreamParsing(result.playlistId);
-              }
-            } catch (parseError) {
-              console.error('[AddPlaylistScreen] Error starting Xtream parsing:', parseError);
-            }
-          }, 100);
-          
-          // Xtream takes ~40 seconds, show progress message
-          // Navigate after 45 seconds to ensure parsing has started
-          setTimeout(() => {
-            setProcessing(false);
-            setLoading(false);
-            // Clear form
-            setXtreamName('');
-            setXtreamServer('');
-            setXtreamUsername('');
-            setXtreamPassword('');
-            setDownloadProgress(0);
-            // Navigate to main tabs
-            navigation.navigate('Home');
-          }, 45000);
-        }
+        }, 500);
+
       } else {
-        setProcessing(false);
-        setLoading(false);
         CustomAlert.alert('Error', result.error || 'Failed to add playlist');
       }
     } catch (error) {
-      setProcessing(false);
-      setLoading(false);
-      console.error('Error saving playlist:', error);
+      error('Error saving playlist:', error);
       CustomAlert.alert('Error', 'Failed to save playlist. Please try again.');
     } finally {
       setLoading(false);
@@ -349,61 +257,9 @@ const AddPlaylistScreen = ({ navigation }) => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Processing Modal */}
-      <Modal
-        visible={processing}
-        transparent={true}
-        animationType="fade"
-        statusBarTranslucent={true}
-      >
-        <View style={styles.processingOverlay}>
-          <View style={styles.processingModal}>
-            <View style={styles.processingContent}>
-              <ActivityIndicator
-                size="large"
-                color={colors.primary.purple}
-                style={styles.processingSpinner}
-              />
-              <Text style={styles.processingTitle}>
-                Extracting and Saving Playlist
-              </Text>
-              <Text style={styles.processingMessage}>
-                {processingMessage}
-              </Text>
-              
-              {selectedType === 'm3u' && downloadProgress > 0 && downloadProgress < 1 && (
-                <View style={styles.progressContainer}>
-                {Platform.OS === 'web' || Platform.OS === 'ios' || Platform.OS === 'android' ? (
-                  <>
-                    <View style={[styles.progressBar, { position: 'relative' }]}>
-                      <View
-                        style={{
-                          height: '100%',
-                          width: `${downloadProgress * 100}%`,
-                          backgroundColor: colors.primary.purple,
-                          borderRadius: 4,
-                        }}
-                      />
-                    </View>
-                    <Text style={styles.progressText}>
-                      {Math.round(downloadProgress * 100)}%
-                    </Text>
-                  </>
-                ) : null}
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          disabled={processing}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Playlist</Text>
@@ -592,59 +448,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.neutral.slate900,
-  },
-  processingOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  processingModal: {
-    backgroundColor: colors.neutral.slate800,
-    borderRadius: 16,
-    padding: 32,
-    width: '80%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 20,
-  },
-  processingContent: {
-    alignItems: 'center',
-  },
-  processingSpinner: {
-    marginBottom: 24,
-  },
-  processingTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text.primary,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  processingMessage: {
-    fontSize: 14,
-    color: colors.text.secondary,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  progressContainer: {
-    width: '100%',
-    marginTop: 16,
-  },
-  progressBar: {
-    height: 6,
-    borderRadius: 3,
-    marginBottom: 8,
-    backgroundColor: 'rgba(128, 90, 213, 0.2)',
-    overflow: 'hidden',
-  },
-  progressText: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',

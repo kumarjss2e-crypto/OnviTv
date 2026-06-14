@@ -13,9 +13,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { updatePlaylist } from '../services/playlistService';
+import { backgroundParsingService } from '../services/backgroundParsingService';
 import CustomAlert from '../components/CustomAlert';
-import { parseM3UPlaylist } from '../utils/m3uParser';
-import { fetchXtreamPlaylist } from '../services/xtreamAPI';
 import { useAuth } from '../context/AuthContext';
 
 const EditPlaylistScreen = ({ navigation, route }) => {
@@ -61,54 +60,41 @@ const EditPlaylistScreen = ({ navigation, route }) => {
             setRefreshing(true);
             
             try {
-              if (playlist.type === 'm3u') {
-                // Parse M3U playlist
-                const result = await parseM3UPlaylist(
-                  playlist.id,
-                  user.uid,
-                  playlist.m3uConfig.url
-                );
+              // Prepare playlist data for backgroundParsingService
+              const playlistData = playlist.type === 'm3u'
+                ? {
+                    type: 'm3u',
+                    m3uUrl: playlist.m3uConfig.url,
+                  }
+                : {
+                    type: 'xtream',
+                    serverUrl: playlist.xtreamConfig.serverUrl,
+                    username: playlist.xtreamConfig.username,
+                    password: playlist.xtreamConfig.password,
+                  };
 
-                if (result.success) {
-                  CustomAlert.alert(
-                    'Success',
-                    `Playlist refreshed!\n\nChannels: ${result.stats.totalChannels}\nMovies: ${result.stats.totalMovies}\nSeries: ${result.stats.totalSeries}`,
-                    [
-                      {
-                        text: 'OK',
-                        onPress: () => navigation.goBack(),
-                      },
-                    ]
-                  );
-                } else {
-                  CustomAlert.alert('Error', result.error || 'Failed to refresh playlist');
-                }
+              const result = await backgroundParsingService.startParsing(
+                playlist.id,
+                playlistData
+              );
+
+              if (result && result.success) {
+                CustomAlert.alert(
+                  'Success',
+                  `Playlist refreshed!\n\nChannels: ${result.stats.channels}\nMovies: ${result.stats.movies}\nSeries: ${result.stats.series}`,
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => navigation.goBack(),
+                    },
+                  ]
+                );
               } else {
-                // Xtream - fetch from server
-                const result = await fetchXtreamPlaylist(
-                  playlist.id,
-                  user.uid,
-                  playlist.xtreamConfig
-                );
-
-                if (result.success) {
-                  CustomAlert.alert(
-                    'Success',
-                    `Playlist refreshed!\n\nChannels: ${result.stats.totalChannels}\nMovies: ${result.stats.totalMovies}\nSeries: ${result.stats.totalSeries}`,
-                    [
-                      {
-                        text: 'OK',
-                        onPress: () => navigation.goBack(),
-                      },
-                    ]
-                  );
-                } else {
-                  CustomAlert.alert('Error', result.error || 'Failed to refresh playlist');
-                }
+                CustomAlert.alert('Error', 'Failed to refresh playlist');
               }
             } catch (error) {
               console.error('Error refreshing playlist:', error);
-              CustomAlert.alert('Error', 'Failed to refresh playlist');
+              CustomAlert.alert('Error', error.message || 'Failed to refresh playlist');
             } finally {
               setRefreshing(false);
             }

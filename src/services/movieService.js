@@ -1,4 +1,4 @@
-import contentStorageService from './contentStorageService';
+import { itemStorageService } from './itemStorageService';
 import { firestore } from '../config/firebase';
 import { 
   collection, 
@@ -77,14 +77,14 @@ export const getMoviesByCategory = async (categoryName, limitCount = 10) => {
   }
 };
 
-// Get movies by playlist - now reads from AsyncStorage
+// Get movies by playlist - reads from unified storage
 export const getMoviesByPlaylist = async (playlistId, limitCount = 20) => {
   try {
-    const movies = await contentStorageService.getMovies(playlistId);
+    const movies = await itemStorageService.getItemsByType(playlistId, 'movie');
     
     // Apply limit if specified
     const limited = limitCount ? movies.slice(0, limitCount) : movies;
-    console.log(`[movieService] Playlist ${playlistId}: Found ${limited.length} movies`);
+    console.log(`[CONTENT_LOAD] Playlist ${playlistId}: Found ${limited.length} movies`);
     
     return { success: true, data: limited };
   } catch (error) {
@@ -93,7 +93,7 @@ export const getMoviesByPlaylist = async (playlistId, limitCount = 20) => {
   }
 };
 
-// Get all movies for a user (from all their playlists - from AsyncStorage)
+// Get all movies for a user (from all their playlists - reads from unified storage)
 export const getUserMovies = async (userId) => {
   try {
     // Query all playlists for this user from Firebase (metadata only)
@@ -103,12 +103,12 @@ export const getUserMovies = async (userId) => {
 
     const movies = [];
     
-    // For each playlist, get movies from AsyncStorage
+    // For each playlist, get movies from unified storage
     for (const playlistDoc of playlistsSnapshot.docs) {
       const playlistId = playlistDoc.id;
-      const playlistMovies = await contentStorageService.getMovies(playlistId);
+      const playlistMovies = await itemStorageService.getItemsByType(playlistId, 'movie');
       
-      console.log(`[movieService] Playlist ${playlistId}: Found ${playlistMovies.length} movies`);
+      console.log(`[CONTENT_LOAD] Playlist ${playlistId}: Found ${playlistMovies.length} movies`);
       
       playlistMovies.forEach(movie => {
         movies.push({ 
@@ -118,7 +118,7 @@ export const getUserMovies = async (userId) => {
       });
     }
 
-    console.log(`[movieService] Total movies across all playlists: ${movies.length}`);
+    console.log(`[CONTENT_LOAD] Total movies across all playlists: ${movies.length}`);
 
     return { success: true, data: movies };
   } catch (error) {

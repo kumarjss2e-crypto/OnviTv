@@ -1,74 +1,158 @@
-/**
- * Parse Loading Context
- * Tracks parsing state before content appears (during M3U fetch wait time)
- * Shows loading indicator until first batch is saved
- */
-
-import React, { createContext, useState, useCallback, useEffect } from 'react';
-import { backgroundParsingService } from '../services/backgroundParsingService';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import ParsingProgressModal from '../components/ParsingProgressModal';
+import { parsingProgressService } from '../services/parsingProgressService';
+import { getPlaylist } from '../services/playlistService';
 
 export const ParseLoadingContext = createContext();
 
+// Track total items for each playlist to calculate accurate progress
+const totalItemsMap = new Map();
+
 export const ParseLoadingProvider = ({ children }) => {
-  // Map of playlistId -> isLoading (true during initial fetch, false once first batch saved)
   const [parsingPlaylistIds, setParsingPlaylistIds] = useState(new Set());
-  // Map of playlistId -> progress percentage (0-100)
-  const [parsingProgress, setParsingProgress] = useState({});
+  const [currentPlaylistId, setCurrentPlaylistId] = useState(null);
+  const [currentProgress, setCurrentProgress] = useState({});
+  const [currentPlaylistName, setCurrentPlaylistName] = useState('');
+  const listenerCleanupsRef = useRef([]);
 
-  const startParsing = useCallback((playlistId) => {
-    console.log(`[ParseLoadingContext] Starting to track parsing for ${playlistId}`);
-    setParsingPlaylistIds(prev => new Set([...prev, playlistId]));
-    setParsingProgress(prev => ({ ...prev, [playlistId]: 0 }));
-    
-    // Subscribe to parse events for this playlist
-    const unsubscribe = backgroundParsingService.addParseListener(playlistId, (event) => {
-      if (event.type === 'firstBatchSaved') {
-        console.log(`[ParseLoadingContext] First batch saved for ${playlistId}, finishing parsing indicator`);
-        finishParsing(playlistId);
-      } else if (event.type === 'parseFailed') {
-        console.log(`[ParseLoadingContext] Parsing failed for ${playlistId}, hiding loading indicator`);
-        finishParsing(playlistId);
-      } else if (event.type === 'progressUpdate' && event.progress !== undefined) {
-        // Update progress percentage (0-100)
-        setParsingProgress(prev => ({ ...prev, [playlistId]: event.progress }));
-      }
+  // Add a playlist to parsing list
+  const startParsing = (playlistId, totalItems) => {
+    console.log('[ParseLoadingContext] Starting parsing for:', playlistId, 'totalItems:', totalItems);
+    if (totalItems) totalItemsMap.set(playlistId, totalItems);
+    setParsingPlaylistIds(prev => new Set(prev).add(playlistId));
+    setCurrentPlaylistId(playlistId);
+    setCurrentProgress({
+      itemsProcessed: 0,
+      totalItems: totalItems || 0,
+      percentComplete: 0,
+      phase: 'parsing',
     });
+  };
 
-    return unsubscribe;
-  }, []);
-
-  const finishParsing = useCallback((playlistId) => {
+  // Remove a playlist from parsing list
+  const finishParsing = (playlistId) => {
+    console.log('[ParseLoadingContext] Finished parsing for:', playlistId);
+    totalItemsMap.delete(playlistId);
     setParsingPlaylistIds(prev => {
       const newSet = new Set(prev);
       newSet.delete(playlistId);
-      console.log(`[ParseLoadingContext] Finished tracking parsing for ${playlistId}`);
       return newSet;
     });
-    setParsingProgress(prev => {
-      const newProgress = { ...prev };
-      delete newProgress[playlistId];
-      return newProgress;
-    });
-  }, []);
+    if (currentPlaylistId === playlistId) {
+      setCurrentPlaylistId(null);
+      setCurrentProgress({});
+    }
+  };
 
-  const isPlaylistParsing = useCallback((playlistId) => {
+  // Check if a playlist is parsing
+  const isPlaylistParsing = (playlistId) => {
     return parsingPlaylistIds.has(playlistId);
-  }, [parsingPlaylistIds]);
+  };
 
+  // Has any parsing active
   const hasAnyParsing = parsingPlaylistIds.size > 0;
-  
-  // Get average progress across all parsing playlists
-  const averageProgress = parsingPlaylistIds.size > 0
-    ? Math.round(
-        Array.from(parsingPlaylistIds).reduce((sum, id) => sum + (parsingProgress[id] || 0), 0) /
-        parsingPlaylistIds.size
-      )
+
+  // Average progress (for compatibility)
+  const averageProgress = currentProgress.totalItems > 0
+    ? Math.round((currentProgress.itemsProcessed / currentProgress.totalItems) * 100)
     : 0;
+
+  useEffect(() => {
+    // Listen for total items being set
+    const handleTotalItemsSet = (data) => {
+      console.log('[ParseLoadingContext] Total items set:', data);
+      totalItemsMap.set(data.playlistId, data.totalItems);
+      if (data.playlistId === currentPlaylistId) {
+        setCurrentProgress(prev => ({
+          ...prev,
+          totalItems: data.totalItems,
+        }));
+      }
+    };
+    
+    // Listen to parsing progress events
+    const handleFirstBatch = (data) => {
+      console.log('[ParseLoadingContext] First batch ready:', data);
+      const total = totalItemsMap.get(data.playlistId) || data.itemCount;
+      const percent = Math.round((data.itemCount / total) * 100);
+      
+      setCurrentProgress(prev => ({
+        ...prev,
+        itemsProcessed: data.itemCount,
+        totalItems: total,
+        percentComplete: percent,
+        phase: 'parsing',
+      }));
+    };
+
+    const handleBatchSaved = (data) => {
+      console.log('[ParseLoadingContext] Batch saved:', data);
+      const total = totalItemsMap.get(data.playlistId) || data.totalItemsSoFar;
+      const percent = Math.round((data.totalItemsSoFar / total) * 100);
+      
+      setCurrentProgress(prev => ({
+        ...prev,
+        itemsProcessed: data.totalItemsSoFar,
+        totalItems: total,
+        batchNumber: data.batchNumber,
+        percentComplete: Math.min(100, percent),
+        phase: 'saving',
+      }));
+    };
+
+    const handleParsingComplete = (data) => {
+      console.log('[ParseLoadingContext] Parsing complete:', data);
+      const { stats } = data;
+      setCurrentProgress({
+        itemsProcessed: stats.total,
+        totalItems: stats.total,
+        percentComplete: 100,
+        phase: 'complete',
+      });
+      finishParsing(data.playlistId);
+    };
+
+    const handleParsingError = (data) => {
+      console.error('[ParseLoadingContext] Parsing error:', data);
+      finishParsing(data.playlistId);
+    };
+
+    // Register all listeners
+    parsingProgressService.on('totalItemsSet', handleTotalItemsSet);
+    parsingProgressService.on('firstBatchReady', handleFirstBatch);
+    parsingProgressService.on('batchSaved', handleBatchSaved);
+    parsingProgressService.on('parsingComplete', handleParsingComplete);
+    parsingProgressService.on('parsingError', handleParsingError);
+
+    // Store cleanups for later
+    listenerCleanupsRef.current = [
+      () => parsingProgressService.removeListener('totalItemsSet', handleTotalItemsSet),
+      () => parsingProgressService.removeListener('firstBatchReady', handleFirstBatch),
+      () => parsingProgressService.removeListener('batchSaved', handleBatchSaved),
+      () => parsingProgressService.removeListener('parsingComplete', handleParsingComplete),
+      () => parsingProgressService.removeListener('parsingError', handleParsingError),
+    ];
+
+    return () => {
+      listenerCleanupsRef.current.forEach(cleanup => cleanup());
+    };
+  }, [currentPlaylistId]);
+
+  // Get playlist name when currentPlaylistId changes
+  useEffect(() => {
+    if (currentPlaylistId) {
+      getPlaylist(currentPlaylistId).then(playlist => {
+        if (playlist?.name) {
+          setCurrentPlaylistName(playlist.name);
+        }
+      }).catch(err => console.warn('[ParseLoadingContext] Failed to get playlist name:', err));
+    }
+  }, [currentPlaylistId]);
 
   const value = {
     parsingPlaylistIds,
     hasAnyParsing,
-    parsingProgress,
+    parsingProgress: currentProgress,
     averageProgress,
     startParsing,
     finishParsing,
@@ -78,12 +162,17 @@ export const ParseLoadingProvider = ({ children }) => {
   return (
     <ParseLoadingContext.Provider value={value}>
       {children}
+      <ParsingProgressModal
+        visible={hasAnyParsing && currentPlaylistId !== null}
+        playlistName={currentPlaylistName}
+        progress={currentProgress}
+      />
     </ParseLoadingContext.Provider>
   );
 };
 
 export const useParseLoading = () => {
-  const context = React.useContext(ParseLoadingContext);
+  const context = useContext(ParseLoadingContext);
   if (!context) {
     throw new Error('useParseLoading must be used within ParseLoadingProvider');
   }

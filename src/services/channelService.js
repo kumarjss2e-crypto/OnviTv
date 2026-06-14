@@ -1,4 +1,4 @@
-import contentStorageService from './contentStorageService';
+import { itemStorageService } from './itemStorageService';
 import { firestore } from '../config/firebase';
 import { 
   collection, 
@@ -9,14 +9,18 @@ import {
 
 /**
  * Channel Service - Handles live TV channel operations
- * Content stored in AsyncStorage (local), playlist metadata in Firebase
+ * Content stored via unified itemStorageService, playlist metadata in Firebase
  */
 
-// Add channels in batch (from playlist parsing) - now saves to AsyncStorage
+// Add channels in batch (from playlist parsing) - saves via unified storage
 export const addChannelsBatch = async (playlistId, channels) => {
   try {
-    await contentStorageService.saveChannels(playlistId, channels);
-    console.log(`[channelService] Saved ${channels.length} channels for playlist ${playlistId}`);
+    const items = channels.map(ch => ({
+      item: ch,
+      contentType: 'channel',
+    }));
+    await itemStorageService.saveItemsBatch(playlistId, items);
+    console.log(`[BATCH_SAVE] Saved ${channels.length} channels for playlist ${playlistId}`);
     return { success: true };
   } catch (error) {
     console.error('[channelService] Error adding channels batch:', error);
@@ -24,17 +28,17 @@ export const addChannelsBatch = async (playlistId, channels) => {
   }
 };
 
-// Get channels by playlist - now reads from AsyncStorage
-export const getChannelsByPlaylist = async (playlistId, categoryName = null) => {
+// Get channels by playlist - reads from unified storage
+export const getChannelsByPlaylist = async (playlistId, groupTitle = null) => {
   try {
-    const channels = await contentStorageService.getChannels(playlistId);
+    const channels = await itemStorageService.getItemsByType(playlistId, 'channel');
     
     let filtered = channels;
-    if (categoryName) {
-      filtered = channels.filter(ch => ch.categoryName === categoryName);
+    if (groupTitle) {
+      filtered = channels.filter(ch => ch.groupTitle === groupTitle);
     }
 
-    console.log(`[channelService] Playlist ${playlistId}: Found ${filtered.length} channels`);
+    console.log(`[CONTENT_LOAD] Playlist ${playlistId}: Found ${filtered.length} channels`);
     return { success: true, data: filtered };
   } catch (error) {
     console.error('[channelService] Error getting channels:', error);
@@ -42,7 +46,7 @@ export const getChannelsByPlaylist = async (playlistId, categoryName = null) => 
   }
 };
 
-// Get all user channels from all their playlists - reads from AsyncStorage
+// Get all user channels from all their playlists - reads from unified storage
 export const getUserChannels = async (userId) => {
   try {
     // Get user's playlists from Firebase (metadata only)
@@ -52,12 +56,12 @@ export const getUserChannels = async (userId) => {
 
     const channels = [];
     
-    // For each playlist, get channels from AsyncStorage
+    // For each playlist, get channels from unified storage
     for (const playlistDoc of playlistsSnapshot.docs) {
       const playlistId = playlistDoc.id;
-      const playlistChannels = await contentStorageService.getChannels(playlistId);
+      const playlistChannels = await itemStorageService.getItemsByType(playlistId, 'channel');
       
-      console.log(`[channelService] Playlist ${playlistId}: Found ${playlistChannels.length} channels`);
+      console.log(`[CONTENT_LOAD] Playlist ${playlistId}: Found ${playlistChannels.length} channels`);
       
       playlistChannels.forEach(channel => {
         channels.push({ 
@@ -67,7 +71,7 @@ export const getUserChannels = async (userId) => {
       });
     }
 
-    console.log(`[channelService] Total channels across all playlists: ${channels.length}`);
+    console.log(`[CONTENT_LOAD] Total channels across all playlists: ${channels.length}`);
 
     return { success: true, data: channels };
   } catch (error) {
