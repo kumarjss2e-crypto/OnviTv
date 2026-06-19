@@ -11,6 +11,16 @@
 
 import { Platform } from 'react-native';
 
+const generateSimpleHash = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(16);
+};
+
 /**
  * Parse M3U format playlist
  * 
@@ -62,6 +72,8 @@ export const parseM3U = (content) => {
         const nextLine = lines[i + 1].trim();
         if (nextLine && !nextLine.startsWith('#')) {
           currentTrack.streamUrl = nextLine;
+          // Add id
+          currentTrack.id = currentTrack.tvgId || `m3u-${generateSimpleHash(currentTrack.streamUrl)}`;
           
           // Validate URL
           if (isValidUrl(currentTrack.streamUrl)) {
@@ -198,6 +210,7 @@ const fetchXtreamChannels = async (baseUrl, username, password, signal) => {
         console.log(`[webCompatibleParserService] ✅ Successfully fetched ${allStreams.length} channels at once!`);
         
         const channels = allStreams.map(stream => ({
+          id: `xtream-live-${stream.stream_id}`,
           name: stream.name,
           streamUrl: generateXtreamStreamUrl(baseUrl, stream.stream_id, username, password, 'live'),
           tvgId: `xtream_${stream.stream_id}`,
@@ -240,6 +253,7 @@ const fetchXtreamChannels = async (baseUrl, username, password, signal) => {
       if (Array.isArray(streams)) {
         streams.forEach(stream => {
           channels.push({
+            id: `xtream-live-${stream.stream_id}`,
             name: stream.name,
             streamUrl: generateXtreamStreamUrl(baseUrl, stream.stream_id, username, password, 'live'),
             tvgId: `xtream_${stream.stream_id}`,
@@ -283,8 +297,9 @@ const fetchXtreamMovies = async (baseUrl, username, password, signal) => {
         console.log(`[webCompatibleParserService] ✅ Successfully fetched ${allStreams.length} movies at once!`);
         
         const movies = allStreams.map(stream => ({
+          id: `xtream-vod-${stream.stream_id}`,
           name: stream.name,
-          streamUrl: generateXtreamStreamUrl(baseUrl, stream.stream_id, username, password, 'movie'),
+          streamUrl: generateXtreamStreamUrl(baseUrl, stream.stream_id, username, password, 'movie', stream.container_extension),
           tvgId: `xtream_${stream.stream_id}`,
           tvgName: stream.name,
           tvgLogo: stream.stream_icon || null,
@@ -325,8 +340,9 @@ const fetchXtreamMovies = async (baseUrl, username, password, signal) => {
       if (Array.isArray(streams)) {
         streams.forEach(stream => {
           movies.push({
+            id: `xtream-vod-${stream.stream_id}`,
             name: stream.name,
-            streamUrl: generateXtreamStreamUrl(baseUrl, stream.stream_id, username, password, 'movie'),
+            streamUrl: generateXtreamStreamUrl(baseUrl, stream.stream_id, username, password, 'movie', stream.container_extension),
             tvgId: `xtream_${stream.stream_id}`,
             tvgName: stream.name,
             tvgLogo: stream.stream_icon || null,
@@ -368,6 +384,7 @@ const fetchXtreamSeries = async (baseUrl, username, password, signal) => {
         console.log(`[webCompatibleParserService] ✅ Successfully fetched ${allStreams.length} series at once!`);
         
         const series = allStreams.map(stream => ({
+          id: `xtream-series-${stream.series_id}`,
           name: stream.name,
           streamUrl: generateXtreamStreamUrl(baseUrl, stream.series_id, username, password, 'series'),
           tvgId: `xtream_${stream.series_id}`,
@@ -410,6 +427,7 @@ const fetchXtreamSeries = async (baseUrl, username, password, signal) => {
       if (Array.isArray(streams)) {
         streams.forEach(stream => {
           series.push({
+            id: `xtream-series-${stream.series_id}`,
             name: stream.name,
             streamUrl: generateXtreamStreamUrl(baseUrl, stream.series_id, username, password, 'series'),
             tvgId: `xtream_${stream.series_id}`,
@@ -486,10 +504,11 @@ const fetchXtreamAPI = async (baseUrl, action, params, signal) => {
 /**
  * Generate Xtream stream URL
  */
-const generateXtreamStreamUrl = (baseUrl, streamId, username, password, type) => {
-  // Format: http://server/movie|series|live/username/password/streamId.mkv
+const generateXtreamStreamUrl = (baseUrl, streamId, username, password, type, extension) => {
+  // Format: http://server/movie|series|live/username/password/streamId.m3u8|mp4|mkv
   const streamType = type === 'live' ? 'live' : type === 'series' ? 'series' : 'movie';
-  return `${baseUrl}/${streamType}/${username}/${password}/${streamId}.mkv`;
+  const ext = extension || (type === 'live' ? 'm3u8' : 'mp4');
+  return `${baseUrl}/${streamType}/${username}/${password}/${streamId}.${ext}`;
 };
 
 /**

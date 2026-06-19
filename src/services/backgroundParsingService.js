@@ -47,26 +47,9 @@ const parseM3UPlaylist = async (m3uUrl, playlistId, signal) => {
     const content = await response.text();
     console.log(`[backgroundParsingService] Downloaded ${content.length} bytes, parsing...`);
     
-    // Use platform-specific parser
-    let tracks = [];
-    
-    if (Platform.OS === 'web') {
-      // Web: Use pure JavaScript parser
-      tracks = webCompatibleParserService.parseM3U(content);
-      console.log(`[backgroundParsingService] [web] Parsed ${tracks.length} tracks using web parser`);
-    } else {
-      // Native: Use production library
-      try {
-        const { parsePlaylist } = await import('iptv-m3u-playlist-parser');
-        const playlist = parsePlaylist(content);
-        tracks = playlist.tracks || [];
-        console.log(`[backgroundParsingService] [native] Parsed ${tracks.length} tracks using native library`);
-      } catch (error) {
-        console.warn('[backgroundParsingService] Native parser failed, falling back to web parser:', error);
-        // Fallback to web parser if native fails
-        tracks = webCompatibleParserService.parseM3U(content);
-      }
-    }
+    // Use webCompatibleParserService for all platforms
+    const tracks = webCompatibleParserService.parseM3U(content);
+    console.log(`[backgroundParsingService] Parsed ${tracks.length} tracks`);
     
     // Initialize progress tracking
     totalItemsTracked.set(playlistId, tracks.length);
@@ -261,88 +244,7 @@ const parseXtreamPlaylist = async (serverUrl, username, password, playlistId, si
   }
 };
 
-/**
- * Fetch channels from Xtream native client
- */
-const fetchXtreamChannels = async (client) => {
-  const channels = [];
-  const categories = await client.getChannelCategories();
-  
-  for (const category of categories) {
-    const streams = await client.getChannels({ categoryId: category.category_id });
-    
-    streams.forEach(stream => {
-      channels.push({
-        name: stream.name || 'Unknown',
-        streamUrl: stream.url,
-        tvgId: stream.epg_channel_id || null,
-        tvgName: stream.name,
-        tvgLogo: stream.stream_icon || null,
-        groupTitle: category.category_name || 'Uncategorized',
-      });
-    });
-  }
-  
-  return channels;
-};
 
-/**
- * Fetch movies from Xtream native client
- */
-const fetchXtreamMovies = async (client) => {
-  const movies = [];
-  const categories = await client.getMovieCategories();
-  
-  for (const category of categories) {
-    const vods = await client.getMovies({ categoryId: category.category_id });
-    
-    vods.forEach(vod => {
-      movies.push({
-        name: vod.name || 'Unknown',
-        streamUrl: vod.url,
-        tvgId: null,
-        tvgName: vod.name,
-        tvgLogo: vod.cover || null,
-        groupTitle: category.category_name || 'Movies',
-      });
-    });
-  }
-  
-  return movies;
-};
-
-/**
- * Fetch series from Xtream native client
- */
-const fetchXtreamSeries = async (client) => {
-  const series = [];
-  const categories = await client.getShowCategories();
-  
-  for (const category of categories) {
-    const shows = await client.getShows({ categoryId: category.category_id });
-    
-    shows.forEach(show => {
-      series.push({
-        name: show.name || 'Unknown',
-        streamUrl: show.url,
-        tvgId: null,
-        tvgName: show.name,
-        tvgLogo: show.cover || null,
-        groupTitle: category.category_name || 'Series',
-      });
-    });
-  }
-  
-  return series;
-};
-
-/**
- * Detect content type from track metadata
- * (Delegates to webCompatibleParserService for consistency)
- */
-const detectContentType = (track) => {
-  return webCompatibleParserService.detectContentType(track);
-};
 
 /**
  * Start parsing a playlist (runs in background silently)
