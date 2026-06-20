@@ -22,7 +22,11 @@ import { useAds } from '../context/AdContext';
 import { firestore } from '../config/firebase';
 import { getSeriesEpisodes } from '../services/seriesService';
 import { addToFavorites, isFavorited as checkFavorited, removeFavoriteByContentId } from '../services/favoritesService';
-import { getSeriesInfo } from '../services/xtreamAPI';
+// TODO: xtreamSeriesService deleted in Phase 2. Will be replaced by new @iptv/playlist pipeline in Phase 6
+const getSeriesInfo = async () => {
+  console.warn('[SeriesDetailScreen] getSeriesInfo stub - xtreamSeriesService was deleted. Will be reimplemented with new parser.');
+  return null;
+};
 import { enrichContentWithMetadata, getSeasonEpisodes } from '../services/metadataService';
 import WatchAdModal from '../components/WatchAdModal';
 

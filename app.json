@@ -2,7 +2,7 @@
   "expo": {
     "name": "OnviTV",
     "slug": "onvitv-app",
-    "version": "1.7.1",
+    "version": "2.2.1",
     "orientation": "sensor",
     "userInterfaceStyle": "dark",
     "icon": "./assets/AppIcon@3x.png",
@@ -20,7 +20,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.onvitv.com",
-      "buildNumber": "1.7.1",
+      "buildNumber": "1.8.1",
       "requireFullScreen": false,
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/AppIcon@3x.png",
@@ -31,11 +31,25 @@
           "remote-notification"
         ],
         "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": false,
-          "NSAllowsArbitraryLoadsInWebContent": false,
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsArbitraryLoadsInWebContent": true,
           "NSAllowsLocalNetworking": true,
           "NSRequiresCertificateTransparency": false,
           "NSExceptionDomains": {
+            "bestem3uliste.link": {
+              "NSIncludesSubdomains": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPSLoads": true,
+              "NSTemporaryExceptionRequiresForwardSecrecy": false,
+              "NSMinimumTLSVersion": "TLSv1.0"
+            },
+            "*": {
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPSLoads": true,
+              "NSTemporaryExceptionRequiresForwardSecrecy": false,
+              "NSIncludesSubdomains": true,
+              "NSMinimumTLSVersion": "TLSv1.0"
+            },
             "localhost": {
               "NSIncludesSubdomains": true,
               "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
@@ -148,6 +162,9 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-apple-authentication",
+      "@react-native-google-signin/google-signin",
+      "react-native-video",
       [
         "expo-screen-orientation",
         {
@@ -169,19 +186,18 @@
       ],
       "expo-font"
     ],
-    "notification": {
-      "color": "#7C3AED",
-      "androidMode": "default",
-      "androidCollapsedTitle": "OnviTV"
-    },
-    "owner": "org13",
+    "owner": "org15",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "extra": {
       "eas": {
-        "projectId": "1b5857ac-dbe8-4e3c-b2a8-c445d4ff2589"
+        "projectId": "405c01a8-22af-4812-bad5-c0ac434f2aa9"
       }
+    },
+    "react-native-google-mobile-ads": {
+      "android_app_id": "ca-app-pub-8363023387578083~2084137233",
+      "ios_app_id": "ca-app-pub-8363023387578083~4485394709"
     }
   },
   "react-native-google-mobile-ads": {

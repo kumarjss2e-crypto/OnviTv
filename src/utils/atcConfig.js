@@ -22,6 +22,7 @@ export const ATC_CONFIG = {
   streamingServers: [
     'localhost',
     '127.0.0.1',
+    'bestem3uliste.link',
     '110.39.27.47', // Movie streaming endpoint
     'tx-4kott.com',
     'cmshulk.com',

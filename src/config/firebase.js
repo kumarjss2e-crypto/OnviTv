@@ -16,27 +16,39 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-
-// Initialize Firebase Auth with platform-specific persistence
+let app;
 let auth;
-if (Platform.OS === 'web') {
-  // For web, use simple getAuth (it uses browserLocalPersistence by default)
-  auth = getAuth(app);
-} else {
-  // For native, use AsyncStorage persistence
-  try {
-    auth = initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage)
-    });
-  } catch (error) {
-    // Auth already initialized
-    auth = getAuth(app);
-  }
-}
+let firestore;
+let storage;
 
-const firestore = getFirestore(app);
-const storage = getStorage(app);
+try {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+  
+  // Initialize Firebase Auth with platform-specific persistence
+  if (Platform.OS === 'web') {
+    // For web, use simple getAuth (it uses browserLocalPersistence by default)
+    auth = getAuth(app);
+  } else {
+    // For native, use AsyncStorage persistence
+    try {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage)
+      });
+    } catch (error) {
+      // Auth already initialized
+      console.warn('[firebase] Auth already initialized, using getAuth');
+      auth = getAuth(app);
+    }
+  }
+
+  firestore = getFirestore(app);
+  storage = getStorage(app);
+  
+  console.log('[firebase] ✓ Initialized successfully');
+} catch (error) {
+  console.error('[firebase] ✗ Initialization failed:', error.message);
+  throw error; // Re-throw to be caught at app level
+}
 
 // Export Firebase services
 export { auth, firestore, storage, firestore as db };

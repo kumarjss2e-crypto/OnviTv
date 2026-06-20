@@ -24,6 +24,28 @@
 			"isBackground": true,
 			"problemMatcher": [],
 			"group": "test"
+		},
+		{
+			"label": "EAS Build iOS",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"add",
+				"eas.json"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Clean Rebuild OnviTV",
+			"type": "shell",
+			"command": "cd c:\\Projects\\OnviTV && echo Removing node_modules... && rmdir /s /q node_modules 2>nul && echo Reinstalling dependencies... && npm install && echo Done with npm install",
+			"group": "build"
+		},
+		{
+			"label": "Find JS Error",
+			"type": "shell",
+			"command": "powershell.exe -ExecutionPolicy Bypass -File c:\\Projects\\OnviTV\\clean-rebuild.ps1",
+			"group": "build"
 		}
 	]
 }

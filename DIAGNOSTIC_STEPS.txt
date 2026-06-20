@@ -1,0 +1,37 @@
+INSTRUCTIONS TO FIND THE JAVASCRIPT ERROR
+==========================================
+
+Copy and paste these commands ONE BY ONE into PowerShell/Terminal:
+
+1. First, go to your project directory:
+   cd c:\Projects\OnviTV
+
+2. Clean npm cache:
+   npm cache clean --force
+
+3. Remove node_modules (use correct syntax for your shell):
+   FOR POWERSHELL:
+   Remove-Item -Recurse -Force node_modules
+   
+   FOR CMD:
+   rmdir /s /q node_modules
+
+4. Reinstall dependencies:
+   npm install
+
+5. Run expo doctor to check for issues:
+   npx expo doctor
+
+6. **IMPORTANT - This will show the REAL error:**
+   npx expo export --platform ios
+
+   👁️ WATCH THE OUTPUT CAREFULLY - The error will appear in the terminal
+
+7. Once you see the error, COPY THE ENTIRE ERROR MESSAGE and share it.
+
+The error will tell you:
+- Which file has the problem
+- Which line number
+- What the actual error is
+
+That's the information we need to fix it!

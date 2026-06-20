@@ -1,0 +1,873 @@
+2026-06-20 10:06:53.130986+0200 OnviTV[33829:981152] [SceneConfiguration] Info.plist contained no UIScene configuration dictionary (looking for configuration named "(no name)")
+
+2026-06-20 10:06:53.152475+0200 OnviTV[33829:981152] [expo-updates] 🟡 {"code":"InitializationError","message":"The expo-updates system is explicitly disabled. To enable it, set the enabled setting to true.","timestamp":1781942813000,"level":"warn"}
+
+2026-06-20 10:06:53.203479+0200 OnviTV[33829:981152] [native] Running application main ({
+
+    initialProps =     {
+
+    };
+
+    rootTag = 1;
+
+})
+
+2026-06-20 10:06:53.222388+0200 OnviTV[33829:981200] [Client] Updating selectors failed with: Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process." UserInfo={NSDebugDescription=The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process.}
+
+2026-06-20 10:06:53.222472+0200 OnviTV[33829:981203] [Client] Synchronous remote object proxy returned error: Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process." UserInfo={NSDebugDescription=The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process.}
+
+2026-06-20 10:06:53.222624+0200 OnviTV[33829:981200] [Client] Updating selectors failed with: Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process." UserInfo={NSDebugDescription=The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process.}
+
+2026-06-20 10:06:53.222662+0200 OnviTV[33829:981203] [Client] Synchronous remote object proxy returned error: Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process." UserInfo={NSDebugDescription=The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process.}
+
+2026-06-20 10:06:53.222778+0200 OnviTV[33829:981203] [Client] Synchronous remote object proxy returned error: Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process." UserInfo={NSDebugDescription=The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process.}
+
+2026-06-20 10:06:53.222780+0200 OnviTV[33829:981200] [Client] Updating selectors failed with: Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process." UserInfo={NSDebugDescription=The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process.}
+
+2026-06-20 10:06:53.223350+0200 OnviTV[33829:981200] [Client] Updating selectors failed with: Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process." UserInfo={NSDebugDescription=The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process.}
+
+2026-06-20 10:06:53.223391+0200 OnviTV[33829:981200] [Client] Updating selectors after delegate addition failed with: Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process." UserInfo={NSDebugDescription=The connection to service named com.apple.commcenter.coretelephony.xpc was invalidated: failed at lookup with error 3 - No such process.}
+
+2026-06-20 10:06:53.226295+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'ExpoBlurView'
+
+2026-06-20 10:06:53.226526+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'ExponentConstants'
+
+2026-06-20 10:06:53.226576+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'EASClient'
+
+2026-06-20 10:06:53.227939+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'ExponentFileSystem'
+
+2026-06-20 10:06:53.228209+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'ExpoKeepAwake'
+
+2026-06-20 10:06:53.229405+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'ExpoLinearGradient'
+
+2026-06-20 10:06:53.230017+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'ExpoScreenOrientation'
+
+2026-06-20 10:06:53.230607+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'ExpoSQLite'
+
+2026-06-20 10:06:53.234322+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'ExpoSQLiteNext'
+
+2026-06-20 10:06:53.234583+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'ExpoUpdates'
+
+2026-06-20 10:06:53.234704+0200 OnviTV[33829:981152] [expo] 🟢 Registering module 'NativeModulesProxy'
+
+2026-06-20 10:06:53.268450+0200 OnviTV[33829:981152] [expo] 🟢 Posting 'appBecomesActive' event to registered modules
+
+2026-06-20 10:06:53.269961+0200 OnviTV[33829:981152] Unbalanced calls to begin/end appearance transitions for <ExpoScreenOrientation.ScreenOrientationViewController: 0x114708e40>.
+
+2026-06-20 10:06:53.278053+0200 OnviTV[33829:981243] [expo] 🟢 Creating JS object for module 'NativeModulesProxy'
+
+2026-06-20 10:06:53.278793+0200 OnviTV[33829:981243] [expo] 🟢 Creating JS object for module 'ExponentConstants'
+
+2026-06-20 10:06:53.279078+0200 OnviTV[33829:981243] [expo] 🟢 Creating JS object for module 'ExponentFileSystem'
+
+2026-06-20 10:06:53.286472+0200 OnviTV[33829:981243] [expo] 🟢 Creating JS object for module 'ExpoScreenOrientation'
+
+2026-06-20 10:06:53.291418+0200 OnviTV[33829:981243] [javascript] [firebase] ✓ Initialized successfully
+
+2026-06-20 10:06:53.291704+0200 OnviTV[33829:981243] [javascript] [authService] Configuring Google Sign-In...
+
+2026-06-20 10:06:53.293071+0200 OnviTV[33829:981243] [javascript] '[adService:INIT] Platform.OS =', 'ios'
+
+2026-06-20 10:06:53.293102+0200 OnviTV[33829:981243] [javascript] '[AdContext:INIT] Platform.OS =', 'ios'
+
+2026-06-20 10:06:53.295057+0200 OnviTV[33829:981243] [expo] 🟢 Creating JS object for module 'ExpoLinearGradient'
+
+2026-06-20 10:06:53.297255+0200 OnviTV[33829:981243] [expo] 🟢 Creating JS object for module 'ExpoSQLite'
+
+2026-06-20 10:06:53.298988+0200 OnviTV[33829:981243] [javascript] [authService] Google Sign-In configured successfully
+
+2026-06-20 10:06:53.299049+0200 OnviTV[33829:981243] [native] Unbalanced calls start/end for tag 19
+
+2026-06-20 10:06:53.299204+0200 OnviTV[33829:981243] [javascript] Running "main
+
+2026-06-20 10:06:53.300617+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] RENDER - user:', undefined, 'loading:', true, 'isPremium:', false
+
+2026-06-20 10:06:53.300677+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] PROVIDING VALUE:', { loading: true,
+
+  isPremium: false,
+
+  isFreeTier: true,
+
+  plan: undefined,
+
+  planId: undefined }
+
+2026-06-20 10:06:53.300704+0200 OnviTV[33829:981243] [javascript] [PremiumUpgradeModalProvider] ✅ PROVIDER INITIALIZED - NEW VERSION RUNNING
+
+2026-06-20 10:06:53.300742+0200 OnviTV[33829:981243] [javascript] '[AdProvider] Rendering, Platform.OS =', 'ios'
+
+2026-06-20 10:06:53.301826+0200 OnviTV[33829:981243] [javascript] '[SplashScreen] Rendered! authLoading:', true, 'user:', 'null'
+
+2026-06-20 10:06:53.304304+0200 OnviTV[33829:981243] [javascript] '[SplashScreen] useEffect: authLoading=', true, 'hasNavigated=', false
+
+2026-06-20 10:06:53.305465+0200 OnviTV[33829:981243] [javascript] '[AdProvider:useEffect] Started, Platform.OS =', 'ios'
+
+2026-06-20 10:06:53.305552+0200 OnviTV[33829:981243] [javascript] [AdProvider:initAds] Starting ads initialization
+
+2026-06-20 10:06:53.305605+0200 OnviTV[33829:981243] [javascript] '[initializeAds] Starting, Platform.OS =', 'ios'
+
+2026-06-20 10:06:53.305669+0200 OnviTV[33829:981243] [javascript] [initializeAds] Attempting to initialize Google Mobile Ads
+
+2026-06-20 10:06:53.305735+0200 OnviTV[33829:981243] [javascript] '[initializeAds] mobileAds type:', 'function'
+
+2026-06-20 10:06:53.305890+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] EFFECT START - user changed:', undefined
+
+2026-06-20 10:06:53.305975+0200 OnviTV[33829:981243] [javascript] [SubscriptionProvider] No user, clearing subscription state
+
+2026-06-20 10:06:53.306071+0200 OnviTV[33829:981243] [javascript] 'onAuthStateChanged function:', 'function'
+
+2026-06-20 10:06:53.306166+0200 OnviTV[33829:981243] [javascript] 'Auth listener setup successful, unsubscribe type:', 'function'
+
+2026-06-20 10:06:53.306296+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] RENDER - user:', undefined, 'loading:', false, 'isPremium:', false
+
+2026-06-20 10:06:53.306383+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] PROVIDING VALUE:', { loading: false,
+
+  isPremium: false,
+
+  isFreeTier: true,
+
+  plan: undefined,
+
+  planId: undefined }
+
+2026-06-20 10:06:53.306981+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] RENDER - user:', undefined, 'loading:', false, 'isPremium:', false
+
+2026-06-20 10:06:53.307043+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] PROVIDING VALUE:', { loading: false,
+
+  isPremium: false,
+
+  isFreeTier: true,
+
+  plan: undefined,
+
+  planId: undefined }
+
+2026-06-20 10:06:53.307268+0200 OnviTV[33829:981243] [javascript] '[SplashScreen] Rendered! authLoading:', false, 'user:', 'null'
+
+2026-06-20 10:06:53.308255+0200 OnviTV[33829:981243] [javascript] '[SplashScreen] useEffect: authLoading=', false, 'hasNavigated=', false
+
+2026-06-20 10:06:53.407832+0200 OnviTV[33829:981243] [javascript] [ATC Init] Initializing iOS App Transport Security
+
+2026-06-20 10:06:53.407984+0200 OnviTV[33829:981243] [javascript] '[ATC Init] Streaming servers with exceptions:', [ 'localhost',
+
+  '127.0.0.1',
+
+  'bestem3uliste.link',
+
+  '110.39.27.47',
+
+  'tx-4kott.com',
+
+  'cmshulk.com',
+
+  'picons.cmshulk.com' ]
+
+2026-06-20 10:06:53.408053+0200 OnviTV[33829:981243] [javascript] '[ATC Init] IPTV sources with exceptions:', [ 'm3u8-proxy.example.com' ]
+
+2026-06-20 10:06:53.408147+0200 OnviTV[33829:981243] [javascript] '[ATC Init] Trusted services (HTTPS only):', [ 'googleapis.com',
+
+  'gstatic.com',
+
+  'firebaseio.com',
+
+  'cdnjs.cloudflare.com',
+
+  'firebase.google.com' ]
+
+2026-06-20 10:06:53.518342+0200 OnviTV[33829:981152] [Sandbox] Could not enable Mach bootstrap, errno = 22.
+
+2026-06-20 10:06:53.518412+0200 OnviTV[33829:981152] [Sandbox] Could not enable Mach bootstrap, errno = 22.
+
+2026-06-20 10:06:53.564878+0200 OnviTV[33829:981152] [native] (ADVICE) View #23 of type RCTView has a shadow set but cannot calculate shadow efficiently. Consider setting a background color to fix this, or apply the shadow to a more specific component.
+
+2026-06-20 10:06:53.813184+0200 OnviTV[33829:981152] [Sandbox] Could not enable Mach bootstrap, errno = 22.
+
+2026-06-20 10:06:53.813351+0200 OnviTV[33829:981152] [Sandbox] Could not enable Mach bootstrap, errno = 22.
+
+2026-06-20 10:06:54.453418+0200 OnviTV[33829:981152] [Security] This method should not be called on the main thread as it may lead to UI unresponsiveness.
+
+2026-06-20 10:06:54.453628+0200 OnviTV[33829:981152] [Security] This method should not be called on the main thread as it may lead to UI unresponsiveness.
+
+2026-06-20 10:06:54.563156+0200 OnviTV[33829:981152] [plugin] AddInstanceForFactory: No factory registered for id <CFUUID 0x60000249b6e0> F8BB1C28-BAE8-11D6-9C31-00039315CD46
+
+2026-06-20 10:06:54.690714+0200 OnviTV[33829:981243] [javascript] [initializeAds] Google Mobile Ads initialized successfully
+
+2026-06-20 10:06:54.690787+0200 OnviTV[33829:981243] [javascript] '[AdProvider:initAds] initializeAds returned:', true
+
+2026-06-20 10:06:54.690873+0200 OnviTV[33829:981243] [javascript] '[AdProvider] Rendering, Platform.OS =', 'ios'
+
+2026-06-20 10:06:54.690946+0200 OnviTV[33829:981243] [javascript] [AdContext] Creating initial rewarded ad
+
+2026-06-20 10:06:54.691054+0200 OnviTV[33829:981243] [javascript] '[AdContext] Loading rewarded ad, attempt:', 1
+
+2026-06-20 10:06:54.691165+0200 OnviTV[33829:981243] [javascript] [AdsService] Rewarded ad loaded successfully
+
+2026-06-20 10:06:54.691188+0200 OnviTV[33829:981243] [javascript] [AdContext] Initial rewarded ad loaded successfully
+
+2026-06-20 10:06:54.694036+0200 OnviTV[33829:981200] <Google> <Google:HTML> 50 required SKAdNetwork identifier(s) missing from Info.plist. See [Enable SKAdNetwork to track conversions] (https://goo.gle/enable-skadnetwork).
+
+2026-06-20 10:06:55.310770+0200 OnviTV[33829:981243] [javascript] '[SplashScreen] Rendered! authLoading:', false, 'user:', 'null'
+
+2026-06-20 10:06:56.303519+0200 OnviTV[33829:981152] [native] (ADVICE) View #213 of type RCTView has a shadow set but cannot calculate shadow efficiently. Consider setting a background color to fix this, or apply the shadow to a more specific component.
+
+2026-06-20 10:06:56.309608+0200 OnviTV[33829:981152] [native] (ADVICE) View #149 of type RCTView has a shadow set but cannot calculate shadow efficiently. Consider setting a background color to fix this, or apply the shadow to a more specific component.
+
+2026-06-20 10:07:00.696492+0200 OnviTV[33829:981152] [SceneConfiguration] Info.plist contained no UIScene configuration dictionary (looking for configuration named "(no name)")
+
+2026-06-20 10:07:15.354493+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] RENDER - user:', 'ornh5Q7hZLNQDAuwlF4GACFnOlj1', 'loading:', false, 'isPremium:', false
+
+2026-06-20 10:07:15.354742+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] PROVIDING VALUE:', { loading: false,
+
+  isPremium: false,
+
+  isFreeTier: true,
+
+  plan: undefined,
+
+  planId: undefined }
+
+2026-06-20 10:07:15.355214+0200 OnviTV[33829:981243] [javascript] '[SplashScreen] Rendered! authLoading:', false, 'user:', 'exists'
+
+2026-06-20 10:07:15.359980+0200 OnviTV[33829:981243] [javascript] '[SplashScreen] useEffect: authLoading=', false, 'hasNavigated=', false
+
+2026-06-20 10:07:15.360097+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] EFFECT START - user changed:', 'ornh5Q7hZLNQDAuwlF4GACFnOlj1'
+
+2026-06-20 10:07:15.360169+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] User exists, fetching subscription for:', 'ornh5Q7hZLNQDAuwlF4GACFnOlj1'
+
+2026-06-20 10:07:15.361083+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] RENDER - user:', 'ornh5Q7hZLNQDAuwlF4GACFnOlj1', 'loading:', true, 'isPremium:', false
+
+2026-06-20 10:07:15.361206+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] PROVIDING VALUE:', { loading: true,
+
+  isPremium: false,
+
+  isFreeTier: true,
+
+  plan: undefined,
+
+  planId: undefined }
+
+2026-06-20 10:07:16.287292+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] Subscription fetch result:', { userId: 'ornh5Q7hZLNQDAuwlF4GACFnOlj1',
+
+  success: true,
+
+  hasData: true,
+
+  planId: 'free',
+
+  plan: 'free' }
+
+2026-06-20 10:07:16.287532+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] Setting subscription state:', { id: 'ornh5Q7hZLNQDAuwlF4GACFnOlj1',
+
+  planId: 'free',
+
+  plan: 'free',
+
+  status: 'active',
+
+  createdAt: '2026-06-20T08:07:16.287Z' }
+
+2026-06-20 10:07:16.287784+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] RENDER - user:', 'ornh5Q7hZLNQDAuwlF4GACFnOlj1', 'loading:', true, 'isPremium:', false
+
+2026-06-20 10:07:16.287956+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] PROVIDING VALUE:', { loading: true,
+
+  isPremium: false,
+
+  isFreeTier: true,
+
+  plan: 'free',
+
+  planId: 'free' }
+
+2026-06-20 10:07:16.415932+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] RENDER - user:', 'ornh5Q7hZLNQDAuwlF4GACFnOlj1', 'loading:', true, 'isPremium:', false
+
+2026-06-20 10:07:16.416134+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] PROVIDING VALUE:', { loading: true,
+
+  isPremium: false,
+
+  isFreeTier: true,
+
+  plan: 'free',
+
+  planId: 'free' }
+
+2026-06-20 10:07:16.416521+0200 OnviTV[33829:981243] [javascript] '[SplashScreen] Rendered! authLoading:', false, 'user:', 'exists'
+
+2026-06-20 10:07:16.613609+0200 OnviTV[33829:981243] [javascript] Screen focused, refreshing content...
+
+2026-06-20 10:07:16.614534+0200 OnviTV[33829:981243] [javascript] [MainTabs] Component mounted/rendered
+
+2026-06-20 10:07:16.614608+0200 OnviTV[33829:981243] [javascript] [MainTabs] Checking if should show modal
+
+2026-06-20 10:07:16.614672+0200 OnviTV[33829:981243] [javascript] [MainTabs] ❌ Subscription still loading
+
+2026-06-20 10:07:16.659751+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] isPremiumUser check result:', { userId: 'ornh5Q7hZLNQDAuwlF4GACFnOlj1',
+
+  isPremium: false,
+
+  planId: 'free' }
+
+2026-06-20 10:07:16.659818+0200 OnviTV[33829:981243] [javascript] [SubscriptionProvider] Setting loading = false
+
+2026-06-20 10:07:16.659918+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] RENDER - user:', 'ornh5Q7hZLNQDAuwlF4GACFnOlj1', 'loading:', false, 'isPremium:', false
+
+2026-06-20 10:07:16.660009+0200 OnviTV[33829:981243] [javascript] '[SubscriptionProvider] PROVIDING VALUE:', { loading: false,
+
+  isPremium: false,
+
+  isFreeTier: true,
+
+  plan: 'free',
+
+  planId: 'free' }
+
+2026-06-20 10:07:16.662374+0200 OnviTV[33829:981243] [javascript] [MainTabs] Checking if should show modal
+
+2026-06-20 10:07:16.662417+0200 OnviTV[33829:981243] [javascript] [MainTabs] ✅ Showing premium modal
+
+2026-06-20 10:07:16.662443+0200 OnviTV[33829:981243] [javascript] [PremiumUpgradeModalProvider] showModal called
+
+2026-06-20 10:07:16.662464+0200 OnviTV[33829:981243] [javascript] [PremiumUpgradeModalProvider] Showing modal for first time
+
+2026-06-20 10:07:16.662523+0200 OnviTV[33829:981243] [javascript] [PremiumUpgradeModalProvider] ✅ PROVIDER INITIALIZED - NEW VERSION RUNNING
+
+2026-06-20 10:07:16.901402+0200 OnviTV[33829:981243] [javascript] '[itemStorageService] Initializing storage for platform:', 'ios'
+
+2026-06-20 10:07:16.901476+0200 OnviTV[33829:981243] [javascript] [itemStorageService] Testing SQLite...
+
+2026-06-20 10:07:16.901525+0200 OnviTV[33829:981243] [javascript] [sqliteStorage] Opening database...
+
+2026-06-20 10:07:16.901674+0200 OnviTV[33829:981243] [javascript] [sqliteStorage] Creating tables...
+
+2026-06-20 10:07:16.903101+0200 OnviTV[33829:981243] [javascript] '[itemStorageService] Initializing storage for platform:', 'ios'
+
+2026-06-20 10:07:16.903145+0200 OnviTV[33829:981243] [javascript] [itemStorageService] Testing SQLite...
+
+2026-06-20 10:07:16.904606+0200 OnviTV[33829:981243] [javascript] [sqliteStorage] Database initialized successfully!
+
+2026-06-20 10:07:16.905035+0200 OnviTV[33829:981243] [javascript] '[sqliteStorage] getPlaylistItems:', 0, 'items'
+
+2026-06-20 10:07:16.905102+0200 OnviTV[33829:981243] [javascript] [itemStorageService] Using SQLite
+
+2026-06-20 10:07:16.905419+0200 OnviTV[33829:981243] [javascript] '[sqliteStorage] getPlaylistItems:', 0, 'items'
+
+2026-06-20 10:07:16.905480+0200 OnviTV[33829:981243] [javascript] [itemStorageService] Using SQLite
+
+2026-06-20 10:07:16.905778+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 channels
+
+2026-06-20 10:07:16.906022+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 channels
+
+2026-06-20 10:07:16.906385+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 channels
+
+2026-06-20 10:07:16.906634+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 channels
+
+2026-06-20 10:07:16.906923+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 channels
+
+2026-06-20 10:07:16.907216+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 channels
+
+2026-06-20 10:07:16.907487+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 channels
+
+2026-06-20 10:07:16.907890+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 channels
+
+2026-06-20 10:07:16.908111+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 channels
+
+2026-06-20 10:07:16.908316+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 channels
+
+2026-06-20 10:07:16.908593+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 channels
+
+2026-06-20 10:07:16.908870+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 channels
+
+2026-06-20 10:07:16.909084+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 channels
+
+2026-06-20 10:07:16.909282+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 channels
+
+2026-06-20 10:07:16.909478+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 channels
+
+2026-06-20 10:07:16.909738+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 channels
+
+2026-06-20 10:07:16.909950+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 channels
+
+2026-06-20 10:07:16.909972+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total channels across all playlists: 0
+
+2026-06-20 10:07:16.913300+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 channels
+
+2026-06-20 10:07:16.913331+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total channels across all playlists: 0
+
+2026-06-20 10:07:17.042164+0200 OnviTV[33829:981152] Unbalanced calls to begin/end appearance transitions for <RNSScreen: 0x119f20720>.
+
+2026-06-20 10:07:17.379714+0200 OnviTV[33829:981243] [javascript] Screen focused, refreshing content...
+
+2026-06-20 10:07:17.380062+0200 OnviTV[33829:981243] [javascript] [MainTabs] Component mounted/rendered
+
+2026-06-20 10:07:17.380095+0200 OnviTV[33829:981243] [javascript] [MainTabs] Checking if should show modal
+
+2026-06-20 10:07:17.380122+0200 OnviTV[33829:981243] [javascript] [MainTabs] ✅ Showing premium modal
+
+2026-06-20 10:07:17.380140+0200 OnviTV[33829:981243] [javascript] [PremiumUpgradeModalProvider] showModal called
+
+2026-06-20 10:07:17.380163+0200 OnviTV[33829:981243] [javascript] [PremiumUpgradeModalProvider] Already shown once, skipping
+
+2026-06-20 10:07:17.407284+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 movies
+
+2026-06-20 10:07:17.407628+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 movies
+
+2026-06-20 10:07:17.407995+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 channels
+
+2026-06-20 10:07:17.408576+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 channels
+
+2026-06-20 10:07:17.409016+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 movies
+
+2026-06-20 10:07:17.409447+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 movies
+
+2026-06-20 10:07:17.409841+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 channels
+
+2026-06-20 10:07:17.410213+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 channels
+
+2026-06-20 10:07:17.410570+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 movies
+
+2026-06-20 10:07:17.410920+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 movies
+
+2026-06-20 10:07:17.411281+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 channels
+
+2026-06-20 10:07:17.411629+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 channels
+
+2026-06-20 10:07:17.411976+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 movies
+
+2026-06-20 10:07:17.412204+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 movies
+
+2026-06-20 10:07:17.412408+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 channels
+
+2026-06-20 10:07:17.412602+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 channels
+
+2026-06-20 10:07:17.412792+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 movies
+
+2026-06-20 10:07:17.412987+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 movies
+
+2026-06-20 10:07:17.413177+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 channels
+
+2026-06-20 10:07:17.413371+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 channels
+
+2026-06-20 10:07:17.413571+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 movies
+
+2026-06-20 10:07:17.413769+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 movies
+
+2026-06-20 10:07:17.413958+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 channels
+
+2026-06-20 10:07:17.414156+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 channels
+
+2026-06-20 10:07:17.414351+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 movies
+
+2026-06-20 10:07:17.414541+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 movies
+
+2026-06-20 10:07:17.414736+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 channels
+
+2026-06-20 10:07:17.414923+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 channels
+
+2026-06-20 10:07:17.415111+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 movies
+
+2026-06-20 10:07:17.415302+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 movies
+
+2026-06-20 10:07:17.415493+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 channels
+
+2026-06-20 10:07:17.415686+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 channels
+
+2026-06-20 10:07:17.415877+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 movies
+
+2026-06-20 10:07:17.415899+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total movies across all playlists: 0
+
+2026-06-20 10:07:17.416403+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 movies
+
+2026-06-20 10:07:17.416429+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total movies across all playlists: 0
+
+2026-06-20 10:07:17.416743+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 channels
+
+2026-06-20 10:07:17.416768+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total channels across all playlists: 0
+
+2026-06-20 10:07:17.417072+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 channels
+
+2026-06-20 10:07:17.417094+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total channels across all playlists: 0
+
+2026-06-20 10:07:17.777410+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 series
+
+2026-06-20 10:07:17.777673+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 series
+
+2026-06-20 10:07:17.777919+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 movies
+
+2026-06-20 10:07:17.778141+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 movies
+
+2026-06-20 10:07:17.778336+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 series
+
+2026-06-20 10:07:17.778562+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 series
+
+2026-06-20 10:07:17.778746+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 movies
+
+2026-06-20 10:07:17.778947+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 movies
+
+2026-06-20 10:07:17.779184+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 series
+
+2026-06-20 10:07:17.779372+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 series
+
+2026-06-20 10:07:17.779576+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 movies
+
+2026-06-20 10:07:17.779776+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 movies
+
+2026-06-20 10:07:17.780005+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 series
+
+2026-06-20 10:07:17.780384+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 series
+
+2026-06-20 10:07:17.780589+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 movies
+
+2026-06-20 10:07:17.780793+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 movies
+
+2026-06-20 10:07:17.780989+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 series
+
+2026-06-20 10:07:17.781191+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 series
+
+2026-06-20 10:07:17.781393+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 movies
+
+2026-06-20 10:07:17.781592+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 movies
+
+2026-06-20 10:07:17.781792+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 series
+
+2026-06-20 10:07:17.782487+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 series
+
+2026-06-20 10:07:17.782691+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 movies
+
+2026-06-20 10:07:17.782892+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 movies
+
+2026-06-20 10:07:17.783088+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 series
+
+2026-06-20 10:07:17.783290+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 series
+
+2026-06-20 10:07:17.783481+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 movies
+
+2026-06-20 10:07:17.783669+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 movies
+
+2026-06-20 10:07:17.783916+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 series
+
+2026-06-20 10:07:17.784634+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 series
+
+2026-06-20 10:07:17.784984+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 movies
+
+2026-06-20 10:07:17.785328+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 movies
+
+2026-06-20 10:07:17.785666+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 series
+
+2026-06-20 10:07:17.785709+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total series across all playlists: 0
+
+2026-06-20 10:07:17.786038+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 series
+
+2026-06-20 10:07:17.786083+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total series across all playlists: 0
+
+2026-06-20 10:07:17.786509+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 movies
+
+2026-06-20 10:07:17.786552+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total movies across all playlists: 0
+
+2026-06-20 10:07:17.787606+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 movies
+
+2026-06-20 10:07:17.787652+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total movies across all playlists: 0
+
+2026-06-20 10:07:18.155107+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 series
+
+2026-06-20 10:07:18.155582+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 series
+
+2026-06-20 10:07:18.156046+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 series
+
+2026-06-20 10:07:18.156451+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 series
+
+2026-06-20 10:07:18.156824+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 series
+
+2026-06-20 10:07:18.157189+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 series
+
+2026-06-20 10:07:18.157552+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 series
+
+2026-06-20 10:07:18.157898+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 series
+
+2026-06-20 10:07:18.158251+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 series
+
+2026-06-20 10:07:18.158606+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 series
+
+2026-06-20 10:07:18.158952+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 series
+
+2026-06-20 10:07:18.159309+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 series
+
+2026-06-20 10:07:18.159666+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 series
+
+2026-06-20 10:07:18.160007+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 series
+
+2026-06-20 10:07:18.160421+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 series
+
+2026-06-20 10:07:18.160762+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 series
+
+2026-06-20 10:07:18.161101+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 series
+
+2026-06-20 10:07:18.161142+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total series across all playlists: 0
+
+2026-06-20 10:07:18.161532+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 series
+
+2026-06-20 10:07:18.161576+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total series across all playlists: 0
+
+2026-06-20 10:07:18.661005+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 channels
+
+2026-06-20 10:07:18.661725+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 channels
+
+2026-06-20 10:07:18.662369+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 channels
+
+2026-06-20 10:07:18.663016+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 channels
+
+2026-06-20 10:07:18.663598+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 channels
+
+2026-06-20 10:07:18.664221+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 channels
+
+2026-06-20 10:07:18.664711+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 channels
+
+2026-06-20 10:07:18.665167+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 channels
+
+2026-06-20 10:07:18.665646+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 channels
+
+2026-06-20 10:07:18.665721+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total channels across all playlists: 0
+
+2026-06-20 10:07:18.666670+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 movies
+
+2026-06-20 10:07:18.666902+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 movies
+
+2026-06-20 10:07:18.667133+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 movies
+
+2026-06-20 10:07:18.667337+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 movies
+
+2026-06-20 10:07:18.667541+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 movies
+
+2026-06-20 10:07:18.667744+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 movies
+
+2026-06-20 10:07:18.667940+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 movies
+
+2026-06-20 10:07:18.668139+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 movies
+
+2026-06-20 10:07:18.668339+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 movies
+
+2026-06-20 10:07:18.668364+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total movies across all playlists: 0
+
+2026-06-20 10:07:18.668776+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 series
+
+2026-06-20 10:07:18.668973+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 series
+
+2026-06-20 10:07:18.669160+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 series
+
+2026-06-20 10:07:18.669352+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 series
+
+2026-06-20 10:07:18.669545+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 series
+
+2026-06-20 10:07:18.669731+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 series
+
+2026-06-20 10:07:18.669917+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 series
+
+2026-06-20 10:07:18.670103+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 series
+
+2026-06-20 10:07:18.670294+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 series
+
+2026-06-20 10:07:18.670318+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total series across all playlists: 0
+
+2026-06-20 10:07:21.063441+0200 OnviTV[33829:981243] [javascript] [PremiumUpgradeModalProvider] handleClose triggered
+
+2026-06-20 10:07:21.063542+0200 OnviTV[33829:981243] [javascript] [PremiumUpgradeModalProvider] Closing modal
+
+2026-06-20 10:07:21.063805+0200 OnviTV[33829:981243] [javascript] [PremiumUpgradeModalProvider] ✅ PROVIDER INITIALIZED - NEW VERSION RUNNING
+
+2026-06-20 10:08:28.893817+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 0QSWfWd8sOELeAQvbRCs: Found 0 channels
+
+2026-06-20 10:08:28.894513+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 channels
+
+2026-06-20 10:08:28.895067+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 channels
+
+2026-06-20 10:08:28.895622+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 channels
+
+2026-06-20 10:08:28.896128+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 channels
+
+2026-06-20 10:08:28.896554+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 channels
+
+2026-06-20 10:08:28.896949+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 channels
+
+2026-06-20 10:08:28.897366+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 channels
+
+2026-06-20 10:08:28.897953+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 channels
+
+2026-06-20 10:08:28.898678+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 channels
+
+2026-06-20 10:08:28.898769+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total channels across all playlists: 0
+
+2026-06-20 10:08:28.900060+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 0QSWfWd8sOELeAQvbRCs: Found 0 movies
+
+2026-06-20 10:08:28.900805+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 movies
+
+2026-06-20 10:08:28.901475+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 movies
+
+2026-06-20 10:08:28.902032+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 movies
+
+2026-06-20 10:08:28.902674+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 movies
+
+2026-06-20 10:08:28.903169+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 movies
+
+2026-06-20 10:08:28.903659+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 movies
+
+2026-06-20 10:08:28.904084+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 movies
+
+2026-06-20 10:08:28.904586+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 movies
+
+2026-06-20 10:08:28.905046+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 movies
+
+2026-06-20 10:08:28.905095+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total movies across all playlists: 0
+
+2026-06-20 10:08:28.906312+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 0QSWfWd8sOELeAQvbRCs: Found 0 series
+
+2026-06-20 10:08:28.906907+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 series
+
+2026-06-20 10:08:28.907454+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 series
+
+2026-06-20 10:08:28.907878+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 series
+
+2026-06-20 10:08:28.908368+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 series
+
+2026-06-20 10:08:28.908799+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 series
+
+2026-06-20 10:08:28.909212+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 series
+
+2026-06-20 10:08:28.909597+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 series
+
+2026-06-20 10:08:28.910007+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 series
+
+2026-06-20 10:08:28.910343+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 series
+
+2026-06-20 10:08:28.910384+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total series across all playlists: 0
+
+2026-06-20 10:08:30.044480+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 0QSWfWd8sOELeAQvbRCs: Found 0 channels
+
+2026-06-20 10:08:30.045513+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 channels
+
+2026-06-20 10:08:30.046246+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 channels
+
+2026-06-20 10:08:30.046793+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 channels
+
+2026-06-20 10:08:30.047377+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 channels
+
+2026-06-20 10:08:30.048022+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 channels
+
+2026-06-20 10:08:30.048655+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 channels
+
+2026-06-20 10:08:30.049236+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 channels
+
+2026-06-20 10:08:30.049804+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 channels
+
+2026-06-20 10:08:30.050561+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 channels
+
+2026-06-20 10:08:30.050651+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total channels across all playlists: 0
+
+2026-06-20 10:08:30.051960+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 0QSWfWd8sOELeAQvbRCs: Found 0 movies
+
+2026-06-20 10:08:30.052684+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 movies
+
+2026-06-20 10:08:30.053467+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 movies
+
+2026-06-20 10:08:30.053995+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 movies
+
+2026-06-20 10:08:30.054458+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 movies
+
+2026-06-20 10:08:30.055128+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 movies
+
+2026-06-20 10:08:30.055724+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 movies
+
+2026-06-20 10:08:30.056280+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 movies
+
+2026-06-20 10:08:30.056812+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 movies
+
+2026-06-20 10:08:30.057310+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 movies
+
+2026-06-20 10:08:30.057372+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total movies across all playlists: 0
+
+2026-06-20 10:08:30.058384+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 0QSWfWd8sOELeAQvbRCs: Found 0 series
+
+2026-06-20 10:08:30.058781+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 series
+
+2026-06-20 10:08:30.059225+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 series
+
+2026-06-20 10:08:30.059766+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 series
+
+2026-06-20 10:08:30.060249+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 series
+
+2026-06-20 10:08:30.060695+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 series
+
+2026-06-20 10:08:30.061151+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 series
+
+2026-06-20 10:08:30.061609+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 series
+
+2026-06-20 10:08:30.062056+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 series
+
+2026-06-20 10:08:30.062490+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 series
+
+2026-06-20 10:08:30.062553+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total series across all playlists: 0
+
+2026-06-20 10:08:32.258422+0200 OnviTV[33829:981243] [javascript] Screen focused, refreshing content...
+
+2026-06-20 10:08:32.260637+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 0QSWfWd8sOELeAQvbRCs: Found 0 channels
+
+2026-06-20 10:08:32.261245+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 channels
+
+2026-06-20 10:08:32.261687+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 channels
+
+2026-06-20 10:08:32.262116+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 channels
+
+2026-06-20 10:08:32.262453+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 channels
+
+2026-06-20 10:08:32.262768+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 channels
+
+2026-06-20 10:08:32.263082+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 channels
+
+2026-06-20 10:08:32.263387+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 channels
+
+2026-06-20 10:08:32.263690+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 channels
+
+2026-06-20 10:08:32.263989+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 channels
+
+2026-06-20 10:08:32.264025+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total channels across all playlists: 0
+
+2026-06-20 10:08:32.264928+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 0QSWfWd8sOELeAQvbRCs: Found 0 movies
+
+2026-06-20 10:08:32.265292+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 movies
+
+2026-06-20 10:08:32.265659+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 movies
+
+2026-06-20 10:08:32.266027+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 movies
+
+2026-06-20 10:08:32.266370+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 movies
+
+2026-06-20 10:08:32.266743+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 movies
+
+2026-06-20 10:08:32.267093+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 movies
+
+2026-06-20 10:08:32.267509+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 movies
+
+2026-06-20 10:08:32.267818+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 movies
+
+2026-06-20 10:08:32.268122+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 movies
+
+2026-06-20 10:08:32.268162+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total movies across all playlists: 0
+
+2026-06-20 10:08:32.268933+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 0QSWfWd8sOELeAQvbRCs: Found 0 series
+
+2026-06-20 10:08:32.269326+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 3ePk81QR0MPNzOkqDdGe: Found 0 series
+
+2026-06-20 10:08:32.269666+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist 54XcgNJJAPLjYEW1Zh3P: Found 0 series
+
+2026-06-20 10:08:32.270051+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist BY7rqRYOQcnXcDvqEv6h: Found 0 series
+
+2026-06-20 10:08:32.270432+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist KoUZsNgNGhclOzxvTvM5: Found 0 series
+
+2026-06-20 10:08:32.270811+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist LJiE7YK9glv7IdKkzEjx: Found 0 series
+
+2026-06-20 10:08:32.271188+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist Ss7swvGVtXHu8jYan4jA: Found 0 series
+
+2026-06-20 10:08:32.271499+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist URsBcBKLZvwV9SrUyJne: Found 0 series
+
+2026-06-20 10:08:32.271845+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist VJd2lHf4sKz4W4NzFC2f: Found 0 series
+
+2026-06-20 10:08:32.272174+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Playlist cHIuUX45GnzV6FCKSnPc: Found 0 series
+
+2026-06-20 10:08:32.272222+0200 OnviTV[33829:981243] [javascript] [CONTENT_LOAD] Total series across all playlists: 0

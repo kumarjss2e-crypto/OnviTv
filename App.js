@@ -15,16 +15,8 @@ import { ParseLoadingProvider } from './src/context/ParseLoadingContext';
 import { AlertProvider } from './src/components/CustomAlert';
 import { PremiumUpgradeModalProvider } from './src/context/PremiumUpgradeModalContext';
 import { colors } from './src/theme/colors';
-import { backgroundParsingService } from './src/services/backgroundParsingService';
 import { initializeATC } from './src/utils/atsInit';
-
-// Only import Google Mobile Ads on native platforms
-let mobileAds;
-if (Platform.OS !== 'web') {
-  mobileAds = require('react-native-google-mobile-ads').default;
-} else {
-  // Platform is web, skipping Google Mobile Ads
-}
+import mobileAds from './src/utils/ads';
 
 // Custom dark theme to prevent white flash
 const CustomDarkTheme = {
@@ -68,34 +60,73 @@ import PINEntryScreen from './src/screens/PINEntryScreen';
 import PINSetupScreen from './src/screens/PINSetupScreen';
 import HelpSupportScreen from './src/screens/HelpSupportScreen';
 import AboutScreen from './src/screens/AboutScreen';
+import DebugScreen from './src/screens/DebugScreen';
 
 const Stack = createNativeStackNavigator();
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('[ErrorBoundary] Caught error:', error);
+    console.error('[ErrorBoundary] Error info:', errorInfo);
+    this.setState({
+      error,
+      errorInfo,
+    });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <DebugScreen error={this.state.error} errorInfo={this.state.errorInfo} />;
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   useEffect(() => {
-    // Initialize iOS App Transport Security
-    initializeATC();
-
-    // Initialize ads on native platforms
-    if (Platform.OS !== 'web') {
+    // Run all initialization in background, don't block rendering
+    const runInitialization = async () => {
       try {
-        if (mobileAds) {
-          mobileAds().initialize();
+        // Initialize iOS App Transport Security
+        try {
+          initializeATC();
+        } catch (e) {
+          console.warn('[App] ATC initialization failed:', e.message);
         }
-      } catch (e) {
-        console.error('[App] Error initializing ads:', e.message);
-      }
-    }
 
-    // Resume incomplete parsing jobs on app startup
-    console.log('[App] Resuming incomplete parsing jobs...');
-    backgroundParsingService.resumeIncompleteParses()
-      .then(results => {
-        console.log('[App] Resume complete. Started parsing for', results.length, 'playlists');
-      })
-      .catch(error => {
-        console.error('[App] Error resuming incomplete parses:', error);
-      });
+        // Initialize ads on native platforms
+        if (Platform.OS !== 'web') {
+          try {
+            if (mobileAds) {
+              await mobileAds().initialize();
+            }
+          } catch (e) {
+            console.warn('[App] Ads initialization failed:', e.message);
+          }
+        }
+
+        // Note: Parsing is now triggered from AddPlaylistScreen on-demand
+        // (previously was attempted at app startup with backgroundParsingService)
+      } catch (error) {
+        console.error('[App] Fatal error during initialization:', error);
+      }
+    };
+
+    // Run initialization but don't block - use setTimeout to ensure render happens first
+    const timeout = setTimeout(() => {
+      runInitialization().catch(error => console.error('[App] Unhandled initialization error:', error));
+    }, 100);
+
+    return () => clearTimeout(timeout);
 
     // Enable scrolling on web platform
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -141,7 +172,8 @@ export default function App() {
   }, []);
   
   return (
-    <SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
       <AuthProvider>
         <SubscriptionProvider>
           <PremiumUpgradeModalProvider>
@@ -327,7 +359,8 @@ export default function App() {
           </PremiumUpgradeModalProvider>
         </SubscriptionProvider>
       </AuthProvider>
-    </SafeAreaProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -256,7 +256,7 @@ export const deletePlaylist = async (playlistId, onProgress = null) => {
 // Update playlist stats
 export const updatePlaylistStats = async (playlistId, stats) => {
   try {
-    console.log('updatePlaylistStats called with:', { playlistId, stats });
+    console.log('[playlistService] updatePlaylistStats called with:', { playlistId, stats });
     const docRef = doc(firestore, 'playlists', playlistId);
     
     const updateData = {
@@ -264,13 +264,13 @@ export const updatePlaylistStats = async (playlistId, stats) => {
       updatedAt: serverTimestamp(),
     };
     
-    console.log('Updating Firestore document with:', updateData);
+    console.log('[playlistService] Updating Firestore document with:', updateData);
     await updateDoc(docRef, updateData);
     
-    console.log('Stats updated successfully in Firestore');
+    console.log('[playlistService] Stats updated successfully in Firestore');
     return { success: true };
   } catch (error) {
-    console.error('Error updating playlist stats:', error);
+    console.error('[playlistService] Error updating playlist stats:', error);
     return { success: false, error: error.message };
   }
 };
